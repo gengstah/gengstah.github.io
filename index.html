@@ -1,0 +1,83 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="x-ua-compatible" content="IE=edge,chrome=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0" />
+    <meta name="theme-color" content="#000000" />
+    <link rel="shortcut icon" href="img/favicon.png" />
+    
+    <link rel="stylesheet" href="https://unpkg.com/jquery.terminal/css/jquery.terminal.min.css"/>
+    <link rel="stylesheet" href="css/main.css" />
+
+    <script src="https://kit.fontawesome.com/fb5ada7250.js" crossorigin="anonymous"></script>
+
+    <title>Gerard DE LAS ARMAS</title>
+</head>
+<body>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://unpkg.com/jquery.terminal/js/jquery.terminal.min.js"></script>
+    <script>
+        $(function() {
+            $('body').terminal({
+                id: function() {
+                    this.echo("uid=0(gengstah) gid=0(gengstah) groups=0(gengstah)");
+                },
+                whoami: function() {
+                    this.echo("Hi! I am Gerard DE LAS ARMAS");
+                },
+                avatar: function() {
+                    this.echo(
+                        $(`
+                            <p>
+                                <img src="img/avatar.png" />
+                            </p>
+                        `)
+                    );
+                },
+                socs: function() {
+                    this.echo(
+                        $(`
+                            <p>
+                                <a href="https://www.facebook.com/gengstah" target="_blank"><span style="color: #0574e7;"><i class="fab fa-facebook fa-lg"></i></span></a>
+                                <a href="https://twitter.com/_gengstah" target="_blank"><span style="color: #1d9bee;"><i class="fab fa-twitter fa-lg"></i></span></a>
+                                <a href="https://www.youtube.com/channel/UCivqkd1sWMP7mDN43XRM0Fw" target="_blank"><span style="color: #ff0000;"><i class="fab fa-youtube fa-lg"></i></span></a>
+                                <a href="https://gengstah.medium.com/" target="_blank"><span style="color: #00d864;"><i class="fab fa-medium fa-lg"></i></span></a>
+                                <a href="https://github.com/gengstah" target="_blank"><span style="color: #e54c31;"><i class="fab fa-github fa-lg"></i></span></a>
+                            </p>
+                        `)
+                    );
+                },
+                about: function() {
+                    this.echo(
+                        $(`
+                            <p>
+                                commands:<br />
+                                &nbsp;&nbsp;id&#09;&#09;&#09;&#09;shows my handle<br />
+                                &nbsp;&nbsp;whoami&#09;&#09;&#09;&#09;shows my name<br />
+                                &nbsp;&nbsp;socs&#09;&#09;&#09;&#09;shows my social profiles<br />
+                            </p>
+                        `)
+                    );
+                },
+                help: function() {
+                    this.echo(
+                        $(`
+                            <p>
+                                commands:<br />
+                                &nbsp;&nbsp;id&#09;&#09;&#09;&#09;shows my handle<br />
+                                &nbsp;&nbsp;whoami&#09;&#09;&#09;&#09;shows my name<br />
+                                &nbsp;&nbsp;socs&#09;&#09;&#09;&#09;shows my social profiles<br />
+                            </p>
+                        `)
+                    );
+                }
+            }, {
+                greetings: "Welcome!",
+                prompt: "[[;fuchsia;]┌──(][[b;red;]root@kali][[;fuchsia;])-[~&rsqb;]\n[[;fuchsia;]└─#] ",
+                completion: true
+            });
+        });
+    </script>
+</body>
+</html>
