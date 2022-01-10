@@ -24,18 +24,18 @@
                     this.echo("uid=0(gengstah) gid=0(gengstah) groups=0(gengstah)");
                 },
                 whoami: function() {
-                    this.echo("Hi! I am Gerard DE LAS ARMAS");
-                },
-                avatar: function() {
                     this.echo(
                         $(`
                             <p>
                                 <img src="img/avatar.png" />
                             </p>
+                            <p>
+                                Hi! I am Gerard DE LAS ARMAS
+                            </p>
                         `)
                     );
                 },
-                socs: function() {
+                socials: function() {
                     this.echo(
                         $(`
                             <p>
@@ -52,10 +52,50 @@
                     this.echo(
                         $(`
                             <p>
-                                commands:<br />
-                                &nbsp;&nbsp;id&#09;&#09;&#09;&#09;shows my handle<br />
-                                &nbsp;&nbsp;whoami&#09;&#09;&#09;&#09;shows my name<br />
-                                &nbsp;&nbsp;socs&#09;&#09;&#09;&#09;shows my social profiles<br />
+                                about:
+                            </p>
+                        `)
+                    );
+                },
+                prog: function() {
+                    this.echo(
+                        $(`
+                            <p>
+                                programming languages:<br />
+                                <table border="0">
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">&nbsp;</td>
+                                        <td style="border:none;color:#aaaaaa;">Beginner</td>
+                                        <td style="border:none;color:#aaaaaa;">Elementary</td>
+                                        <td style="border:none;color:#aaaaaa;">Intermediate</td>
+                                        <td style="border:none;color:#aaaaaa;">Advanced</td>
+                                        <td style="border:none;color:#aaaaaa;">Expert</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">java</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center; vertical-align:middle">&#128128;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center; vertical-align:middle">&#128128;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center; vertical-align:middle">&#128128;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center; vertical-align:middle">&#128128;</td>
+                                        <td style="border:none;color:#aaaaaa;">&nbsp;</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">python</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center; vertical-align:middle">&#128128;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center; vertical-align:middle">&#128128;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center; vertical-align:middle">&#128128;</td>
+                                        <td style="border:none;color:#aaaaaa;">&nbsp;</td>
+                                        <td style="border:none;color:#aaaaaa;">&nbsp;</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">c</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center; vertical-align:middle">&#128128;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center; vertical-align:middle">&#128128;</td>
+                                        <td style="border:none;color:#aaaaaa;">&nbsp;</td>
+                                        <td style="border:none;color:#aaaaaa;">&nbsp;</td>
+                                        <td style="border:none;color:#aaaaaa;">&nbsp;</td>
+                                    </tr>
+                                </table>
                             </p>
                         `)
                     );
@@ -65,9 +105,28 @@
                         $(`
                             <p>
                                 commands:<br />
-                                &nbsp;&nbsp;id&#09;&#09;&#09;&#09;shows my handle<br />
-                                &nbsp;&nbsp;whoami&#09;&#09;&#09;&#09;shows my name<br />
-                                &nbsp;&nbsp;socs&#09;&#09;&#09;&#09;shows my social profiles<br />
+                                <table border="0">
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">id</td>
+                                        <td style="border:none;color:#aaaaaa;">my handle</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">whoami</td>
+                                        <td style="border:none;color:#aaaaaa;">my name</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">socials</td>
+                                        <td style="border:none;color:#aaaaaa;">my social profiles</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">prog</td>
+                                        <td style="border:none;color:#aaaaaa;">my programming languages</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">about</td>
+                                        <td style="border:none;color:#aaaaaa;">about</td>
+                                    </tr>
+                                </table>
                             </p>
                         `)
                     );

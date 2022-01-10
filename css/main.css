@@ -2,6 +2,10 @@ body {
     font: 1.3rem Ubuntu, monospace;
 }
 
+th, td {
+  padding-left: 15px;
+}
+
 @media screen and (min-width: 1200px) {
     :root {
         --size: 1.4;
