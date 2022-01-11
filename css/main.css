@@ -6,6 +6,16 @@ th, td {
   padding-left: 15px;
 }
 
+th.exp, td.exp {
+  padding-left: 15px;
+  padding-bottom: 15px;
+}
+
+img.inline {
+    display: inline-block;
+    vertical-align: middle;
+}
+
 @media screen and (min-width: 1200px) {
     :root {
         --size: 1.4;

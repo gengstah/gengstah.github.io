@@ -22,6 +22,7 @@
             $('body').terminal({
                 id: function() {
                     this.echo("uid=0(gengstah) gid=0(gengstah) groups=0(gengstah)");
+                    window.scrollTo(0, document.body.scrollHeight);
                 },
                 whoami: function() {
                     this.echo(
@@ -34,6 +35,7 @@
                             </p>
                         `)
                     );
+                    window.scrollTo(0, document.body.scrollHeight);
                 },
                 socials: function() {
                     this.echo(
@@ -47,21 +49,26 @@
                             </p>
                         `)
                     );
+                    window.scrollTo(0, document.body.scrollHeight);
                 },
-                about: function() {
+                edu: function() {
                     this.echo(
                         $(`
                             <p>
-                                about:
+                                I studied at <span style="color: #07CAF9;"><strong>University of the East, Manila</strong></span> with a course of <span style="color: #B55AFC;"><strong>Bachelor of Science in Information Technology</strong></span> from <span style="color: #FF63BE;"><strong>2006</strong></span> to <span style="color: #FF63BE;"><strong>2010</strong></span>. I was also a member of <span style="color: #07CAF9;"><strong>University of the East College of Computer Studies and System's Research & Development Unit (UE-CCSS R&D)</strong></span> and <span style="color: #07CAF9;"><strong>Junior Philippines ITE Researchers (JUPITER)</strong></span> during my time in university.
                             </p>
                         `)
                     );
+                    window.scrollTo(0, document.body.scrollHeight);
                 },
-                prog: function() {
+                cv: function() {
+                    window.scrollTo(0, document.body.scrollHeight);
+                    window.location.href = "files/Resume - Gerard DE LAS ARMAS.docx";
+                },
+                lang: function() {
                     this.echo(
                         $(`
                             <p>
-                                programming languages:<br />
                                 <table border="0">
                                     <tr>
                                         <td style="border:none;color:#aaaaaa;">&nbsp;</td>
@@ -73,24 +80,48 @@
                                     </tr>
                                     <tr>
                                         <td style="border:none;color:#aaaaaa;">java</td>
-                                        <td style="border:none;color:#aaaaaa;text-align:center; vertical-align:middle">&#128128;</td>
-                                        <td style="border:none;color:#aaaaaa;text-align:center; vertical-align:middle">&#128128;</td>
-                                        <td style="border:none;color:#aaaaaa;text-align:center; vertical-align:middle">&#128128;</td>
-                                        <td style="border:none;color:#aaaaaa;text-align:center; vertical-align:middle">&#128128;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#128128;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#128128;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#128128;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#128128;</td>
                                         <td style="border:none;color:#aaaaaa;">&nbsp;</td>
                                     </tr>
                                     <tr>
                                         <td style="border:none;color:#aaaaaa;">python</td>
-                                        <td style="border:none;color:#aaaaaa;text-align:center; vertical-align:middle">&#128128;</td>
-                                        <td style="border:none;color:#aaaaaa;text-align:center; vertical-align:middle">&#128128;</td>
-                                        <td style="border:none;color:#aaaaaa;text-align:center; vertical-align:middle">&#128128;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#128128;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#128128;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#128128;</td>
+                                        <td style="border:none;color:#aaaaaa;">&nbsp;</td>
+                                        <td style="border:none;color:#aaaaaa;">&nbsp;</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">bash</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#128128;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#128128;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#128128;</td>
                                         <td style="border:none;color:#aaaaaa;">&nbsp;</td>
                                         <td style="border:none;color:#aaaaaa;">&nbsp;</td>
                                     </tr>
                                     <tr>
                                         <td style="border:none;color:#aaaaaa;">c</td>
-                                        <td style="border:none;color:#aaaaaa;text-align:center; vertical-align:middle">&#128128;</td>
-                                        <td style="border:none;color:#aaaaaa;text-align:center; vertical-align:middle">&#128128;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#128128;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#128128;</td>
+                                        <td style="border:none;color:#aaaaaa;">&nbsp;</td>
+                                        <td style="border:none;color:#aaaaaa;">&nbsp;</td>
+                                        <td style="border:none;color:#aaaaaa;">&nbsp;</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">c++</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#128128;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#128128;</td>
+                                        <td style="border:none;color:#aaaaaa;">&nbsp;</td>
+                                        <td style="border:none;color:#aaaaaa;">&nbsp;</td>
+                                        <td style="border:none;color:#aaaaaa;">&nbsp;</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">powershell</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#128128;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#128128;</td>
                                         <td style="border:none;color:#aaaaaa;">&nbsp;</td>
                                         <td style="border:none;color:#aaaaaa;">&nbsp;</td>
                                         <td style="border:none;color:#aaaaaa;">&nbsp;</td>
@@ -99,6 +130,226 @@
                             </p>
                         `)
                     );
+                    window.scrollTo(0, document.body.scrollHeight);
+                },
+                exp: function() {
+                    this.echo(
+                        $(`
+                            <p>
+                                <table border="0">
+                                    <tr>
+                                        <td class="exp" style="border:none;color:#aaaaaa;">
+                                            <span style="color: #07CAF9;"><strong>Senior Offensive Security Engineer</strong></span><br />
+                                            <span style="color: #B55AFC;">Oracle NetSuite Philippines</span><br />
+                                            <span style="color: #707070;">November 2016 – Present | Makati, Philippines</span><br />
+                                            Performs security penetration testing of systems, networks and applications. Develops automations that benefit the Security team in managing vulnerabilities, incident response and security metrics. Conducts static code analysis and dynamic testing on applications and acquisition brands.
+                                        </td>
+                                        <td class="exp" style="border:none;color:#aaaaaa;">
+                                            <span style="color: #07CAF9;"><strong>Application Developer</strong></span><br />
+                                            <span style="color: #B55AFC;">Minion Solutions – IBM</span><br />
+                                            <span style="color: #707070;">February 2013 – June 2013 | Quezon City, Philippines</span><br />
+                                            Designed and developed end-to-end standard and enterprise Java applications for an internal sector of the company. Involved in a team that is driven by agile software development lifecycle and is advocate of test-driven development.
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="exp" style="border:none;color:#aaaaaa;">
+                                            <span style="color: #07CAF9;"><strong>Senior Software Engineer / Team Lead</strong></span><br />
+                                            <span style="color: #B55AFC;">Incuventure Partners Corporation</span><br />
+                                            <span style="color: #707070;">January 2015 – July 2016 | Pasig, Philippines</span><br />
+                                            Led a brilliant development team. Mentored junior developers with regards to clean and quality code & code of conduct of professional programmers. Performed code reviews. Designed, developed and tested software applications for various clients. Maintained and supported these software applications in a timely manner.
+                                        </td>
+                                        <td class="exp" style="border:none;color:#aaaaaa;">
+                                            <span style="color: #07CAF9;"><strong>Software Engineer</strong></span><br />
+                                            <span style="color: #B55AFC;">UST Global</span><br />
+                                            <span style="color: #707070;">March 2012 – February 2013 | McKinley Hills, Taguig, Philippines</span><br />
+                                            Developed web application modules for a client company in US. Participated in designing and implementation of schema diagrams. Coordinated with the US and India team for implementing the business requirements using a powerful open-source development platform for building rich Internet applications in Java.
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="exp" style="border:none;color:#aaaaaa;">
+                                            <span style="color: #07CAF9;"><strong>Application Developer / Team Lead</strong></span><br />
+                                            <span style="color: #B55AFC;">KCV Loans</span><br />
+                                            <span style="color: #707070;">August 2014 – May 2015 | Online</span><br />
+                                            Led a team with a size of 5 to develop a platform that will enable lenders to publish their loan requirements and borrowers to publish their loan requests. The loan requests of the borrowers are matched by the platform to the lenders’ loan requirements.
+                                        </td>
+                                        <td class="exp" style="border:none;color:#aaaaaa;">
+                                            <span style="color: #07CAF9;"><strong>Associate Software Engineer</strong></span><br />
+                                            <span style="color: #B55AFC;">Misys Philippines</span><br />
+                                            <span style="color: #707070;">January 2011 – March 2012 | Makati, Philippines</span><br />
+                                            Participated in a team that practices agile disciplines. Interpreted and analyzed functional and high-level design of software specifications. Developed new features and/or enhanced the BankFusion Midas Plus framework.
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="exp" style="border:none;color:#aaaaaa;">
+                                            <span style="color: #07CAF9;"><strong>Application Security Developer</strong></span><br />
+                                            <span style="color: #B55AFC;">Optimum Solutions – Crédit Agricole CIB</span><br />
+                                            <span style="color: #707070;">June 2013 – September 2014 | Singapore, Singapore</span><br />
+                                            Maintained and enhanced risk management web applications & authentication and authorization APIs that the company use for handling user access among other internal applications used by the company. Provided services and support to other internal teams for smooth integration of their own application to our user management APIs.
+                                        </td>
+                                        <td class="exp" style="border:none;color:#aaaaaa;">
+                                            <span style="color: #07CAF9;"><strong>Junior Systems Engineer</strong></span><br />
+                                            <span style="color: #B55AFC;">Allied Bank Corporations</span><br />
+                                            <span style="color: #707070;">July 2010 – November 2010 | Makati, Philippines</span><br />
+                                            Analyzed data and designed and developed system applications, using Java SE and J2EE technologies, required by the bank.<br />&nbsp;<br />&nbsp;
+                                        </td>
+                                    </tr>
+                                </table>
+                            </p>
+                        `)
+                    );
+                    window.scrollTo(0, document.body.scrollHeight);
+                },
+                skills: function() {
+                    this.echo(
+                        $(`
+                            <p>
+                                <table border="0">
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">&nbsp;</td>
+                                        <td style="border:none;color:#aaaaaa;">Beginner</td>
+                                        <td style="border:none;color:#aaaaaa;">Elementary</td>
+                                        <td style="border:none;color:#aaaaaa;">Intermediate</td>
+                                        <td style="border:none;color:#aaaaaa;">Advanced</td>
+                                        <td style="border:none;color:#aaaaaa;">Expert</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">programming / automation</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#127812;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#127812;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#127812;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#127812;</td>
+                                        <td style="border:none;color:#aaaaaa;">&nbsp;</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">web development</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#127812;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#127812;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#127812;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#127812;</td>
+                                        <td style="border:none;color:#aaaaaa;">&nbsp;</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">web services</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#127812;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#127812;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#127812;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#127812;</td>
+                                        <td style="border:none;color:#aaaaaa;">&nbsp;</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">infrastructure penetration testing</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#127812;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#127812;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#127812;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#127812;</td>
+                                        <td style="border:none;color:#aaaaaa;">&nbsp;</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">web application penetration testing</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#127812;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#127812;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#127812;</td>
+                                        <td style="border:none;color:#aaaaaa;">&nbsp;</td>
+                                        <td style="border:none;color:#aaaaaa;">&nbsp;</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">exploit development</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#127812;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#127812;</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:center;vertical-align:middle">&#127812;</td>
+                                        <td style="border:none;color:#aaaaaa;">&nbsp;</td>
+                                        <td style="border:none;color:#aaaaaa;">&nbsp;</td>
+                                    </tr>
+                                </table>
+                            </p>
+                        `)
+                    );
+                    window.scrollTo(0, document.body.scrollHeight);
+                },
+                certs: function() {
+                    this.echo(
+                        $(`
+                            <p>
+                                total 9<br />
+                                <table border="0">
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">-rwxr-xr-x</td>
+                                        <td style="border:none;color:#aaaaaa;">gengstah</td>
+                                        <td style="border:none;color:#aaaaaa;">gengstah</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:right;">24K</td>
+                                        <td style="border:none;color:#aaaaaa;">Sept 2021</td>
+                                        <td style="border:none;color:#aaaaaa;"><a href="https://www.credly.com/badges/ecef855a-e75b-480e-a40f-ef9aee63f5c0" target="_blank"><img class="inline" width="50" height="50" src="img/gwapt.png" /></a>&nbsp;GIAC Web Application Penetration Tester (GWAPT)</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">-rwxr-xr-x</td>
+                                        <td style="border:none;color:#aaaaaa;">gengstah</td>
+                                        <td style="border:none;color:#aaaaaa;">gengstah</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:right;">13K</td>
+                                        <td style="border:none;color:#aaaaaa;">Feb 2021</td>
+                                        <td style="border:none;color:#aaaaaa;"><a href="https://www.credly.com/badges/a89bba4f-e62f-425b-b30c-3aba5fe9e319" target="_blank"><img class="inline" width="50" height="50" src="img/osce.png" /></a>&nbsp;Offensive Security Certified Expert (OSCE)</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">-rwxr-xr-x</td>
+                                        <td style="border:none;color:#aaaaaa;">gengstah</td>
+                                        <td style="border:none;color:#aaaaaa;">gengstah</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:right;">13K</td>
+                                        <td style="border:none;color:#aaaaaa;">Jun 2020</td>
+                                        <td style="border:none;color:#aaaaaa;"><a href="https://www.credly.com/badges/2887c4f3-6487-4ae8-8522-d20484de9540" target="_blank"><img class="inline" width="50" height="50" src="img/oscp.png" /></a>&nbsp;Offensive Security Certified Professional (OSCP)</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">-rwxr-xr-x</td>
+                                        <td style="border:none;color:#aaaaaa;">gengstah</td>
+                                        <td style="border:none;color:#aaaaaa;">gengstah</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:right;">25K</td>
+                                        <td style="border:none;color:#aaaaaa;">Jan 2019</td>
+                                        <td style="border:none;color:#aaaaaa;"><a href="https://www.credly.com/badges/0c832388-8b29-4a40-919e-e72f01724528" target="_blank"><img class="inline" width="50" height="50" src="img/gxpn.png" /></a>&nbsp;GIAC Exploit Researcher and Advanced Penetration Tester (GXPN)</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">-rwxr-xr-x</td>
+                                        <td style="border:none;color:#aaaaaa;">gengstah</td>
+                                        <td style="border:none;color:#aaaaaa;">gengstah</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:right;">22K</td>
+                                        <td style="border:none;color:#aaaaaa;">Jul 2014</td>
+                                        <td style="border:none;color:#aaaaaa;"><a href="https://www.credly.com/badges/3d7b22fe-b868-43ae-b399-4690c1f65d6f" target="_blank"><img class="inline" width="50" height="50" src="img/oc-master.png" /></a>&nbsp;Oracle Certified Master, Java EE 6 Enterprise Architect</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">-rwxr-xr-x</td>
+                                        <td style="border:none;color:#aaaaaa;">gengstah</td>
+                                        <td style="border:none;color:#aaaaaa;">gengstah</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:right;">10K</td>
+                                        <td style="border:none;color:#aaaaaa;">Sept 2013</td>
+                                        <td style="border:none;color:#aaaaaa;"><a href="https://www.credly.com/badges/584a9f8c-169f-413c-95d6-ef5e6f5646c5" target="_blank"><img class="inline" width="50" height="50" src="img/oc-expert.png" /></a>&nbsp;Oracle Certified Expert, Java EE 6 Web Services Developer</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">-rwxr-xr-x</td>
+                                        <td style="border:none;color:#aaaaaa;">gengstah</td>
+                                        <td style="border:none;color:#aaaaaa;">gengstah</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:right;">10K</td>
+                                        <td style="border:none;color:#aaaaaa;">Nov 2012</td>
+                                        <td style="border:none;color:#aaaaaa;"><a href="https://www.credly.com/badges/1afc1260-b808-440c-8d46-0f1f875ac3cf" target="_blank"><img class="inline" width="50" height="50" src="img/oc-expert.png" /></a>&nbsp;Oracle Certified Expert, Java EE 6 Persistence API Developer</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">-rwxr-xr-x</td>
+                                        <td style="border:none;color:#aaaaaa;">gengstah</td>
+                                        <td style="border:none;color:#aaaaaa;">gengstah</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:right;">10K</td>
+                                        <td style="border:none;color:#aaaaaa;">Aug 2011</td>
+                                        <td style="border:none;color:#aaaaaa;"><a href="https://www.credly.com/badges/56fc840f-43c4-4d46-b6eb-1716d52bd1a8" target="_blank"><img class="inline" width="50" height="50" src="img/oc-expert.png" /></a>&nbsp;Oracle Certified Expert, Java EE 6 Web Component Developer</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">-rwxr-xr-x</td>
+                                        <td style="border:none;color:#aaaaaa;">gengstah</td>
+                                        <td style="border:none;color:#aaaaaa;">gengstah</td>
+                                        <td style="border:none;color:#aaaaaa;text-align:right;">11K</td>
+                                        <td style="border:none;color:#aaaaaa;">Nov 2010</td>
+                                        <td style="border:none;color:#aaaaaa;"><a href="https://www.credly.com/badges/31fc2f8a-c66e-4165-830a-ad8bb70c50cb" target="_blank"><img class="inline" width="50" height="50" src="img/oc-professional.png" /></a>&nbsp;Oracle Certified Professional, Java SE 6 Programmer
+                                        </td>
+                                    </tr>
+                                </table>
+                            </p>
+                        `)
+                    );
+                    window.scrollTo(0, document.body.scrollHeight);
                 },
                 help: function() {
                     this.echo(
@@ -108,32 +359,53 @@
                                 <table border="0">
                                     <tr>
                                         <td style="border:none;color:#aaaaaa;">id</td>
-                                        <td style="border:none;color:#aaaaaa;">my handle</td>
+                                        <td style="border:none;color:#aaaaaa;">my username</td>
                                     </tr>
                                     <tr>
                                         <td style="border:none;color:#aaaaaa;">whoami</td>
-                                        <td style="border:none;color:#aaaaaa;">my name</td>
+                                        <td style="border:none;color:#aaaaaa;">all about me</td>
                                     </tr>
                                     <tr>
                                         <td style="border:none;color:#aaaaaa;">socials</td>
                                         <td style="border:none;color:#aaaaaa;">my social profiles</td>
                                     </tr>
                                     <tr>
-                                        <td style="border:none;color:#aaaaaa;">prog</td>
-                                        <td style="border:none;color:#aaaaaa;">my programming languages</td>
+                                        <td style="border:none;color:#aaaaaa;">lang</td>
+                                        <td style="border:none;color:#aaaaaa;">my experience in programming / scripting languages</td>
                                     </tr>
                                     <tr>
-                                        <td style="border:none;color:#aaaaaa;">about</td>
-                                        <td style="border:none;color:#aaaaaa;">about</td>
+                                        <td style="border:none;color:#aaaaaa;">exp</td>
+                                        <td style="border:none;color:#aaaaaa;">my work experience</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">skills</td>
+                                        <td style="border:none;color:#aaaaaa;">my skills</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">certs</td>
+                                        <td style="border:none;color:#aaaaaa;">my certifications</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">edu</td>
+                                        <td style="border:none;color:#aaaaaa;">my education</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">cv</td>
+                                        <td style="border:none;color:#aaaaaa;">download my cv</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border:none;color:#aaaaaa;">clear</td>
+                                        <td style="border:none;color:#aaaaaa;">clear the screen</td>
                                     </tr>
                                 </table>
                             </p>
                         `)
                     );
+                    window.scrollTo(0, document.body.scrollHeight);
                 }
             }, {
-                greetings: "Welcome!",
-                prompt: "[[;fuchsia;]┌──(][[b;red;]root@kali][[;fuchsia;])-[~&rsqb;]\n[[;fuchsia;]└─#] ",
+                greetings: "[[b;;]┏━(][[b;red;]Message from Gerard])\n[[b;;]┃]\n[[b;;]┃] Welcome!\n[[b;;]┃]\n[[b;;]┗━(][[;#707070;]Type help to get started][[b;;])]",
+                prompt: "[[;fuchsia;]┌──(][[b;red;]gengstah@gengstah][[;fuchsia;])-[~&rsqb;]\n[[;fuchsia;]└─#] ",
                 completion: true
             });
         });
