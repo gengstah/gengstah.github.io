@@ -22,7 +22,7 @@ repository               : "gengstah/gengstah.github.io"
 #               Additional customization can be done by editing /_includes/author-profile.html
 author:
   # Biographic information
-  avatar           : "profile.png"
+  avatar           : "profile.webp"
   name             : "gengstah"
   pronouns         : # example: "she/her"  
   bio              : "Exploring the spaces between specs — where weird machines live and exploits are born"
