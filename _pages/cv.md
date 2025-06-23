@@ -8,9 +8,3 @@ redirect_from:
 ---
 
 {% include base_path %}
-  
-Skills
-======
-* Penetration Testing
-* Red Teaming
-* Exploit Development
