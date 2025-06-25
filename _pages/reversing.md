@@ -1,3 +1,11 @@
+---
+permalink: /reversing/
+title: "Reversing"
+author_profile: true
+---
+
+{% include toc %}
+
 # Reversing
 
 ## IDA Pro
