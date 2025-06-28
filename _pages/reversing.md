@@ -147,3 +147,131 @@ author_profile: true
     ```
 
 - Identifying Structs
+```c
+struct my_structure {
+    int x[5];
+    char y;
+    double z;
+};
+
+struct my_structure *gms;
+
+void test(struct my_structure *q)
+    {
+    int i;
+    q->y = 'a';
+    q->z = 15.6;
+    for(i = 0; i<5; i++){
+        q->x[i] = i;
+    }
+}
+
+void main()
+{
+    gms = (struct my_structure *) malloc(
+    sizeof(struct my_structure));
+    test(gms);
+}
+```
+```nasm
+00401000 push ebp
+00401001 mov ebp, esp
+00401003 push ecx
+00401004 mov eax,[ebp+arg_0]
+00401007 mov byte ptr [eax+14h], 61h
+0040100B mov ecx, [ebp+arg_0]
+0040100E fld ds:dbl_40B120              ; Load Floating Point Value (to FPU register stack)
+00401014 fstp qword ptr [ecx+18h]       ; Store Floating-Point Value (from FPU register stack)
+00401017 mov [ebp+var_4], 0
+0040101E jmp short loc_401029
+00401020 loc_401020:
+00401020 mov edx,[ebp+var_4]
+00401023 add edx, 1
+00401026 mov [ebp+var_4], edx
+00401029 loc_401029:
+00401029 cmp [ebp+var_4], 5
+0040102D jge short loc_40103D
+0040102F mov eax,[ebp+var_4]            ; i
+00401032 mov ecx,[ebp+arg_0]            ; q
+00401035 mov edx,[ebp+var_4]            ; i
+00401038 mov [ecx+eax*4],edx            ; q->x[i] = i
+0040103B jmp short loc_401020
+0040103D loc_40103D:
+0040103D mov esp, ebp
+0040103F pop ebp
+00401040 retn
+```
+
+- Analyzing Linked List Traversal
+```c
+struct node
+{
+    int x;
+    struct node * next;
+};
+
+typedef struct node pnode;
+
+void main()
+{
+    pnode * curr, * head;
+    int i;
+    head = NULL;
+
+    for(i=1;i<=10;i++)
+    {
+        curr = (pnode *)malloc(sizeof(pnode));
+        curr->x = i;
+        curr->next = head;
+        head = curr;
+    }
+
+    curr = head;
+
+    while(curr)
+    {
+        printf("%d\n", curr->x);
+        curr = curr->next ;
+    }
+}
+```
+```nasm
+0040106A mov [ebp+var_8], 0                 ; var_8 = head
+00401071 mov [ebp+var_C], 1                 ; i
+00401078
+00401078 loc_401078:
+00401078 cmp [ebp+var_C], 0Ah
+0040107C jg short loc_4010AB                ; i > 10
+0040107E mov [esp+18h+var_18], 8            ; uses move instead of push (GCC version)
+00401085 call malloc                        
+0040108A mov [ebp+var_4], eax               ; var_4 = curr
+0040108D mov edx, [ebp+var_4]
+00401090 mov eax, [ebp+var_C]
+00401093 mov [edx], eax                     ; curr->x = i;
+00401095 mov edx, [ebp+var_4]
+00401098 mov eax, [ebp+var_8]
+0040109B mov [edx+4], eax                   ; curr->next = head;
+0040109E mov eax, [ebp+var_4]
+004010A1 mov [ebp+var_8], eax               ; head = curr;
+004010A4 lea eax, [ebp+var_C]
+004010A7 inc dword ptr [eax]                ; i++
+004010A9 jmp short loc_401078
+004010AB loc_4010AB:
+004010AB mov eax, [ebp+var_8]
+004010AE mov [ebp+var_4], eax               ; curr = head
+004010B1
+004010B1 loc_4010B1:
+004010B1 cmp [ebp+var_4], 0                 ; while(curr)
+004010B5 jz short locret_4010D7
+004010B7 mov eax, [ebp+var_4]
+004010BA mov eax, [eax]
+004010BC mov [esp+18h+var_14], eax
+004010C0 mov [esp+18h+var_18], offset aD    ; "%d\n"
+004010C7 call printf                        ; printf("%d\n", curr->x)
+004010CC mov eax, [ebp+var_4]
+004010CF mov eax, [eax+4]
+004010D2 mov [ebp+var_4], eax               ; curr = curr->next;
+004010D5 jmp short loc_4010B1
+```
+
+
