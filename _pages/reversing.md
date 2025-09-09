@@ -147,6 +147,7 @@ author_profile: true
     ```
 
 - Identifying Structs
+
 ```c
 struct my_structure {
     int x[5];
