@@ -194,4 +194,4 @@ Table of Contents
 ```
 
 ## Reference
-- https://help.offsec.com/hc/en-us/articles/360046458732-EXP-401-Advanced-Windows-Exploitation-OSEE-Exam-Guide
+- [OSEE Exam Guide](https://help.offsec.com/hc/en-us/articles/360046458732-EXP-401-Advanced-Windows-Exploitation-OSEE-Exam-Guide "OSEE Exam Guide")
