@@ -204,6 +204,7 @@ void main()
 ```
 
 - Analyzing Linked List Traversal
+
 ```c
 struct node
 {
