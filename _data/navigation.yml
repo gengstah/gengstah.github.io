@@ -10,3 +10,5 @@
 main:
   - title: "Blog Posts"
     url: /year-archive/
+  - title: "Wiki"
+    url: /windows-exploitation/wiki
