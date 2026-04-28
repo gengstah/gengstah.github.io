@@ -87,17 +87,17 @@ author_profile: true
   <div class="wiki-grid">
     <div class="wiki-card">
       <h3><a href="/wiki/airsnitch/">AirSnitch</a></h3>
-      <div class="meta">34 pages · NDSS 2026 · Wi-Fi client-isolation bypass</div>
+      <div class="meta">34 pages + <a href="/wiki/airsnitch/sources/">3 sources</a> · NDSS 2026 · Wi-Fi client-isolation bypass</div>
       <p>The Vanhoef-et-al. paper and tooling — eight Wi-Fi attacks that defeat client isolation across WPA2/WPA3, plus defenses, devices, and CLI reference.</p>
     </div>
     <div class="wiki-card">
       <h3><a href="/wiki/windows-exploit-research/">Windows Exploit Research</a></h3>
-      <div class="meta">64 pages · CVE deep-dives, kernel internals, mitigations</div>
+      <div class="meta">64 pages + <a href="/wiki/windows-exploit-research/sources/">60 sources</a> · CVE deep-dives, kernel internals, mitigations</div>
       <p>CLFS, cldflt, CimFS, IORING, WNF, kernel streaming, TCP/IP stack. 28 CVE write-ups paired with the kernel internals, techniques, and tools they exercise.</p>
     </div>
     <div class="wiki-card">
       <h3><a href="/wiki/offsec-notes/">Offensive Security Notes</a></h3>
-      <div class="meta">64 pages · concepts, tools, playbooks</div>
+      <div class="meta">64 pages + <a href="/wiki/offsec-notes/sources/">83 sources</a> · concepts, tools, playbooks</div>
       <p>Field-notebook style coverage: ~45 concept pages (kerberoasting → JIT shellcode), 11 tool entries, and 4 engagement playbooks.</p>
     </div>
   </div>

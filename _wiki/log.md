@@ -97,3 +97,21 @@ author_profile: true
   - Replaced the long markdown table-of-contents with a card-based landing page: hero block + prominent "Start with the overview →" CTA + topic-tile grids for the four pillars, the three deep-dives, foundations, techniques, tools, and resources.
   - All inline HTML/CSS — no theme SCSS edits, kramdown-friendly. Cards use a CSS grid with `auto-fit minmax(250px, 1fr)` so they reflow at any width.
   - The overview is now reachable in one click from `/wiki/` without any sidebar interaction; the four pillars and three topic deep-dives are visible at a glance.
+
+---
+
+## [2026-04-28] INGEST | Catalogue all un-ingested raw references (146 source-provenance pages)
+
+- **Source:** raw materials referenced by the three topic wikis but not yet present on the published site:
+  - AirSnitch raw: `/home/kali/Documents/airsnitch-wiki/raw/` — 1 file (NDSS 2026 paper full text)
+  - Windows Exploit Research raw: `/mnt/hgfs/notes/windows-exploit-research/raw_sources/` — 60 files (Patch-Tuesday writeups, CVE blog posts, kernel-internals articles, "exploit reversing" series)
+  - Offensive Security Notes raw: `/mnt/hgfs/notes/offensive-security/sources/` — 47 root-level Maldev-Academy-style course material + 36 already-distilled blog posts under `sources/ingested/`
+- **Pages created:** 146 source-provenance pages
+  - `_wiki/airsnitch/sources/` — `index.md` + 1 new (`ndss2026-airsnitch-paper`); pre-existing `ndss2026-paper` and `airsnitch-readme` re-listed in the index
+  - `_wiki/windows-exploit-research/sources/` — `index.md` + 60 entries (23 auto-marked `integrated` because their filename matches a published CVE page; 37 `catalogued`)
+  - `_wiki/offsec-notes/sources/` — `index.md` + 83 entries (36 `integrated` from the source wiki's `sources/ingested/` subdir; 47 `catalogued` Maldev-Academy course material)
+- **Pages modified:** `_wiki/index.md` (topic deep-dive cards now show source counts as live links to each topic's sources index)
+- **Key additions:**
+  - Each provenance page is metadata-only: title, raw filename, status (`integrated` | `catalogued`), excerpt (first ~400 chars), and links to the wiki pages it informed (where determinable). The full raw text is *not* republished (schema rule + third-party copyright on the Maldev Academy material).
+  - Status inference: `integrated` when filename matches a published CVE page or sits under a source `sources/ingested/` directory; `catalogued` otherwise. The catalogue lets future ingest passes pick the next un-distilled source by browsing the per-topic sources index.
+  - The script (`/tmp/catalogue_sources.py`) is re-runnable; new raw drops + a re-run will refresh the catalogue.
