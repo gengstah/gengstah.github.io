@@ -27,6 +27,7 @@ SQL Injection (SQLi) occurs when attacker-controlled input is incorporated into 
 - **Out-of-band:** Data exfiltrated via DNS/HTTP requests (`xp_dirtree`, `load_file` to attacker server).
 
 ### Common DB-Specific Tricks
+
 | DB | Version Query | Sleep | File Read |
 |----|---------------|-------|-----------|
 | MySQL | `SELECT @@version` | `SLEEP(5)` | `LOAD_FILE('/etc/passwd')` |

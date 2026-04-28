@@ -18,6 +18,7 @@ Red teaming is an adversary simulation exercise where a skilled team attempts to
 ## How It Works
 
 ### Red Team vs. Penetration Test
+
 | Aspect | Penetration Test | Red Team |
 |--------|-----------------|----------|
 | Objective | Find all vulnerabilities | Achieve specific goals |

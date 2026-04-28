@@ -50,6 +50,7 @@ nuclei -u https://target.com -rate-limit 10 -bulk-size 5
 ```
 
 ### Template Categories
+
 | Category | Content |
 |----------|---------|
 | `cves/` | CVE-specific checks |

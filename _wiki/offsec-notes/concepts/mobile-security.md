@@ -18,6 +18,7 @@ Mobile penetration testing covers static analysis of apps, dynamic testing of AP
 ## Threat Vectors
 
 ### Application-Level
+
 | Threat | Description |
 |--------|-------------|
 | Insecure data storage | Credentials, tokens in SharedPreferences, SQLite, or SD card |
@@ -27,6 +28,7 @@ Mobile penetration testing covers static analysis of apps, dynamic testing of AP
 | Deep link abuse | Intent hijacking via exposed Activities |
 
 ### Device/Social
+
 | Threat | Description |
 |--------|-------------|
 | Smishing | SMS phishing — fake package notifications, bank alerts |

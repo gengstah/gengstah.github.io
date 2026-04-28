@@ -85,6 +85,7 @@ User opens MMC → opens Task Scheduler snap-in → `MIGUIControls.dll` loads �
 ## Detection
 
 ### Key Events
+
 | Event ID | Source | Description |
 |----------|--------|-------------|
 | 4688 | Security | Process creation — `ngen.exe uninstall` or modified `mscorsvw.exe` |

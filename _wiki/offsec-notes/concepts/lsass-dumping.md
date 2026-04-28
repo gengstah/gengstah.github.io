@@ -81,6 +81,7 @@ pypykatz lsa minidump lsass.dmp
 ## Detection
 
 ### Process
+
 | Event | Indicator |
 |-------|-----------|
 | 4688 / Sysmon 1 | `WSASS.exe` execution with path to WerFaultSecure.exe |
@@ -126,6 +127,7 @@ DeviceFileEvents
 ```
 
 ### Summary Event IDs
+
 | Event | Source | Detects |
 |-------|--------|---------|
 | 4688 / Sysmon 1 | Security / Sysmon | Process creation + command line |

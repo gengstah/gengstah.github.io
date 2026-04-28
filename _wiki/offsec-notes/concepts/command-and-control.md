@@ -31,6 +31,7 @@ Attacker Operator
 **Redirectors:** Apache/nginx with mod_rewrite, Cloudflare, or dedicated VM. True C2 IP never exposed to target network. Rules pass only valid beacon traffic to C2; everything else gets 200 OK with benign content (domain fronting, CDN abuse).
 
 ### Communication Protocols
+
 | Protocol | Stealth | Notes |
 |----------|---------|-------|
 | HTTPS | High | Most common; blends with web traffic |
@@ -49,6 +50,7 @@ Define beacon behavior: check-in interval, jitter, HTTP headers, URIs, user-agen
 - Sleep while EDR is active; wake during gaps or off-hours.
 
 ### Popular C2 Frameworks
+
 | Framework | Language | License | Notes |
 |-----------|----------|---------|-------|
 | Cobalt Strike | Java/.NET | Commercial | Industry standard for red teams |

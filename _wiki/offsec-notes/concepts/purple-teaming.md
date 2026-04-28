@@ -18,6 +18,7 @@ Purple teaming is a collaborative exercise where red and blue teams work togethe
 ## How It Works
 
 ### Purple Team vs. Red Team
+
 | Aspect | Red Team | Purple Team |
 |--------|----------|-------------|
 | Blue team awareness | Usually unaware | Fully aware, collaborative |

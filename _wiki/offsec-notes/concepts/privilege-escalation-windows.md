@@ -34,6 +34,7 @@ Get-LocalGroupMember Administrators
 ```
 
 ### Dangerous Privileges (Token Abuse)
+
 | Privilege | Abuse |
 |-----------|-------|
 | `SeImpersonatePrivilege` | Potato attacks (JuicyPotato, PrintSpoofer, GodPotato) → SYSTEM |

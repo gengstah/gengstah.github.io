@@ -30,6 +30,7 @@ JWT regex for finding tokens in Burp: `[= ]eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9._-]*`
 - **JWE (JSON Web Encryption):** Encrypted and signed — rare.
 
 ### Signing Algorithms
+
 | Category           | Algorithms          | Key type                               |
 | ------------------ | ------------------- | -------------------------------------- |
 | Symmetric (HMAC)   | HS256, HS384, HS512 | Single shared secret                   |

@@ -199,6 +199,7 @@ if __name__ == "__main__":
 - 56 hours training on 8×H100 GPUs
 
 ### RLVR Concepts
+
 | Concept | Description |
 |---------|-------------|
 | GRPO | Group Relative Policy Optimization — variant of PPO without a separate reward model |

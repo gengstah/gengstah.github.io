@@ -56,6 +56,7 @@ Set-AppLockerPolicy -XMLPolicy "C:\temp\deny_policy.xml" -Merge
 ## Detection
 
 ### Key Event IDs
+
 | Event ID | Source | Description |
 |----------|--------|-------------|
 | 8001 | AppLocker | Rule allowed execution |

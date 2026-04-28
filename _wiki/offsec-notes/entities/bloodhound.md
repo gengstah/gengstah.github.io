@@ -55,6 +55,7 @@ docker run -p 7474:7474 -p 7687:7687 specterops/bloodhound:latest
 Right-click compromised user/computer → "Mark as Owned" → re-run attack path queries from owned nodes.
 
 ### Key Edge Types (Attack Paths)
+
 | Edge | Meaning |
 |------|---------|
 | `MemberOf` | Group membership |

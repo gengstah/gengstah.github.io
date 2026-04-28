@@ -24,6 +24,7 @@ Linux process injection is significantly more constrained than Windows due to th
 | `process_vm_writev` | Like `WriteProcessMemory` on Windows | Controlled by `ptrace_scope`; respects page protections |
 
 ### Yama ptrace_scope Values
+
 | Value | Effect |
 |-------|--------|
 | 0 | Attach to any process with same UID |

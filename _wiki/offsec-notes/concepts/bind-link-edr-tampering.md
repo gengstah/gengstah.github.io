@@ -20,6 +20,7 @@ The Windows Bind Link API (Windows 11+) creates transparent filesystem redirecti
 `bindflt.sys` is a kernel filter driver that enables transparent path redirections at the filesystem level — the redirected application is unaware its files are being served from a different location. The API is exposed via `bindfltapi.dll` in System32.
 
 Key APIs:
+
 | Function | Purpose |
 |----------|---------|
 | `BfSetupFilter` | Create a bind link (virtual path → backing path) |
@@ -97,6 +98,7 @@ level: high
 - Unusual parent folder for EDR process in file access logs
 
 ### EDR Support (as of disclosure, 2025-12)
+
 | EDR | BindFlt Monitoring |
 |-----|--------------------|
 | CrowdStrike | Partial |

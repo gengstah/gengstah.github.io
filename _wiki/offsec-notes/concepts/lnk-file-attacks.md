@@ -36,6 +36,7 @@ Notable flags:
 - `ICON_LOCATION` — file containing the icon resource
 
 **ExtraData Blocks** (append-only; identified by signature):
+
 | Block | Signature | Notes |
 |-------|-----------|-------|
 | DARWIN_PROPS | 0xa0000006 | Legacy install-on-demand; triggers special code path |

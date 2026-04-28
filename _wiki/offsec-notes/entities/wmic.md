@@ -84,6 +84,7 @@ class stdregprov call EnumValues hDefKey=&H80000002 sSubKeyName="SOFTWARE\Micros
 ```
 
 Registry hive hex values:
+
 | Hive | Hex |
 |------|-----|
 | HKCR | &H80000000 |

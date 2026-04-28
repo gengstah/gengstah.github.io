@@ -24,6 +24,7 @@ Cobalt Strike is a commercial adversary simulation platform used extensively in 
 - **Malleable C2 Profile:** Configures all beacon behavior and traffic appearance.
 
 ### Beacon Modes
+
 | Mode | Protocol | Use Case |
 |------|----------|---------|
 | HTTP/HTTPS | HTTP/HTTPS | Primary C2; most common |

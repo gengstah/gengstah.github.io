@@ -82,6 +82,7 @@ A zero-false-positive detection method for password spraying uses a honeypot AD 
 - `Audit Kerberos Service Ticket Operations` — Success (event ID 4769)
 
 **Event IDs to alert on for honeypot account:**
+
 | Event ID | Meaning | Auth Type |
 |----------|---------|-----------|
 | 4625 | Failed logon (bad password) | NTLM |

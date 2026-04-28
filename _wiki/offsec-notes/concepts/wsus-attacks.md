@@ -24,6 +24,7 @@ WSUS clients authenticate to two endpoints via SOAP POST:
 - `ReportingWebService/reportingwebservice.asmx` — reports install results → **machine or user account auth**
 
 Registry keys configuring WSUS (under `HKLM\Software\Policies\Microsoft\Windows\WindowsUpdate`):
+
 | Key | Purpose |
 |-----|---------|
 | `WUServer` | URL where clients fetch updates |

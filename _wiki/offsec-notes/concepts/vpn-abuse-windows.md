@@ -142,6 +142,7 @@ SSTP (recommended protocol): tunnels VPN over HTTPS/443 — crosses most firewal
 
 ## Detection
 Event log events in **Application** log, source **RasClient**:
+
 | Event ID | Meaning |
 |----------|---------|
 | 20221 | VPN connection attempt started |

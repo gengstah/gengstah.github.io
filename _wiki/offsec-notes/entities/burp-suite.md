@@ -18,6 +18,7 @@ Burp Suite is the leading platform for web application security testing. It acts
 ## Usage / Details
 
 ### Core Tools
+
 | Tool | Purpose |
 |------|---------|
 | **Proxy** | Intercept and modify browser traffic |
@@ -76,6 +77,7 @@ Note: Community edition rate-limits Intruder. Use `ffuf` or `feroxbuster` for sp
 - `Logger++` — enhanced logging with filtering
 
 ### Keyboard Shortcuts
+
 | Action | Shortcut |
 |--------|----------|
 | Send to Repeater | Ctrl+R |

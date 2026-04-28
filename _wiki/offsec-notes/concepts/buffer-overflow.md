@@ -23,6 +23,7 @@ Buffer overflow vulnerabilities occur when a program writes more data to a buffe
 3. Control RIP → redirect execution to shellcode or ROP chain.
 
 ### Mitigations & Bypass Techniques
+
 | Mitigation | What it does | Bypass |
 |------------|-------------|--------|
 | Stack Canary | Random value before return addr; checked on return | Info leak to read canary; bruteforce (32-bit) |

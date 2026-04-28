@@ -66,6 +66,7 @@ nmap --script dns-zone-transfer --script-args dns-zone-transfer.domain=domain.lo
 ```
 
 ### Timing Templates
+
 | Template | Name | Use Case |
 |----------|------|----------|
 | -T0 | Paranoid | IDS evasion; very slow |
