@@ -1,0 +1,201 @@
+---
+title: Type Confusion
+permalink: /wiki/techniques/type_confusion/
+layout: single
+author_profile: true
+tags:
+- windows-exploit-research
+- kernel-mode
+- technique
+redirect_from:
+- /wiki/techniques/type_confusion/
+---
+
+> **Last updated:** 2026-04-19  
+> **Related:** [Use After Free](/wiki/techniques/use_after_free/), [Heap Grooming](/wiki/techniques/heap_grooming/), [Pool Internals](/wiki/kernel/pool_internals/), [Kernel Streaming](/wiki/kernel/kernel_streaming/), [Cve 2023 36802](/wiki/cves/CVE-2023-36802/)  
+> **Tags:** `type-confusion`, `user-mode`, `kernel-mode`
+
+## Summary
+
+Type confusion occurs when a program accesses a chunk of memory using a type that doesn't match the type originally stored there. It's exploited by manipulating the type system (via UAF, coercions, casting errors, or pool re-use) to make the program treat attacker-controlled data as a trusted object, typically yielding vtable hijacking or arbitrary R/W.
+
+---
+
+## Root Cause Patterns
+
+### 1. Unsafe Downcast
+```cpp
+// Base* could actually be DerivedA or DerivedB
+Base* p = getObject();
+DerivedA* a = (DerivedA*)p;  // no RTTI check → type confusion if p is DerivedB
+a->sensitiveMethod();        // dispatches via DerivedB vtable at DerivedA layout offset
+```
+
+### 2. Union / Tagged Union Confusion
+```c
+typedef union {
+    TypeA a;
+    TypeB b;
+} Obj;
+// If tag is corrupted or not checked: access .a when .b is stored → confusion
+```
+
+### 3. Interface Confusion (COM)
+```cpp
+IUnknown* pUnk = createObject();
+ISpecific* pSpec = (ISpecific*)pUnk;  // incorrect QI, no AddRef check
+pSpec->VirtualMethod();               // vtable at offset N for ISpecific → wrong vtable
+```
+
+### 4. Array Type Confusion (JScript/V8)
+```js
+// Confused array type: SMI array treated as pointer array
+let arr = [1.1, 2.2, 3.3];  // DoubleArray
+arr[0] = {};                  // engine may not update array type
+// Now SMI/double slots read as pointer → type confusion
+```
+
+### 5. Pool Re-use (Kernel)
+```
+// Object A (size 0x100) freed from pool
+// Object B (size 0x100) allocated in same slot
+// Stale pointer to A used → reads B fields interpreted as A's layout
+// → corrupted type index, vtable pointer, or magic value
+```
+See [Pool Internals](/wiki/kernel/pool_internals/) and [Use After Free](/wiki/techniques/use_after_free/).
+
+---
+
+## Windows Kernel Type Confusion
+
+### Object TypeIndex (Win10+)
+`_OBJECT_HEADER.TypeIndex` is XOR-encoded. Corrupting TypeIndex causes the kernel to dispatch on wrong object type:
+```
+ObpCallPreOperationCallbacks(pObject)
+  → reads TypeIndex
+  → XOR decode → index into ObTypeIndexTable
+  → call TypeInfo.PreOperation callback
+```
+Attacker goal: manipulate TypeIndex to point to attacker-controlled type that has a controlled callback pointer.
+
+**Win10 TypeIndex cookie**: `TypeIndex ^= ObHeaderCookie ^ ((ULONG_PTR)pObjectHeader >> PAGE_SHIFT) & 0xff`  
+Must reverse this to correctly craft fake TypeIndex.
+
+### win32k Type Confusion
+Win32k has many typed kernel objects (`tagWND`, `tagMENU`, `tagACCEL`, `tagCLS`, etc.). Confusion between these types (via UAF or handle confusion) leads to:
+- Reading handle table entry of wrong type
+- Getting access to incorrect kernel object with attacker-controlled layout
+
+### Kernel Driver FsContext2 Confusion (CVE-2023-36802 Pattern)
+
+`FILE_OBJECT.FsContext` and `FsContext2` are untyped `PVOID` fields — any driver can store any object there. When a driver has multiple IOCTL paths that store *different-sized objects* in `FsContext2`, and a dispatch function retrieves it without a type check:
+
+```
+Attacker flow:
+  IOCTL_A → store SmallObj (0x78 bytes) in FsContext2
+  IOCTL_B → retrieve FsContext2 → pass to LargeObjMethod() (expects 0x1D8 bytes)
+           → LargeObjMethod reads fields at offset >0x78 → controlled adjacent pool memory
+```
+
+**Why this is under-audited**: The "type check" is implicit in which IOCTL the attacker calls first. A code reviewer may assume the driver's state machine enforces that IOCTL_B is only reachable after a correct IOCTL_C (not IOCTL_A). Without tracing all setup → operation combinations, the confusion is invisible.
+
+**Exploitation primitive from this pattern:**  
+If `LargeObjMethod` calls a dereference function (e.g., `ObfDereferenceObject`) on an OOB offset:
+```
+ObfDereferenceObject(SmallObj + 0x1C8) where 0x1C8 > sizeof(SmallObj)
+→ reads address from adjacent pool spray data
+→ decrements *(attacker_address - 0x30) atomically
+→ arbitrary decrement primitive → target PreviousMode, refcount, or lock field
+```
+
+See [Cve 2023 36802](/wiki/cves/CVE-2023-36802/) for the full exploitation chain.
+
+**Hunting pattern:** For any kernel driver with multiple IOCTLs that touch `FsContext2`:
+1. Map all IOCTLs → enumerate which ones SET `FsContext2` (init IOCTLs)
+2. Enumerate which ones READ `FsContext2` and dispatch on the result (operation IOCTLs)
+3. Cross-product: can you call an operation IOCTL after a different init IOCTL? If so, check for type validation.
+
+---
+
+## JScript Type Confusion (Classic IE Pattern)
+
+JScript (the IE/Edge Legacy JS engine) was rich with type confusion bugs:
+
+### Variant Type Confusion
+`VARIANT` structs have a `vt` (type tag) field. Corrupting `vt` causes the engine to interpret `VARIANT.lVal` as the wrong type:
+```
+vt = VT_BSTR → interprets next field as BSTR (string pointer) → read/write via string operations
+vt = VT_DISPATCH → interprets as IDispatch* → vtable dispatch on attacker data
+```
+
+### Array Dimension Confusion
+SAFEARRAY has a `cDims` field. Corrupting array dimensions gives OOB access treated as valid array index.
+
+---
+
+## Exploitation Chain from Type Confusion
+
+### User-Mode (vtable hijacking)
+```
+1. Confuse object type
+2. Call virtual method on confused object
+3. vtable pointer read from wrong offset (into attacker-controlled data)
+4. Attacker sets vtable pointer to fake vtable
+5. Fake vtable entry → controlled RIP
+6. + CFG bypass needed on modern targets
+```
+
+### Kernel (token steal)
+```
+1. Confuse kernel object type (TypeIndex manipulation)
+2. Trigger object callback
+3. Callback dispatched via attacker-controlled function pointer
+4. Arbitrary kernel execution → token steal
+```
+
+### JS Engine (AAR/AAW via ArrayBuffer confusion)
+```
+1. Confuse JS array type → length field accessible
+2. Read/write length to > 0x7FFFFFFF → "detached" array
+3. OOB access on confused array → read adjacent objects' pointer fields
+4. Find backing store pointer of ArrayBuffer → overwrite with target address
+5. Read/write to target address via ArrayBuffer operations → full AAR/AAW
+```
+
+---
+
+## Detection (From Attacker Perspective)
+
+Signs of potential type confusion in a codebase:
+- C-style casts without type checks
+- COM interface implementations missing proper QI chains
+- Allocator re-use of same size for different types
+- Missing type checks in message dispatch handlers (e.g., Win32 message handlers using WPARAM as different types)
+- JavaScript engine fast paths that skip type checks for performance
+
+---
+
+## Mitigation Interaction
+
+| Mitigation | Effect on Type Confusion |
+|-----------|--------------------------|
+| CFG | vtable hijack via confused vtable → destination must be valid CFG target |
+| CET IBT | vtable dispatch target must have ENDBR64 |
+| TypeIndex cookie (Win10+) | Object TypeIndex confusion requires knowing the cookie |
+| RTTI enforcement | Some mitigations require runtime RTTI checks (not standard on Windows) |
+
+---
+
+## Exploit Relevance
+
+Type confusion is the dominant bug class in JIT/scripting engine exploits and appears frequently in win32k and kernel driver code. Master the JS engine type confusion → ArrayBuffer overwrite pattern and the kernel TypeIndex exploitation pattern as these appear repeatedly across CVEs.
+
+---
+
+## References
+- "Type Confusion in JScript" — various Project Zero issues
+- "Understanding TypeIndex XOR Cookie" — ntdiff analysis
+- "Exploiting Type Confusion in win32k" — Connor McGarr
+- "Array Buffer Confusion Exploitation" — saelo (Samuel Groß), Project Zero
+- CVE-2020-0986 (GDI type confusion kernel)
+- chompie1337, "Critically Close to Zero-Day: Exploiting Microsoft Kernel Streaming Service" (CVE-2023-36802) — FsContext2 type confusion pattern, ObfDereferenceObject decrement primitive

@@ -56,7 +56,7 @@ author_profile: true
   - `_wiki/airsnitch/sources/` × 2 — ndss2026-paper, airsnitch-readme
 - **Pages modified:** `_wiki/index.md` (added "Topic deep-dives" section + tag-index entries), `_wiki/resources/researchers.md` (added Mathy Vanhoef and the AirSnitch author cluster under a new Wi-Fi / wireless section)
 - **Key additions:**
-  - 34 ported pages preserve the source wiki's substructure (attacks / concepts / defenses / devices / tools / sources). Original Obsidian-style relative `*.md` links converted to absolute Jekyll permalinks under `/wiki/airsnitch/`.
+  - 34 ported pages preserve the source wiki's substructure (attacks / concepts / defenses / devices / tools / sources). Original Obsidian-style relative `*.md` links converted to absolute Jekyll permalinks under `/wiki/concepts/airsnitch-overview/`.
   - Frontmatter normalized to Jekyll: `title`, `permalink`, `layout: single`, `author_profile: true`, `tags: [airsnitch, wifi, <type>]`. Source-side `sources:` and `updated:` metadata preserved.
   - Wi-Fi protocol VR is now a represented domain in the wiki (previously: zero coverage). Future ingest of related work (MacStealer, Krack, Dragonblood, Frag attacks) can plug into the same `_wiki/airsnitch/` namespace or get its own deep-dive.
   - The raw NDSS paper itself is *not* checked into the repo (likely under conference/author copyright); it lives at the source path above and the wiki cites it via `_wiki/airsnitch/sources/ndss2026-paper.md`.

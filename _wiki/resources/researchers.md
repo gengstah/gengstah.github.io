@@ -112,9 +112,9 @@ tags:
 
 | Researcher | Affiliation | Areas |
 |------------|-------------|-------|
-| Mathy Vanhoef | NYU Abu Dhabi / KU Leuven | KRACK, Dragonblood, FragAttacks, MacStealer, [AirSnitch](/wiki/airsnitch/) — sustained body of Wi-Fi protocol VR. |
+| Mathy Vanhoef | NYU Abu Dhabi / KU Leuven | KRACK, Dragonblood, FragAttacks, MacStealer, [AirSnitch](/wiki/concepts/airsnitch-overview/) — sustained body of Wi-Fi protocol VR. |
 | Domien Schepers | NYU Abu Dhabi | "Framing frames" / MacStealer (USENIX'23) — Wi-Fi queue confusion, MAC layer attacks. |
-| Mengyuan Zhou, Ang Pu, Yuxuan Liu, Feng Qian, Yuanjie Tan | UC Riverside / KU Leuven | [AirSnitch](/wiki/airsnitch/) (NDSS'26) co-authors. |
+| Mengyuan Zhou, Ang Pu, Yuxuan Liu, Feng Qian, Yuanjie Tan | UC Riverside / KU Leuven | [AirSnitch](/wiki/concepts/airsnitch-overview/) (NDSS'26) co-authors. |
 | Srikanth V. Krishnamurthy | UC Riverside | Wireless / network security; AirSnitch co-author. |
 
 ---

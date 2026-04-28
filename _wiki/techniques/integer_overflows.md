@@ -1,0 +1,236 @@
+---
+title: Integer Overflows & Arithmetic Bugs
+permalink: /wiki/techniques/integer_overflows/
+layout: single
+author_profile: true
+tags:
+- windows-exploit-research
+- kernel-mode
+- technique
+redirect_from:
+- /wiki/techniques/integer_overflows/
+---
+
+> **Last updated:** 2026-04-10  
+> **Related:** [Heap Grooming](/wiki/techniques/heap_grooming/), [Pool Internals](/wiki/kernel/pool_internals/), [Cve 2020 1350](/wiki/cves/CVE-2020-1350/), [Cve 2024 38063](/wiki/cves/CVE-2024-38063/), [Cve 2021 24086](/wiki/cves/CVE-2021-24086/), [Tcpip Stack](/wiki/kernel/tcpip_stack/)  
+> **Tags:** `integer-overflow`, `user-mode`, `kernel-mode`
+
+## Summary
+
+Integer overflow, truncation, and signedness bugs are frequently the root cause underlying what appears to be a "heap overflow" or "OOB access." Recognizing these patterns during code auditing is essential — the actual vulnerability is often one arithmetic operation before the visible corruption.
+
+---
+
+## Integer Bug Taxonomy
+
+### 1. Arithmetic Overflow (Wraparound)
+```c
+// 32-bit overflow:
+ULONG size = userValue1 + userValue2;  // if both = 0x80000001, result wraps to 2
+PVOID buf = ExAllocatePool(size);       // allocates 2 bytes
+memcpy(buf, src, userValue1);           // copies 0x80000001 bytes → heap overflow
+```
+
+### 2. Integer Truncation
+```c
+// 64→32 truncation:
+ULONG64 size64 = userControlled;       // user provides 0x100000001
+ULONG size32 = (ULONG)size64;          // truncated to 0x00000001
+// Later:
+memcpy(dst, src, size64);              // uses original large size → overflow
+```
+
+### 3. Signedness Confusion
+```c
+// Signed/unsigned comparison:
+int userSize = userInput;              // user provides -1
+if (userSize < MAX_SIZE) {             // -1 < 1024: TRUE (signed comparison)
+    ULONG copySize = (ULONG)userSize;  // -1 → 0xFFFFFFFF (unsigned)
+    memcpy(buf, src, copySize);        // copies 4GB → overflow
+}
+```
+
+### 4. Width Extension (Sign Extension)
+```c
+// 16-bit sign extension:
+SHORT offset = userInput;              // user provides 0x8000 (-32768 as signed)
+LONG64 index = (LONG64)offset;         // sign-extends to 0xFFFFFFFFFFFF8000
+pArray[index] = value;                 // massive negative offset → OOB write below array
+```
+
+### 5. Multiplicative Overflow
+```c
+// Common in allocation size calculations:
+ULONG count = userCount;               // user provides 0x10000001
+ULONG elemSize = 4;
+ULONG totalSize = count * elemSize;    // 0x10000001 * 4 = 4 (overflow!)
+PVOID buf = malloc(totalSize);         // allocates 4 bytes
+for (ULONG i = 0; i < count; i++)     // writes 0x10000001 * 4 bytes → massive overflow
+    buf[i] = data[i];
+```
+
+---
+
+## Common Windows Kernel Patterns
+
+### IOCTL Size Check Bypass
+```c
+// Vulnerable:
+NTSTATUS Handler(PVOID Buffer, ULONG InSize, ULONG OutSize) {
+    if (InSize + 8 > LIMIT) return ERROR;   // if InSize = 0xFFFFFFF8: 0xFFFFFFF8 + 8 = 0 → bypass!
+    // ... use InSize bytes from Buffer
+}
+```
+
+### ProbeForRead/Write Integer Bug
+```c
+// ULONG overflow in probe address calculation:
+ProbeForRead(UserPtr, UserSize, 1);   // validates [UserPtr, UserPtr+UserSize)
+// If UserPtr = 0xFFFFF000, UserSize = 0x1000: end = 0 → wraps into kernel space!
+// (This is why ProbeForRead checks for wrap: if Length > MAXULONG - (ULONG_PTR)Ptr)
+```
+
+---
+
+## Finding Integer Bugs
+
+### Patterns to Search in Code Review
+```
+# Search for potential overflows in arithmetic before allocation:
+- Multiplication: `a * b` → use MulULong/SafeMult
+- Addition: `a + b` → use RtlULongAdd/SafeAdd  
+- Subtraction: `a - b` → check a >= b first
+- Shift: `1 << n` → check n < bitwidth
+
+# Signedness red flags:
+- Mixed signed/unsigned comparisons (compiler may warn)
+- Cast from signed to unsigned type
+- User input stored in signed variable, then used as size
+```
+
+### Grep Patterns
+```bash
+# Find potential integer overflow before alloc:
+grep -n "malloc\|ExAllocatePool\|HeapAlloc" file.c | 
+  # Check lines above for multiplication/addition with user input
+
+# Find sign-extending casts:
+grep -n "(LONG64)\|(INT64)\|(LONGLONG)" kernel_code.c
+
+# Find size calculations without safe math:
+grep -n "Count \*\|* sizeof\|+ sizeof" ioctl_handler.c
+```
+
+---
+
+## Exploitation from Integer Overflow
+
+Integer overflows typically lead to:
+1. **Undersized allocation**: `malloc(small_value)` → subsequent write overflows the heap
+2. **OOB array index**: `array[negative_index]` → write below array
+3. **Skip bounds check**: `if (size + HEADER > MAX)` wraps → passes check, continues with large size
+
+From undersized allocation → standard heap overflow exploitation (see [Heap Grooming](/wiki/techniques/heap_grooming/) and [Heap Internals](/wiki/usermode/heap_internals/)).
+
+---
+
+## Safe Integer Functions (Windows)
+
+Microsoft provides safe integer APIs in `<intsafe.h>` and `<ntintsafe.h>`:
+```c
+HRESULT ULongAdd(ULONG ulAugend, ULONG ulAddend, ULONG* pulResult);
+HRESULT ULongMult(ULONG ulMultiplicand, ULONG ulMultiplier, ULONG* pulResult);
+HRESULT ULongSub(ULONG ulMinuend, ULONG ulSubtrahend, ULONG* pulResult);
+
+// Kernel versions (ntintsafe.h):
+NTSTATUS RtlULongAdd(ULONG ulAugend, ULONG ulAddend, ULONG* pulResult);
+NTSTATUS RtlSizeTMult(SIZE_T Multiplicand, SIZE_T Multiplier, SIZE_T* Result);
+```
+
+When auditing: absence of these safe functions + user-controlled operands = potential integer bug.
+
+---
+
+## 16-Bit Size Accumulation Overflow (DNS SIG Pattern)
+
+A subtle variant: multiple user-controlled 16-bit values are summed into a 16-bit result variable. Each individual value may be valid, but their sum overflows `0xFFFF`.
+
+```c
+// dns!SigWireRead (CVE-2020-1350):
+USHORT totalSize = signatureLength + sigName.Length + 0x14;
+// signatureLength ≈ 65000, sigName.Length inflated to ~0xFF via DNS compression
+// 65000 + 255 + 20 = 65275 — overflows 0xFFFF to a small value
+RR_AllocateEx(totalSize, ...);  // undersized allocation
+// memcpy uses full (large) signatureLength → heap overflow
+
+// Additional complexity: sigName.Length is artificially inflated via DNS name
+// compression pointer arithmetic — the "length" is a computed value, not a wire field
+```
+
+Key pattern: the overflow happens in an intermediate sum that narrows back to a 16-bit integer before being passed to an allocation function. Auditing tip: look for `USHORT` or `WORD` local variables that hold results of additions involving two or more controlled inputs.
+
+---
+
+## CVE Examples
+
+- **CVE-2017-0290** (MsMpEng) — integer overflow in NScript parser
+- **CVE-2018-8453** (win32k) — integer overflow in pool size calculation
+- **CVE-2021-31956** (NTFS) — integer overflow leading to pool overflow → LPE
+- **MS17-010 (EternalBlue)** — SMB transaction secondary requests, integer overflow in size calculation
+- **CVE-2020-1350 (SIGRed)** — `USHORT signatureLength + sigName.Length + 0x14` overflows 16-bit in dns!SigWireRead → heap buffer overflow in WinDNS custom allocator → RCE as SYSTEM/Domain Admin; sigName.Length inflated via DNS name compression trick. See [Cve 2020 1350](/wiki/cves/CVE-2020-1350/).
+- **CVE-2024-38063** — `LOWORD(packet_size=0) - 0x30` underflows 16-bit to 0xFFD0 in `Ipv6pReceiveFragment`; then Ipv6pReassemblyTimeout alloc/copy mismatch → 65KB kernel heap OOB write. See [Cve 2024 38063](/wiki/cves/CVE-2024-38063/).
+- **CVE-2021-24086** — `uint16_t(HeaderAndOptionsLength)` truncation in `NetioRetreatNetBuffer` creates undersized MDL; `NdisGetDataBuffer` called with full 32-bit size returns NULL → NULL deref BSOD. See [Cve 2021 24086](/wiki/cves/CVE-2021-24086/).
+- **CLFS reference count** — `PUSHORT m_rgcBlockReferences` (16-bit, max 65535): Ionescu explicitly notes "no meaningful protection against overflow or underflow." Overflow → UAF. See [Clfs](/wiki/kernel/clfs/).
+- **CLFS container count** — `cNextContainer` / `cActiveContainers` against `MAX_CONTAINERS_DEFAULT = 1024`: exceeding array bound → OOB access in `rgContainers[]`.
+
+---
+
+## 16-Bit Underflow in Network Packet Size Fields (IPv6 tcpip.sys Pattern)
+
+A subtle remote exploitation pattern appearing in multiple tcpip.sys CVEs: size fields stored as `uint16_t` or operated on with `ax`/`dx` 16-bit registers. When an attacker zeroes the `packet_size` field (via `IppSendError` side-effect), subsequent size arithmetic underflows in 16 bits, yielding a large positive value used for memory allocation and/or copying.
+
+```asm
+; CVE-2024-38063 — Ipv6pReceiveFragment:
+; packet->packet_size has been zeroed by IppSendError (side-effect of IppSendErrorList bug)
+movzx  eax, word ptr [packet+offset_packet_size]  ; AX = 0
+sub    ax, 0x30                                    ; AX = 0x0000 - 0x0030 = 0xFFD0 (16-bit underflow)
+; fragment_size = 0xFFD0 = 65,488 bytes
+```
+
+Then in `Ipv6pReassemblyTimeout` (60 second timer), two separate calculations diverge:
+```asm
+; Allocation uses 16-bit DX:
+mov    dx, [fragment_list->net_buffer_length]  ; DX ≈ 0x38
+add    dx, [reassembly->packet_length]         ; DX = 0x38 + 0xFFD0 = 0x0008 (16-bit OVERFLOW wraps)
+add    dx, 0x28                                ; DX = 0x0030 ≈ 48 bytes
+call   ExAllocatePool                          ; allocates 48 bytes
+
+; Copy uses full stored underflowed value (not recomputed):
+movzx  ecx, [reassembly->fragment_size]       ; ECX = 0xFFD0 = 65,488
+call   memmove                                 ; copies 65,488 bytes into 48-byte buffer → OOB
+```
+
+**Key audit pattern**: Look for separate allocation vs. copy operations where:
+1. Allocation uses a freshly computed size (that can overflow)
+2. Copy uses a separately stored "raw" size value (that underflowed earlier)
+3. These two values are not the same variable
+
+Also watch for `LOWORD()` or `uint16_t()` casts on `uint32_t` size fields from packet structures.
+
+**Related CVEs via this pattern**:
+- CVE-2024-38063: `packet_size=0`, fragment_size underflow 0xFFD0, Ipv6pReassemblyTimeout alloc/copy mismatch
+- CVE-2021-24086: `uint16_t(HeaderAndOptionsLength)` truncation → undersized MDL; `NdisGetDataBuffer` called with full size → NULL → deref crash
+
+---
+
+## Exploit Relevance
+
+Integer overflows are often more impactful than they appear — a one-line arithmetic bug can lead to a reliable, controllable heap overflow. When triaging crashes that look like heap overflows, always search backwards for the integer operation that produced the corrupted size.
+
+---
+
+## References
+- "Integer Overflow" — OWASP Testing Guide
+- "Attacking the Windows Kernel" — MJ0011 (includes integer overflow patterns)
+- CVE-2021-31956 root cause analysis — Boris Larin, Kaspersky
+- "SafeInt Library" — David LeBlanc (MSDN)

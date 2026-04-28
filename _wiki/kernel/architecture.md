@@ -1,0 +1,183 @@
+---
+title: Windows Kernel Architecture for Exploiters
+permalink: /wiki/kernel/architecture/
+layout: single
+author_profile: true
+tags:
+- windows-exploit-research
+- kernel-mode
+- kernel
+redirect_from:
+- /wiki/kernel/architecture/
+---
+
+> **Last updated:** 2026-04-10  
+> **Related:** [Pool Internals](/wiki/kernel/pool_internals/), [Primitives](/wiki/kernel/primitives/), [Mitigations](/wiki/kernel/mitigations/), [Overview](/wiki/concepts/windows-exploit-research-overview/)  
+> **Tags:** `kernel-mode`, `ntoskrnl`
+
+## Summary
+
+Understanding Windows kernel architecture is prerequisite to reliable kernel exploitation. This page covers the structures, execution model, memory layout, and subsystems that exploiters interact with most frequently.
+
+---
+
+## Kernel Memory Layout (x64)
+
+Windows x64 uses a canonical address space split at the 128TB boundary:
+
+```
+0x0000000000000000 - 0x00007FFFFFFFFFFF   User space (128 TB)
+0xFFFF080000000000 - 0xFFFF87FFFFFFFFFF   System PTE region
+0xFFFF880000000000 - 0xFFFF887FFFFFFFFF   Hyperspace
+0xFFFFFA8000000000 - 0xFFFFFAFFFFFFFFFF   PFN database
+0xFFFFF68000000000 - 0xFFFFF6FFFFFFFFFF   Page table self-map (before RS1)
+0xFFFFF78000000000                        KUSER_SHARED_DATA (mapped r/w in kernel)
+0xFFFFF80000000000 - 0xFFFFFFFFFFFFFFFF   NT OS loader / kernel image region
+```
+
+**KASLR** (Windows 8+): kernel base randomized at boot with ~256 slots for ASLR (early) and improved entropy in later versions. Can be leaked via:
+- `NtQuerySystemInformation(SystemModuleInformation)` — patched/restricted Win10+
+- Side-channels (timing, cache)
+- Info leaks from kernel pool objects
+- User-mode kernel pointer leaks (historically many: GDI, win32k handle tables)
+
+---
+
+## Key Kernel Components
+
+### ntoskrnl.exe
+- NT Executive + Kernel layer
+- Memory manager (MiXxx functions)
+- Object manager (ObXxx)
+- I/O manager (IoXxx)
+- Process/thread management (PsXxx, KeXxx)
+- Security reference monitor (SeXxx)
+
+### win32k.sys (split since RS1)
+- **win32kbase.sys**: core Win32 kernel objects (tagWND, tagMENU, DC objects)
+- **win32kfull.sys**: full Win32 implementation, loaded only when needed
+- **win32k.sys**: thin loader/shim
+- Historically the richest source of kernel vulns due to massive attack surface exposed via GDI/USER syscalls
+
+### hal.dll / hal.sys
+- Hardware Abstraction Layer
+- `HalDispatchTable` was a classic overwrite target (largely mitigated)
+- Still relevant for low-level timer, interrupt, DPC manipulation
+
+### Device Drivers
+- Ring 0 code, loaded into kernel address space
+- IOCTL interface: `IRP_MJ_DEVICE_CONTROL` handlers are primary attack surface
+- Common bugs: OOB read/write in IOCTL input parsing, uninitialized pool buffers
+
+---
+
+## Object Manager Internals
+
+Every kernel object has an `_OBJECT_HEADER` prefix:
+
+```c
+typedef struct _OBJECT_HEADER {
+    LONG_PTR PointerCount;          // +0x000
+    union {
+        LONG_PTR HandleCount;       // +0x008
+        PVOID NextToFree;
+    };
+    EX_PUSH_LOCK Lock;              // +0x010
+    UCHAR TypeIndex;                // +0x018  ← XOR'd with cookie (Win10+)
+    union {
+        UCHAR TraceFlags;
+        struct { UCHAR DbgRefTrace:1; UCHAR DbgTracePermanent:1; };
+    };
+    UCHAR InfoMask;                 // +0x01A
+    union {
+        UCHAR Flags;
+        struct { UCHAR NewObject:1; UCHAR KernelObject:1; ... };
+    };
+    // optional headers follow (NameInfo, HandleInfo, QuotaInfo, etc.)
+    // OBJECT_BODY starts at offset determined by InfoMask
+} OBJECT_HEADER;
+```
+
+**TypeIndex XOR cookie (Win10+)**: TypeIndex is XORed with `ObHeaderCookie` and the low byte of `_OBJECT_HEADER` address to prevent type confusion attacks. Must be computed correctly when forging objects.
+
+**Object type table**: `ObTypeIndexTable[]` — array of `_OBJECT_TYPE*`. Type confusion exploits historically forged TypeIndex to point at attacker-controlled type structure.
+
+---
+
+## Process / Thread Structures
+
+### _EPROCESS (critical offsets, varies by build)
+```
++0x000  Pcb              : _KPROCESS
++0x2e0  UniqueProcessId  : Ptr64
++0x2e8  ActiveProcessLinks: _LIST_ENTRY  ← walk all processes
++0x358  Token            : _EX_FAST_REF  ← target for token stealing
++0x440  ImageFileName    : [15] UChar
++0x550  Protection       : _PS_PROTECTION
+```
+
+**Token stealing primitive:**
+```c
+// Classic: copy SYSTEM token to target process
+PEPROCESS System = PsInitialSystemProcess;
+ULONG64 SystemToken = *(ULONG64*)((UCHAR*)System + TOKEN_OFFSET) & ~0xF;
+*(ULONG64*)((UCHAR*)CurrentProcess + TOKEN_OFFSET) = SystemToken;
+```
+
+### _KTHREAD (critical offsets)
+```
++0x232  PreviousMode     : Char  ← 0=KernelMode, 1=UserMode; forge to bypass ProbeForRead/Write
++0x220  ApcState         : _KAPC_STATE
++0x1b8  TrapFrame        : Ptr64
+```
+
+**PreviousMode trick**: historically, setting `_KTHREAD.PreviousMode = 0` (KernelMode) causes `ProbeForRead`/`ProbeForWrite` to be skipped, allowing kernel to operate on kernel addresses provided by user — enabling arbitrary R/W.
+
+---
+
+## System Call Interface
+
+Windows syscall dispatching (x64):
+1. User calls `ntdll!NtXxx` stub
+2. Stub executes `syscall` instruction with syscall number in `rax`
+3. CPU transitions to ring 0 via MSR_LSTAR → `KiSystemCall64`
+4. `KiSystemCall64` validates stack, dispatches to `KiServiceTable[rax]`
+
+**Win32k syscall filter (Win10 RS1+)**: processes can opt into a policy that prevents Win32k syscalls (reduces win32k attack surface from sandboxed processes). Most browser sandboxes now use this.
+
+**Shadow SSDT**: `KeServiceDescriptorTableShadow` — second syscall table for Win32k. Relevant for SSDT hook detection/bypass in rootkit research.
+
+---
+
+## Interrupt Descriptor Table (IDT)
+
+Each CPU has an IDT with 256 entries. Historically, overwriting IDT entries (int 0x2e, int 0x80) was a privilege escalation technique. Modern mitigations (CET, SMEP, paged pool randomization) make this much harder.
+
+---
+
+## KUSER_SHARED_DATA
+
+Mapped read-only at `0x7FFE0000` in user space, read-write in kernel at `0xFFFFF78000000000`. 
+
+Historically contained `SystemCallReturn` and `SystemCall` fields used for sysenter/int 2e method — relevant for 32-bit exploitation. In 64-bit, contains `CycleAccumulator`, `SystemTime`, and several flags including `KdDebuggerEnabled`.
+
+**Exploit relevance**: `KUSER_SHARED_DATA` address is fixed and known → historically used as stable kernel address when needing a predictable RW location.
+
+---
+
+## Exploit Relevance
+
+- `_EPROCESS.Token` is the standard token-steal target for LPE
+- `TypeIndex` XOR cookie must be reversed for any object forgery attack on Win10+
+- `PreviousMode` manipulation enables bypassing kernel input validation
+- Win32k split (RS1) reduced browser sandbox attack surface significantly
+- SSDT is no longer a viable overwrite target on modern Windows (HVCI/KPP)
+
+---
+
+## References
+- Windows Internals 7th Edition, Part 1 — Russinovich, Solomon, Ionescu
+- "Windows 10 Kernel Exploitation" — mj0011 / Alex Ionescu slides
+- NtQuerySystemInformation documentation — ntdiff.github.io
+- "Sheep Year Goat Year" — j00ru (kernel object exploitation)
+- ReactOS source for structural reference: reactos.org
