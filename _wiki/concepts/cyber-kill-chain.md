@@ -5,8 +5,6 @@ layout: single
 author_profile: true
 tags:
   - methodology
-sidebar:
-  nav: "wiki"
 ---
 
 *Lockheed Martin's seven-stage model of how a targeted intrusion unfolds.*

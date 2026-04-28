@@ -5,8 +5,6 @@ layout: single
 author_profile: true
 tags:
   - resources
-sidebar:
-  nav: "wiki"
 ---
 
 *Books, papers, and posts worth your time. Curated, opinionated, not exhaustive.*

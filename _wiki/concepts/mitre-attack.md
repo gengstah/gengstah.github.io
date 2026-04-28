@@ -5,8 +5,6 @@ layout: single
 author_profile: true
 tags:
   - methodology
-sidebar:
-  nav: "wiki"
 ---
 
 *An empirical knowledge base of adversary tactics, techniques, and procedures observed in real intrusions.*

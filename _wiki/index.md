@@ -3,8 +3,6 @@ title: "Offensive Security Wiki — Index"
 permalink: /wiki/
 layout: single
 author_profile: true
-sidebar:
-  nav: "wiki"
 ---
 
 *Master catalog of every wiki page. Maintained by the LLM agent — see [schema](/wiki/schema/).*
@@ -73,6 +71,14 @@ sidebar:
 
 ---
 
+## Topic deep-dives
+
+| Topic | Description | Pages |
+|-------|-------------|-------|
+| [AirSnitch](/wiki/airsnitch/) — Wi-Fi client isolation bypass | NDSS'26 paper + tooling: 8 attacks that defeat client isolation across WPA2/WPA3, plus defenses, devices, and CLI reference | 34 |
+
+---
+
 ## Resources
 
 | Page | Description |
@@ -92,3 +98,5 @@ Quick lookup by tag. Re-generate when adding pages.
 - **`exploit-dev`** — domains/exploit-development, tools/ghidra
 - **`methodology`** — concepts/cyber-kill-chain, concepts/mitre-attack
 - **`opsec`** — concepts/opsec, domains/red-teaming
+- **`wifi`** — airsnitch/* (33 pages on Wi-Fi client isolation, key hierarchies, port stealing, GTK abuse, and defenses)
+- **`airsnitch`** — airsnitch/* (everything under the AirSnitch deep-dive)

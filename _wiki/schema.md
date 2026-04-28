@@ -3,8 +3,6 @@ title: "Wiki Schema"
 permalink: /wiki/schema/
 layout: single
 author_profile: true
-sidebar:
-  nav: "wiki"
 ---
 
 *Conventions the LLM agent follows when maintaining this wiki. Human-readable mirror of the [`CLAUDE.md`](https://github.com/gengstah/gengstah.github.io/blob/master/CLAUDE.md) at the repo root — keep both in sync.*
@@ -68,8 +66,6 @@ layout: single
 author_profile: true
 tags:
   - <tag>
-sidebar:
-  nav: "wiki"
 ---
 ```
 

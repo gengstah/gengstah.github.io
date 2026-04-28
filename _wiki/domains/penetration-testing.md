@@ -6,8 +6,6 @@ author_profile: true
 tags:
   - pentest
   - methodology
-sidebar:
-  nav: "wiki"
 ---
 
 *Scoped, time-boxed assessments that find and demonstrate exploitable weaknesses against a defined target.*

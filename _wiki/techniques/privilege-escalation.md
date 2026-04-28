@@ -7,8 +7,6 @@ tags:
   - pentest
   - red-team
   - exploit-dev
-sidebar:
-  nav: "wiki"
 ---
 
 *Going from the user you landed as to the user (or kernel) you actually want.*

@@ -6,8 +6,6 @@ author_profile: true
 tags:
   - red-team
   - pentest
-sidebar:
-  nav: "wiki"
 ---
 
 *Getting the first foothold inside the perimeter.*

@@ -6,8 +6,6 @@ author_profile: true
 tags:
   - red-team
   - tool
-sidebar:
-  nav: "wiki"
 ---
 
 *The dominant commercial adversary-emulation / C2 platform.*

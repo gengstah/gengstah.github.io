@@ -5,8 +5,6 @@ layout: single
 author_profile: true
 tags:
   - methodology
-sidebar:
-  nav: "wiki"
 ---
 
 *The landscape this wiki covers and how its parts fit together.*

@@ -6,8 +6,6 @@ author_profile: true
 tags:
   - opsec
   - red-team
-sidebar:
-  nav: "wiki"
 ---
 
 *Operational security — keeping the operator's signature below the defender's noise floor.*

@@ -5,8 +5,6 @@ layout: single
 author_profile: true
 tags:
   - red-team
-sidebar:
-  nav: "wiki"
 ---
 
 *Surviving reboots, user logouts, and AV sweeps without lighting up the SIEM.*

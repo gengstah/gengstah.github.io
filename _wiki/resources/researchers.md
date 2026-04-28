@@ -5,8 +5,6 @@ layout: single
 author_profile: true
 tags:
   - resources
-sidebar:
-  nav: "wiki"
 ---
 
 *People doing notable work in offensive security, by area. Maintained as the wiki ingests their writing.*
@@ -107,6 +105,17 @@ sidebar:
 | Filippo Valsorda | Practical applied crypto; Go crypto/x509. |
 | Matthew Green | Crypto policy + applied crypto research. |
 | Joan Daemen | AES / Keccak / SHA-3 co-designer. |
+
+---
+
+## Wi-Fi / wireless protocols
+
+| Researcher | Affiliation | Areas |
+|------------|-------------|-------|
+| Mathy Vanhoef | NYU Abu Dhabi / KU Leuven | KRACK, Dragonblood, FragAttacks, MacStealer, [AirSnitch](/wiki/airsnitch/) — sustained body of Wi-Fi protocol VR. |
+| Domien Schepers | NYU Abu Dhabi | "Framing frames" / MacStealer (USENIX'23) — Wi-Fi queue confusion, MAC layer attacks. |
+| Mengyuan Zhou, Ang Pu, Yuxuan Liu, Feng Qian, Yuanjie Tan | UC Riverside / KU Leuven | [AirSnitch](/wiki/airsnitch/) (NDSS'26) co-authors. |
+| Srikanth V. Krishnamurthy | UC Riverside | Wireless / network security; AirSnitch co-author. |
 
 ---
 

@@ -6,8 +6,6 @@ author_profile: true
 tags:
   - red-team
   - pentest
-sidebar:
-  nav: "wiki"
 ---
 
 *Reusing access from one host to reach another.*

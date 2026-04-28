@@ -7,8 +7,6 @@ tags:
   - vuln-research
   - exploit-dev
   - tool
-sidebar:
-  nav: "wiki"
 ---
 
 *NSA-developed reverse-engineering suite. The free alternative to IDA Pro that's actually competitive.*

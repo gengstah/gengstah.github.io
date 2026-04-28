@@ -6,8 +6,6 @@ author_profile: true
 tags:
   - pentest
   - tool
-sidebar:
-  nav: "wiki"
 ---
 
 *The reference network scanner. Service discovery, version detection, scriptable probes.*

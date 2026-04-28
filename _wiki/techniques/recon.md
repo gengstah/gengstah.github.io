@@ -6,8 +6,6 @@ author_profile: true
 tags:
   - pentest
   - red-team
-sidebar:
-  nav: "wiki"
 ---
 
 *Mapping the target before touching it.*

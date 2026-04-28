@@ -6,8 +6,6 @@ author_profile: true
 tags:
   - red-team
   - methodology
-sidebar:
-  nav: "wiki"
 ---
 
 *Adversary-emulation operations that test detection and response, not vulnerability coverage.*

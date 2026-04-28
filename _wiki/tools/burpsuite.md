@@ -6,8 +6,6 @@ author_profile: true
 tags:
   - pentest
   - tool
-sidebar:
-  nav: "wiki"
 ---
 
 *The dominant web-app testing proxy. Repeater, Intruder, Scanner, BApp Store, Collaborator.*
