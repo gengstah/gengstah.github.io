@@ -9,8 +9,6 @@ tags:
 - index
 ---
 
-# Sources — airsnitch
-
 Provenance pages for the AirSnitch ingest. The NDSS 2026 paper, the upstream README, and any new raw sources added to `raw_sources/airsnitch/`.
 
 **Total catalogued:** 3 files (`integrated`: 2, `catalogued`: 1)

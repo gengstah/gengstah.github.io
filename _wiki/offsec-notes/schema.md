@@ -7,8 +7,6 @@ tags:
 - offsec-notes
 ---
 
-# Offensive Security Wiki — Schema
-
 This file defines the structure, conventions, and operating procedures for this wiki.
 Claude reads this on every interaction to know how to behave.
 

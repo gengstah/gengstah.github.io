@@ -7,8 +7,6 @@ tags:
 - offsec-notes
 ---
 
-# Offensive Security Wiki — Index
-
 Categorized table of contents. All pages cross-linked.
 See `schema.md` for structure and operating procedures.
 

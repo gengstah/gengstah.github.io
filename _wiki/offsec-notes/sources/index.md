@@ -9,8 +9,6 @@ tags:
 - index
 ---
 
-# Sources — offsec-notes
-
 Provenance pages for the Offensive Security Notes ingest. The source wiki distinguishes already-distilled material (under `sources/ingested/`) from pending raw references at the root of `sources/`. The `catalogued` group is largely Maldev Academy course material (third-party, not republished) — these pages carry titles + excerpts only, with full text remaining in the raw store.
 
 **Total catalogued:** 83 files (`integrated`: 36, `catalogued`: 47)
