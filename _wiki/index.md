@@ -54,8 +54,8 @@ redirect_from:
 </style>
 
 <div class="wiki-hero" markdown="0">
-  <h2>An LLM-maintained wiki for offensive security.</h2>
-  <p>Penetration testing, red teaming, vulnerability research, exploit development. Curated raw sources, structured notes that compound. Built on <a href="https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f">Karpathy's LLM Wiki pattern</a>.</p>
+  <h2>My personal wiki for offensive security.</h2>
+  <p>Penetration testing, red teaming, vulnerability research, exploit development. Field notes, CVE deep-dives, and reference material I build up over time.</p>
   <p><a class="cta" href="/wiki/overview/">Start with the overview →</a></p>
 </div>
 
@@ -226,7 +226,7 @@ redirect_from:
 
 <div class="wiki-section" markdown="0">
   <h2>Source material</h2>
-  <p class="lead">One provenance page per raw source file that fed the wiki — title, filename, status, excerpt. Raw text stays offline; this catalogue is what the LLM ingest pipeline operates on.</p>
+  <p class="lead">One provenance page per raw source file that fed the wiki — title, filename, status, excerpt. Raw text stays offline; this catalogue tracks what's been distilled into wiki pages and what's still pending.</p>
   <div class="wiki-grid">
     <div class="wiki-card">
       <h3><a href="/wiki/sources/">All sources</a></h3>
@@ -242,5 +242,5 @@ redirect_from:
 
 <div class="wiki-section" markdown="0">
   <h2>How this wiki works</h2>
-  <p>An LLM agent maintains the wiki: ingests sources, writes pages, updates cross-references, appends to the log. The human curates sources and asks questions. See the <a href="/wiki/schema/">schema</a> for conventions, and the <a href="/wiki/log/">log</a> for a chronological record of every change.</p>
+  <p>I curate sources, take notes, and structure them as I read. Pages cross-reference each other; new sources extend existing pages rather than starting from scratch. See the <a href="/wiki/schema/">schema</a> for conventions and the <a href="/wiki/log/">log</a> for what's been added when.</p>
 </div>

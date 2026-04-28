@@ -59,7 +59,6 @@ tags:
 - *Q: Exploit Hardening Made Easy* — Schwartz, Avgerinos, Brumley. Automated ROP.
 - *AEG: Automatic Exploit Generation* — Avgerinos, Cha, Hao, Brumley.
 - *Certified Pre-Owned* — Schroeder, Christensen (SpecterOps). The reference for ADCS attacks.
-- Karpathy — *llm-wiki.md* (2025). The pattern this wiki implements.
 
 ---
 

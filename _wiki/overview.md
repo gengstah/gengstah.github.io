@@ -87,13 +87,12 @@ A short list of forces shaping current tradecraft:
 
 - **Browsing:** start at [Index](/wiki/) for the catalog.
 - **Studying a topic:** open the relevant [domain](/wiki/domains/penetration-testing/) page and follow links outward.
-- **Asking a question:** use your LLM agent — it will synthesize across pages and (if the answer is non-trivial) offer to file it back as a new page.
-- **Adding a source:** drop it in `raw_sources/`, then ask the agent to ingest it. See the [schema](/wiki/schema/) for the workflow.
+- **Asking a question:** follow the cross-references between pages — every page links related material in its **Related:** line and `## See also` section.
+- **Adding a source:** drop it in `raw_sources/`, then distill the takeaways into the relevant wiki pages. See the [schema](/wiki/schema/) for the workflow I follow.
 
 ---
 
 ## References
 
-- [Karpathy — LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) (the pattern this wiki implements)
 - Lockheed Martin — *Intelligence-Driven Computer Network Defense* (Hutchins, Cloppert, Amin, 2011)
 - MITRE ATT&CK — <https://attack.mitre.org/>

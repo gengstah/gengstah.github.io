@@ -13,7 +13,7 @@ author_profile: true
 
 ## [2026-04-28] INIT | Wiki bootstrapped
 
-- **Source:** [Karpathy — `llm-wiki.md`](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) (the pattern); user's request to scope it to offensive security
+- **Source:** initial bootstrap — scoped to offensive security
 - **Pages created:**
   - Core: `index.md`, `log.md`, `schema.md`, `overview.md`
   - Domains: `domains/penetration-testing.md`, `domains/red-teaming.md`, `domains/vulnerability-research.md`, `domains/exploit-development.md`
