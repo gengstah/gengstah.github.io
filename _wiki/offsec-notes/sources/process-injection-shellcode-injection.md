@@ -10,8 +10,6 @@ source_filename: Process Injection - Shellcode Injection.md
 status: catalogued
 ---
 
-# Process Injection   Shellcode Injection
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Process Injection - Shellcode Injection.md`.
 
 **Status:** `catalogued`

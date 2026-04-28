@@ -10,8 +10,6 @@ source_filename: Keys to JWT Assessments - From a Cheat Sheet to a Deep Dive.md
 status: integrated
 ---
 
-# Keys to JWT Assessments   From a Cheat Sheet to a Deep Dive
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Keys to JWT Assessments - From a Cheat Sheet to a Deep Dive.md`.
 
 **Status:** `integrated`

@@ -10,8 +10,6 @@ source_filename: Introduction To The Windows API.md
 status: catalogued
 ---
 
-# Introduction To The Windows API
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Introduction To The Windows API.md`.
 
 **Status:** `catalogued`

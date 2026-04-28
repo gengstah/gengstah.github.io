@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# Toast Notifications Abuse
-
 **Category:** Social Engineering / Execution
 **MITRE ATT&CK:** T1204.001 — User Execution: Malicious Link; T1056.002 — Input Capture: GUI Input Capture
 **Related:** [Social Engineering](/wiki/offsec-notes/concepts/social-engineering/), [Phishing](/wiki/offsec-notes/concepts/phishing/), [Lateral Movement](/wiki/offsec-notes/concepts/lateral-movement/)

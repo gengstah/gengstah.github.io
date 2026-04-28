@@ -10,8 +10,6 @@ source_filename: Payload Encryption - AES Encryption.md
 status: catalogued
 ---
 
-# Payload Encryption   AES Encryption
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Payload Encryption - AES Encryption.md`.
 
 **Status:** `catalogued`

@@ -10,8 +10,6 @@ source_filename: Toast Notifications.md
 status: integrated
 ---
 
-# Toast Notifications
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Toast Notifications.md`.
 
 **Status:** `integrated`

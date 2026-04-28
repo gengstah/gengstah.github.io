@@ -10,8 +10,6 @@ source_filename: Dragging Secrets Out of Chrome_ NTLM Hash Leaks via File URLs.m
 status: integrated
 ---
 
-# Dragging Secrets Out of Chrome  NTLM Hash Leaks via File URLs
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Dragging Secrets Out of Chrome_ NTLM Hash Leaks via File URLs.md`.
 
 **Status:** `integrated`

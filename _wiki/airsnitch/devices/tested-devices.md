@@ -12,8 +12,6 @@ sources:
 updated: 2026-04-28
 ---
 
-# Tested Devices and Findings
-
 What the AirSnitch authors tested, what they found. Source: NDSS'26 §VII, Tables I–III. Not exhaustive — vendor inclusion does not imply other models or firmware revisions are equivalent. **Re-test on your own hardware** before drawing conclusions about your network.
 
 ## Devices and firmware

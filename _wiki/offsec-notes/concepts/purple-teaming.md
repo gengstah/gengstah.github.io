@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# Purple Teaming
-
 **Category:** Engagement Methodology
 **MITRE ATT&CK:** Full ATT&CK matrix (detection validation focus)
 **Related:** [Red Teaming](/wiki/offsec-notes/concepts/red-teaming/), [Vulnerability Assessment](/wiki/offsec-notes/concepts/vulnerability-assessment/), [Evasion Techniques](/wiki/offsec-notes/concepts/evasion-techniques/)

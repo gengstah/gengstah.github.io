@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# Social Engineering
-
 **Category:** Initial Access / Human
 **MITRE ATT&CK:** Initial Access — T1566 (Phishing), T1598 (Spearphishing for Info); Social Engineering broadly across multiple techniques
 **Related:** [Phishing](/wiki/offsec-notes/concepts/phishing/), [Reconnaissance](/wiki/offsec-notes/concepts/reconnaissance/), [Red Teaming](/wiki/offsec-notes/concepts/red-teaming/)

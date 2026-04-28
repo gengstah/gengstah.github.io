@@ -12,8 +12,6 @@ sources:
 updated: 2026-04-28
 ---
 
-# Centralised Wi-Fi Decryption
-
 In most APs, encryption terminates *at the AP*: PTK and GTK are held on the AP, decryption happens on the AP, the bridge handles cleartext, and the AP re-encrypts on egress. AirSnitch's [port stealing](/wiki/airsnitch/attacks/port-stealing/) and [broadcast reflection](/wiki/airsnitch/attacks/broadcast-reflection/) attacks exploit precisely this AP-local cleartext bridge.
 
 **Centralised decryption** moves the boundary. Some enterprise wireless controllers (Cisco's CAPWAP DTLS, some Aruba designs) tunnel raw 802.11 frames from the AP to a central controller, where decryption and routing happen. The AP becomes a thin radio relay; the controller is the new "switch".

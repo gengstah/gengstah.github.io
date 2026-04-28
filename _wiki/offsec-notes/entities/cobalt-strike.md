@@ -8,8 +8,6 @@ tags:
 - tool
 ---
 
-# Cobalt Strike
-
 **Type:** Framework / C2 Tool
 **Also known as:** CS, Cobalt
 **Related:** [Command And Control](/wiki/offsec-notes/concepts/command-and-control/), [Red Teaming](/wiki/offsec-notes/concepts/red-teaming/), [Evasion Techniques](/wiki/offsec-notes/concepts/evasion-techniques/), [Post Exploitation](/wiki/offsec-notes/concepts/post-exploitation/)

@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# Bind Link EDR Tampering
-
 **Category:** Defense Evasion / Persistence
 **MITRE ATT&CK:** T1562.001 — Impair Defenses: Disable or Modify Tools; T1574.001 — DLL Side-Loading
 **Related:** [Evasion Techniques](/wiki/offsec-notes/concepts/evasion-techniques/), [Dll Hijacking](/wiki/offsec-notes/concepts/dll-hijacking/), [Edr Silencing](/wiki/offsec-notes/concepts/edr-silencing/)

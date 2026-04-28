@@ -10,8 +10,6 @@ source_filename: Payload Staging - Windows Registry.md
 status: catalogued
 ---
 
-# Payload Staging   Windows Registry
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Payload Staging - Windows Registry.md`.
 
 **Status:** `catalogued`

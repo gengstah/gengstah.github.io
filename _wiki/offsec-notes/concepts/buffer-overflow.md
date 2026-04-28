@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# Buffer Overflow / Memory Corruption
-
 **Category:** Exploit Development / Binary Exploitation
 **MITRE ATT&CK:** T1203 (Exploitation for Client Execution), T1068 (Exploitation for Privilege Escalation)
 **Related:** [Privilege Escalation Linux](/wiki/offsec-notes/concepts/privilege-escalation-linux/), [Privilege Escalation Windows](/wiki/offsec-notes/concepts/privilege-escalation-windows/), [Evasion Techniques](/wiki/offsec-notes/concepts/evasion-techniques/)

@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# Cloud Penetration Testing
-
 **Category:** Cloud (AWS / Azure / GCP)
 **MITRE ATT&CK:** Multiple — Initial Access, Privilege Escalation, Lateral Movement in cloud context
 **Related:** [Reconnaissance](/wiki/offsec-notes/concepts/reconnaissance/), [Privilege Escalation Linux](/wiki/offsec-notes/concepts/privilege-escalation-linux/), [Post Exploitation](/wiki/offsec-notes/concepts/post-exploitation/)

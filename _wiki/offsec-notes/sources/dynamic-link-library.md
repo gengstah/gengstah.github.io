@@ -10,8 +10,6 @@ source_filename: Dynamic-Link Library.md
 status: catalogued
 ---
 
-# Dynamic Link Library
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Dynamic-Link Library.md`.
 
 **Status:** `catalogued`

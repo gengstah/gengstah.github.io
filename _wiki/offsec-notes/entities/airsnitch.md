@@ -8,8 +8,6 @@ tags:
 - tool
 ---
 
-# AirSnitch (macstealer)
-
 **Type:** Tool / PoC Framework
 **Also known as:** macstealer
 **Related:** [Wi Fi Client Isolation Bypass](/wiki/offsec-notes/concepts/wi-fi-client-isolation-bypass/), [Wireless Attacks](/wiki/offsec-notes/concepts/wireless-attacks/)

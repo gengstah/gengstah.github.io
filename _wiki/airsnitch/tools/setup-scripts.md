@@ -12,8 +12,6 @@ sources:
 updated: 2026-04-28
 ---
 
-# Setup Scripts and the Simulated Testbed
-
 How to reproduce the attacks **without buying a vulnerable router**. The repo includes scripts under [`setup/`](../../airsnitch/setup/) and the artifact appendix (NDSS'26 Appendix A) walks through three end-to-end reproductions — one per primary attack — using Linux's `mac80211_hwsim` driver to fake several Wi-Fi NICs on a single host.
 
 ## The pieces

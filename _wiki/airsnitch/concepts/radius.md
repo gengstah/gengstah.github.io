@@ -12,8 +12,6 @@ sources:
 updated: 2026-04-28
 ---
 
-# RADIUS
-
 **RADIUS** (Remote Authentication Dial-In User Service, RFC 2865 + many extensions) is the protocol enterprise APs use to talk to the authentication server during WPA2/WPA3-Enterprise. The AP terminates the 802.1X / EAP exchange with the client; everything from the EAP-Identity onwards is wrapped in RADIUS messages and forwarded to a central RADIUS server (often FreeRADIUS, Cisco ISE, Microsoft NPS).
 
 Relevant to AirSnitch because it shows up in two places: as the authentication backplane that makes [WPA-Enterprise](/wiki/airsnitch/concepts/wpa-versions/) resistant to [machine-on-the-side](/wiki/airsnitch/attacks/machine-on-the-side/), and as a target the AirSnitch authors steal credentials from in the §VII-G case study.

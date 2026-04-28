@@ -10,8 +10,6 @@ source_filename: Introduction To Payload Encryption.md
 status: catalogued
 ---
 
-# Introduction To Payload Encryption
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Introduction To Payload Encryption.md`.
 
 **Status:** `catalogued`

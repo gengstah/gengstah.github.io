@@ -8,8 +8,6 @@ tags:
 - tool
 ---
 
-# Metasploit Framework
-
 **Type:** Framework / Tool
 **Also known as:** MSF, msfconsole
 **Related:** [Buffer Overflow](/wiki/offsec-notes/concepts/buffer-overflow/), [Web Application Testing](/wiki/offsec-notes/concepts/web-application-testing/), [Post Exploitation](/wiki/offsec-notes/concepts/post-exploitation/), [Network Scanning](/wiki/offsec-notes/concepts/network-scanning/)

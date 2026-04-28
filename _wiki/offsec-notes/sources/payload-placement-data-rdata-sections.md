@@ -10,8 +10,6 @@ source_filename: Payload Placement - .data & .rdata Sections.md
 status: catalogued
 ---
 
-# Payload Placement   .data & .rdata Sections
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Payload Placement - .data & .rdata Sections.md`.
 
 **Status:** `catalogued`

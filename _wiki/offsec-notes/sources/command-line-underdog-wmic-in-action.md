@@ -10,8 +10,6 @@ source_filename: Command Line Underdog_ WMIC in Action.md
 status: integrated
 ---
 
-# Command Line Underdog  WMIC in Action
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Command Line Underdog_ WMIC in Action.md`.
 
 **Status:** `integrated`

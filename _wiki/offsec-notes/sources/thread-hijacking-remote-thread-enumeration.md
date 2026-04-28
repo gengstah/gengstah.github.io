@@ -10,8 +10,6 @@ source_filename: Thread Hijacking - Remote Thread Enumeration.md
 status: catalogued
 ---
 
-# Thread Hijacking   Remote Thread Enumeration
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Thread Hijacking - Remote Thread Enumeration.md`.
 
 **Status:** `catalogued`

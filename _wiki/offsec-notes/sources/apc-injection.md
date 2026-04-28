@@ -10,8 +10,6 @@ source_filename: APC Injection.md
 status: catalogued
 ---
 
-# APC Injection
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/APC Injection.md`.
 
 **Status:** `catalogued`

@@ -13,8 +13,6 @@ sources:
 updated: 2026-04-28
 ---
 
-# Documentation and Warnings
-
 Not a technical defence. A *deployment* defence. The AirSnitch authors put it first in their list (README §6.1, NDSS'26 §VIII-C "Proper documentation") because **most insecure deployments are insecure because nobody knew what the feature actually did**.
 
 The recurring failure mode in the NDSS'26 paper is: a vendor ships a "client isolation" checkbox; an admin enables it; the admin assumes guests can't reach main-network clients; in fact (depending on vendor), they can, via [gateway bouncing](/wiki/airsnitch/attacks/gateway-bouncing/) or [port stealing](/wiki/airsnitch/attacks/port-stealing/) or [GTK abuse](/wiki/airsnitch/attacks/abusing-gtk/). The fix isn't always more crypto. Sometimes the fix is *the vendor stating clearly which traffic the checkbox blocks*.

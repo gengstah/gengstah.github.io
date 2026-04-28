@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# Wi-Fi Client Isolation Bypass
-
 **Category:** Network / Wireless
 **MITRE ATT&CK:** T1040 (Network Sniffing), T1557 (Adversary-in-the-Middle), T1565.002 (Transmitted Data Manipulation)
 **Related:** [Wireless Attacks](/wiki/offsec-notes/concepts/wireless-attacks/), [Airsnitch](/wiki/offsec-notes/entities/airsnitch/), [Lateral Movement](/wiki/offsec-notes/concepts/lateral-movement/)

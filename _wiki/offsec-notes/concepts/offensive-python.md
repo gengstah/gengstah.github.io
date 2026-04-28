@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# Offensive Python
-
 **Category:** Execution / Defense Evasion
 **MITRE ATT&CK:** T1059.006 — Command and Scripting Interpreter: Python
 **Related:** [Evasion Techniques](/wiki/offsec-notes/concepts/evasion-techniques/), [Notepadplusplus Abuse](/wiki/offsec-notes/concepts/notepadplusplus-abuse/), [Post Exploitation](/wiki/offsec-notes/concepts/post-exploitation/)

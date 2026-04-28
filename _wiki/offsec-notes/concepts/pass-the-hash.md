@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# Pass-the-Hash (PtH) / Pass-the-Ticket (PtT)
-
 **Category:** Active Directory / Credential Access / Lateral Movement
 **MITRE ATT&CK:** T1550.002 (PtH), T1550.003 (PtT)
 **Related:** [Active Directory Attacks](/wiki/offsec-notes/concepts/active-directory-attacks/), [Lateral Movement](/wiki/offsec-notes/concepts/lateral-movement/), [Mimikatz](/wiki/offsec-notes/entities/mimikatz/), [Impacket](/wiki/offsec-notes/entities/impacket/)

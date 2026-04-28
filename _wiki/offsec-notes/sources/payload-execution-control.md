@@ -10,8 +10,6 @@ source_filename: Payload Execution Control.md
 status: catalogued
 ---
 
-# Payload Execution Control
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Payload Execution Control.md`.
 
 **Status:** `catalogued`

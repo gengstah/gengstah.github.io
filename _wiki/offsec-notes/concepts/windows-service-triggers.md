@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# Windows Service Triggers
-
 **Category:** Execution / Persistence / Privilege Escalation
 **MITRE ATT&CK:** T1543.003 — Create or Modify System Process: Windows Service; T1574 — Hijack Execution Flow
 **Related:** [Privilege Escalation Windows](/wiki/offsec-notes/concepts/privilege-escalation-windows/), [Lateral Movement](/wiki/offsec-notes/concepts/lateral-movement/), [Wmic](/wiki/offsec-notes/entities/wmic/)

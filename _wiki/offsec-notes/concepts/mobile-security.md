@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# Mobile Security Testing
-
 **Category:** Mobile / Application Security
 **MITRE ATT&CK:** T1476 — Deliver Malicious App via Other Means; T1516 — Input Injection
 **Related:** [Social Engineering](/wiki/offsec-notes/concepts/social-engineering/), [Phishing](/wiki/offsec-notes/concepts/phishing/), [Web Application Testing](/wiki/offsec-notes/concepts/web-application-testing/)

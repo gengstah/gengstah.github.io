@@ -10,8 +10,6 @@ source_filename: Portable Executable Format.md
 status: catalogued
 ---
 
-# Portable Executable Format
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Portable Executable Format.md`.
 
 **Status:** `catalogued`

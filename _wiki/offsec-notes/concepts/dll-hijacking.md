@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# DLL Hijacking & Sideloading
-
 **Category:** Persistence / Privilege Escalation / Defense Evasion
 **MITRE ATT&CK:** T1574.001 — DLL Search Order Hijacking; T1574.002 — DLL Side-Loading
 **Related:** [Privilege Escalation Windows](/wiki/offsec-notes/concepts/privilege-escalation-windows/), [Evasion Techniques](/wiki/offsec-notes/concepts/evasion-techniques/), [Post Exploitation](/wiki/offsec-notes/concepts/post-exploitation/)

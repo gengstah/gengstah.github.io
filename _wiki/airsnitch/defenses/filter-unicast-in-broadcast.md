@@ -13,8 +13,6 @@ sources:
 updated: 2026-04-28
 ---
 
-# Filtering Unicast IP in L2 Broadcast Frames
-
 A small, OS-side defence against the data-plane endpoint of [GTK abuse](/wiki/airsnitch/attacks/abusing-gtk/), [Broadcast Reflection](/wiki/airsnitch/attacks/broadcast-reflection/), and the [Passpoint flaws](/wiki/airsnitch/attacks/passpoint-flaws/) attack chain.
 
 The principle: when a kernel decrypts a Wi-Fi frame whose L2 destination is broadcast/multicast and finds a *unicast IP datagram* inside, **drop it**. There is no legitimate reason for the AP to broadcast a unicast IP packet to you.

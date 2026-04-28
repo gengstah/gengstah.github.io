@@ -13,8 +13,6 @@ sources:
 updated: 2026-04-28
 ---
 
-# Gateway Bouncing
-
 > Layer: **IP routing** · Section: **NDSS'26 §V-A** · CLI: `--c2c-ip`
 
 ## What it is

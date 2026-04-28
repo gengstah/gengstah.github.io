@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# LNK File Attacks
-
 **Category:** Initial Access / Credential Theft / Persistence
 **MITRE ATT&CK:** T1547.009 — Shortcut Modification; T1187 — Forced Authentication
 **Related:** [Phishing](/wiki/offsec-notes/concepts/phishing/), [Post Exploitation](/wiki/offsec-notes/concepts/post-exploitation/), [Active Directory Attacks](/wiki/offsec-notes/concepts/active-directory-attacks/)

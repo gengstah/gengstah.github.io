@@ -10,8 +10,6 @@ source_filename: Detecting Active Directory Password-Spraying with a Honeypot Ac
 status: integrated
 ---
 
-# Detecting Active Directory Password Spraying with a Honeypot Account
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Detecting Active Directory Password-Spraying with a Honeypot Account.md`.
 
 **Status:** `integrated`

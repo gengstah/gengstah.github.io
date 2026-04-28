@@ -10,8 +10,6 @@ source_filename: Microsoft Speech.md
 status: integrated
 ---
 
-# Microsoft Speech
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Microsoft Speech.md`.
 
 **Status:** `integrated`

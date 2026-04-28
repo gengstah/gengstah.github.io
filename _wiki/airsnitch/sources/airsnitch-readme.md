@@ -10,8 +10,6 @@ sources: []
 updated: 2026-04-28
 ---
 
-# Source: AirSnitch upstream README
-
 **File:** [`airsnitch/README.md`](../../airsnitch/README.md)
 
 The user-facing operator's manual for the AirSnitch tool, maintained by Mathy Vanhoef. Lives at the root of the [`vanhoefm/airsnitch`](https://github.com/vanhoefm/airsnitch) GitHub repo.

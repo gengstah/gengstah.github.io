@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# Beacon Object Files (BOFs)
-
 **Category:** Command and Control / Execution / Defense Evasion
 **MITRE ATT&CK:** T1055 — Process Injection; T1620 — Reflective Code Loading
 **Related:** [Command And Control](/wiki/offsec-notes/concepts/command-and-control/), [Cobalt Strike](/wiki/offsec-notes/entities/cobalt-strike/), [Evasion Techniques](/wiki/offsec-notes/concepts/evasion-techniques/)

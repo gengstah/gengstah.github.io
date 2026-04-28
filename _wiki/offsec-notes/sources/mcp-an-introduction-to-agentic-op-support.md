@@ -10,8 +10,6 @@ source_filename: MCP_ An Introduction to Agentic Op Support.md
 status: integrated
 ---
 
-# MCP  An Introduction to Agentic Op Support
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/MCP_ An Introduction to Agentic Op Support.md`.
 
 **Status:** `integrated`

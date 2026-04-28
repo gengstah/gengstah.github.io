@@ -10,8 +10,6 @@ source_filename: Undocumented Structures.md
 status: catalogued
 ---
 
-# Undocumented Structures
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Undocumented Structures.md`.
 
 **Status:** `catalogued`

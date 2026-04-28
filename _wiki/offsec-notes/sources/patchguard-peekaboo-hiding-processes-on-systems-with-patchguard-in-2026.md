@@ -11,8 +11,6 @@ source_filename: PatchGuard Peekaboo_ Hiding Processes on Systems with PatchGuar
 status: integrated
 ---
 
-# PatchGuard Peekaboo  Hiding Processes on Systems with PatchGuard in 2026
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/PatchGuard Peekaboo_ Hiding Processes on Systems with PatchGuard in 2026.md`.
 
 **Status:** `integrated`

@@ -10,8 +10,6 @@ source_filename: macOS JIT Memory.md
 status: integrated
 ---
 
-# macOS JIT Memory
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/macOS JIT Memory.md`.
 
 **Status:** `integrated`

@@ -8,8 +8,6 @@ tags:
 - tool
 ---
 
-# Nuclei
-
 **Type:** Tool
 **Also known as:** ProjectDiscovery Nuclei
 **Related:** [Vulnerability Assessment](/wiki/offsec-notes/concepts/vulnerability-assessment/), [Web Application Testing](/wiki/offsec-notes/concepts/web-application-testing/), [Reconnaissance](/wiki/offsec-notes/concepts/reconnaissance/)

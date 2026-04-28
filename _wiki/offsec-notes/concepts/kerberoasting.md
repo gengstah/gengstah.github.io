@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# Kerberoasting
-
 **Category:** Active Directory / Credential Access
 **MITRE ATT&CK:** T1558.003 — Steal or Forge Kerberos Tickets: Kerberoasting
 **Related:** [Active Directory Attacks](/wiki/offsec-notes/concepts/active-directory-attacks/), [Pass The Hash](/wiki/offsec-notes/concepts/pass-the-hash/), [Mimikatz](/wiki/offsec-notes/entities/mimikatz/), [Impacket](/wiki/offsec-notes/entities/impacket/)

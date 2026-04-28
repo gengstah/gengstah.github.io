@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# EDR Silencing
-
 **Category:** Defense Evasion
 **MITRE ATT&CK:** T1562.001 — Impair Defenses: Disable or Modify Tools; T1562.004 — Disable or Modify System Firewall
 **Related:** [Evasion Techniques](/wiki/offsec-notes/concepts/evasion-techniques/), [Applocker Abuse](/wiki/offsec-notes/concepts/applocker-abuse/), [Bind Link Edr Tampering](/wiki/offsec-notes/concepts/bind-link-edr-tampering/)

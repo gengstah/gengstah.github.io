@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# AppLocker Rules Abuse
-
 **Category:** Defense Evasion / Execution
 **MITRE ATT&CK:** T1562.001 — Impair Defenses: Disable or Modify Tools; T1518.001 — Software Discovery: Security Software Discovery
 **Related:** [Evasion Techniques](/wiki/offsec-notes/concepts/evasion-techniques/), [Privilege Escalation Windows](/wiki/offsec-notes/concepts/privilege-escalation-windows/), [Edr Silencing](/wiki/offsec-notes/concepts/edr-silencing/)

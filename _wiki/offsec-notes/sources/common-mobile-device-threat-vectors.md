@@ -10,8 +10,6 @@ source_filename: Common Mobile Device Threat Vectors.md
 status: integrated
 ---
 
-# Common Mobile Device Threat Vectors
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Common Mobile Device Threat Vectors.md`.
 
 **Status:** `integrated`

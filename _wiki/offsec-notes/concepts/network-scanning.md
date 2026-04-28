@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# Network Scanning
-
 **Category:** Network
 **MITRE ATT&CK:** Discovery — T1046 (Network Service Discovery)
 **Related:** [Reconnaissance](/wiki/offsec-notes/concepts/reconnaissance/), [Vulnerability Assessment](/wiki/offsec-notes/concepts/vulnerability-assessment/), [Lateral Movement](/wiki/offsec-notes/concepts/lateral-movement/)

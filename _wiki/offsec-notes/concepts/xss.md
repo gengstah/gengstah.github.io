@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# Cross-Site Scripting (XSS)
-
 **Category:** Web
 **MITRE ATT&CK:** T1059.007 (Command and Scripting Interpreter: JavaScript)
 **Related:** [Web Application Testing](/wiki/offsec-notes/concepts/web-application-testing/), [Sql Injection](/wiki/offsec-notes/concepts/sql-injection/), [Phishing](/wiki/offsec-notes/concepts/phishing/)

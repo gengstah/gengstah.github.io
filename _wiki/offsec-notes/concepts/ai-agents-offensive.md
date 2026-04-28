@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# AI Agents for Offensive Operations
-
 **Category:** Emerging Techniques / Automation
 **MITRE ATT&CK:** (No specific technique — cross-cutting automation capability)
 **Related:** [Red Teaming](/wiki/offsec-notes/concepts/red-teaming/), [Reconnaissance](/wiki/offsec-notes/concepts/reconnaissance/), [Command And Control](/wiki/offsec-notes/concepts/command-and-control/)

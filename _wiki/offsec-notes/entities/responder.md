@@ -8,8 +8,6 @@ tags:
 - tool
 ---
 
-# Responder
-
 **Type:** Tool
 **Also known as:** Responder.py
 **Related:** [Active Directory Attacks](/wiki/offsec-notes/concepts/active-directory-attacks/), [Pass The Hash](/wiki/offsec-notes/concepts/pass-the-hash/), [Lateral Movement](/wiki/offsec-notes/concepts/lateral-movement/)

@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# Privilege Escalation — Linux
-
 **Category:** Linux / Post-Exploitation
 **MITRE ATT&CK:** Privilege Escalation — TA0004
 **Related:** [Privilege Escalation Windows](/wiki/offsec-notes/concepts/privilege-escalation-windows/), [Post Exploitation](/wiki/offsec-notes/concepts/post-exploitation/), [Lateral Movement](/wiki/offsec-notes/concepts/lateral-movement/)

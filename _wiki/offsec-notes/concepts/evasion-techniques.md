@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# Evasion Techniques
-
 **Category:** Defense Evasion / Cross-cutting
 **MITRE ATT&CK:** Defense Evasion — TA0005
 **Related:** [Command And Control](/wiki/offsec-notes/concepts/command-and-control/), [Phishing](/wiki/offsec-notes/concepts/phishing/), [Post Exploitation](/wiki/offsec-notes/concepts/post-exploitation/), [Red Teaming](/wiki/offsec-notes/concepts/red-teaming/)

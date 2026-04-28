@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# LSASS Dumping
-
 **Category:** Credential Access
 **MITRE ATT&CK:** T1003.001 — OS Credential Dumping: LSASS Memory
 **Related:** [Mimikatz](/wiki/offsec-notes/entities/mimikatz/), [Credential Guard Bypass](/wiki/offsec-notes/concepts/credential-guard-bypass/), [Active Directory Attacks](/wiki/offsec-notes/concepts/active-directory-attacks/), [Evasion Techniques](/wiki/offsec-notes/concepts/evasion-techniques/)

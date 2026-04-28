@@ -10,8 +10,6 @@ source_filename: Local Function Stomping Injection.md
 status: catalogued
 ---
 
-# Local Function Stomping Injection
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Local Function Stomping Injection.md`.
 
 **Status:** `catalogued`

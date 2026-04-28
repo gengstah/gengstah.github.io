@@ -10,8 +10,6 @@ source_filename: Process Enumeration.md
 status: catalogued
 ---
 
-# Process Enumeration
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Process Enumeration.md`.
 
 **Status:** `catalogued`

@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# JWT Attacks
-
 **Category:** Web / Authentication
 **MITRE ATT&CK:** T1550 — Use Alternate Authentication Material; T1078 — Valid Accounts
 **Related:** [Web Application Testing](/wiki/offsec-notes/concepts/web-application-testing/), [Xss](/wiki/offsec-notes/concepts/xss/), [Burp Suite](/wiki/offsec-notes/entities/burp-suite/)

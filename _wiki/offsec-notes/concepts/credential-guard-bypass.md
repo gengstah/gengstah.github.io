@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# Credential Guard Bypass
-
 **Category:** Credential Access / Defense Evasion
 **MITRE ATT&CK:** T1003.001 — OS Credential Dumping: LSASS Memory; T1562 — Impair Defenses
 **Related:** [Active Directory Attacks](/wiki/offsec-notes/concepts/active-directory-attacks/), [Privilege Escalation Windows](/wiki/offsec-notes/concepts/privilege-escalation-windows/), [Mimikatz](/wiki/offsec-notes/entities/mimikatz/)

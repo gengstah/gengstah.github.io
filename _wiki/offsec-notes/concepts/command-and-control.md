@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# Command and Control (C2)
-
 **Category:** Post-Exploitation / Infrastructure
 **MITRE ATT&CK:** Command and Control — TA0011
 **Related:** [Post Exploitation](/wiki/offsec-notes/concepts/post-exploitation/), [Lateral Movement](/wiki/offsec-notes/concepts/lateral-movement/), [Evasion Techniques](/wiki/offsec-notes/concepts/evasion-techniques/), [Red Teaming](/wiki/offsec-notes/concepts/red-teaming/)

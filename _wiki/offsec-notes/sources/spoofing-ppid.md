@@ -10,8 +10,6 @@ source_filename: Spoofing PPID.md
 status: catalogued
 ---
 
-# Spoofing PPID
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Spoofing PPID.md`.
 
 **Status:** `catalogued`

@@ -10,8 +10,6 @@ source_filename: Training Specialist Models.md
 status: integrated
 ---
 
-# Training Specialist Models
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Training Specialist Models.md`.
 
 **Status:** `integrated`

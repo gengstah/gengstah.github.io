@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# Lateral Movement
-
 **Category:** Active Directory / Windows / Network
 **MITRE ATT&CK:** Lateral Movement — TA0008
 **Related:** [Pass The Hash](/wiki/offsec-notes/concepts/pass-the-hash/), [Active Directory Attacks](/wiki/offsec-notes/concepts/active-directory-attacks/), [Command And Control](/wiki/offsec-notes/concepts/command-and-control/), [Post Exploitation](/wiki/offsec-notes/concepts/post-exploitation/)

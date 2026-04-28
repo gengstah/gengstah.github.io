@@ -10,8 +10,6 @@ source_filename: Process Injection - DLL Injection.md
 status: catalogued
 ---
 
-# Process Injection   DLL Injection
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Process Injection - DLL Injection.md`.
 
 **Status:** `catalogued`

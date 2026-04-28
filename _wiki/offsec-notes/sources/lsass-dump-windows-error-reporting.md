@@ -10,8 +10,6 @@ source_filename: "LSASS Dump \u2013 Windows Error Reporting.md"
 status: integrated
 ---
 
-# LSASS Dump – Windows Error Reporting
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/LSASS Dump – Windows Error Reporting.md`.
 
 **Status:** `integrated`

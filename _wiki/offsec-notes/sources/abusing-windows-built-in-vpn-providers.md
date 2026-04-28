@@ -10,8 +10,6 @@ source_filename: Abusing Windows Built-in VPN Providers.md
 status: integrated
 ---
 
-# Abusing Windows Built in VPN Providers
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Abusing Windows Built-in VPN Providers.md`.
 
 **Status:** `integrated`

@@ -10,8 +10,6 @@ sources: []
 updated: 2026-04-28
 ---
 
-# Source: NDSS'26 — AirSnitch paper
-
 **Title:** *AirSnitch: Demystifying and Breaking Client Isolation in Wi-Fi Networks*
 
 **Authors:**

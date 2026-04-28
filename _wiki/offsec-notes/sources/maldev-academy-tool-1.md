@@ -10,8 +10,6 @@ source_filename: Maldev Academy Tool (1).md
 status: catalogued
 ---
 
-# Maldev Academy Tool (1)
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Maldev Academy Tool (1).md`.
 
 **Status:** `catalogued`

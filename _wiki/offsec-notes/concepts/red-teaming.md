@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# Red Teaming
-
 **Category:** Engagement Methodology
 **MITRE ATT&CK:** Full kill chain simulation
 **Related:** [Purple Teaming](/wiki/offsec-notes/concepts/purple-teaming/), [Command And Control](/wiki/offsec-notes/concepts/command-and-control/), [Social Engineering](/wiki/offsec-notes/concepts/social-engineering/), [Phishing](/wiki/offsec-notes/concepts/phishing/), [Post Exploitation](/wiki/offsec-notes/concepts/post-exploitation/)

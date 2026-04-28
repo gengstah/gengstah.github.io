@@ -10,8 +10,6 @@ source_filename: Operating Inside the Interpreted_ Offensive Python.md
 status: integrated
 ---
 
-# Operating Inside the Interpreted  Offensive Python
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Operating Inside the Interpreted_ Offensive Python.md`.
 
 **Status:** `integrated`

@@ -10,8 +10,6 @@ source_filename: Remote Mapping Injection.md
 status: catalogued
 ---
 
-# Remote Mapping Injection
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Remote Mapping Injection.md`.
 
 **Status:** `catalogued`

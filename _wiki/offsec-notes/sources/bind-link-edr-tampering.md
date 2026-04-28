@@ -10,8 +10,6 @@ source_filename: "Bind Link \u2013 EDR Tampering.md"
 status: integrated
 ---
 
-# Bind Link – EDR Tampering
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Bind Link – EDR Tampering.md`.
 
 **Status:** `integrated`

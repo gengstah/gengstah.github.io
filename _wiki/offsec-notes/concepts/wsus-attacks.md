@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# WSUS Attacks — NTLM Relay
-
 **Category:** Credential Access / Lateral Movement
 **MITRE ATT&CK:** T1557.001 — LLMNR/NBT-NS Poisoning and Relay (analogous); T1550.002 — Pass the Hash
 **Related:** [Active Directory Attacks](/wiki/offsec-notes/concepts/active-directory-attacks/), [Lateral Movement](/wiki/offsec-notes/concepts/lateral-movement/), [Responder](/wiki/offsec-notes/entities/responder/), [Impacket](/wiki/offsec-notes/entities/impacket/)

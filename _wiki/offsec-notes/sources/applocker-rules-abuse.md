@@ -10,8 +10,6 @@ source_filename: AppLocker Rules Abuse.md
 status: integrated
 ---
 
-# AppLocker Rules Abuse
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/AppLocker Rules Abuse.md`.
 
 **Status:** `integrated`

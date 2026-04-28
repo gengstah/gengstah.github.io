@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# MDT Credential Extraction
-
 **Category:** Credential Access / Internal Recon
 **MITRE ATT&CK:** T1552.001 — Credentials In Files; T1083 — File and Directory Discovery
 **Related:** [Active Directory Attacks](/wiki/offsec-notes/concepts/active-directory-attacks/), [Post Exploitation](/wiki/offsec-notes/concepts/post-exploitation/), [Lateral Movement](/wiki/offsec-notes/concepts/lateral-movement/)

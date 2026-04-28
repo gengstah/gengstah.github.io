@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# Notepad++ Plugin Abuse
-
 **Category:** Defense Evasion / Persistence / Execution
 **MITRE ATT&CK:** T1574.002 — DLL Side-Loading; T1059.006 — Python; T1036 — Masquerading
 **Related:** [Offensive Python](/wiki/offsec-notes/concepts/offensive-python/), [Dll Hijacking](/wiki/offsec-notes/concepts/dll-hijacking/), [Evasion Techniques](/wiki/offsec-notes/concepts/evasion-techniques/)

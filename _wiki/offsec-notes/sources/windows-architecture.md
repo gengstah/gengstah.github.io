@@ -10,8 +10,6 @@ source_filename: Windows Architecture.md
 status: catalogued
 ---
 
-# Windows Architecture
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Windows Architecture.md`.
 
 **Status:** `catalogued`

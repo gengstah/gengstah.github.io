@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# Chrome NTLM Hash Leak (DragonHash)
-
 **Category:** Credential Access / Social Engineering
 **MITRE ATT&CK:** T1187 — Forced Authentication; T1204.001 — User Execution: Malicious Link
 **Related:** [Social Engineering](/wiki/offsec-notes/concepts/social-engineering/), [Responder](/wiki/offsec-notes/entities/responder/), [Active Directory Attacks](/wiki/offsec-notes/concepts/active-directory-attacks/)

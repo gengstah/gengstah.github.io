@@ -10,8 +10,6 @@ source_filename: Local Payload Execution (1).md
 status: catalogued
 ---
 
-# Local Payload Execution (1)
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Local Payload Execution (1).md`.
 
 **Status:** `catalogued`

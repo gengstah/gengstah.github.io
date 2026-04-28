@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# Privilege Escalation — Windows
-
 **Category:** Windows / Post-Exploitation
 **MITRE ATT&CK:** Privilege Escalation — TA0004
 **Related:** [Privilege Escalation Linux](/wiki/offsec-notes/concepts/privilege-escalation-linux/), [Active Directory Attacks](/wiki/offsec-notes/concepts/active-directory-attacks/), [Post Exploitation](/wiki/offsec-notes/concepts/post-exploitation/), [Mimikatz](/wiki/offsec-notes/entities/mimikatz/)

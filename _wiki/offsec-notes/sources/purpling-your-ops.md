@@ -10,8 +10,6 @@ source_filename: Purpling Your Ops.md
 status: integrated
 ---
 
-# Purpling Your Ops
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Purpling Your Ops.md`.
 
 **Status:** `integrated`

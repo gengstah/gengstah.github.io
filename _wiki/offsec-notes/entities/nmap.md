@@ -8,8 +8,6 @@ tags:
 - tool
 ---
 
-# Nmap
-
 **Type:** Tool
 **Also known as:** Network Mapper
 **Related:** [Network Scanning](/wiki/offsec-notes/concepts/network-scanning/), [Reconnaissance](/wiki/offsec-notes/concepts/reconnaissance/), [Vulnerability Assessment](/wiki/offsec-notes/concepts/vulnerability-assessment/)

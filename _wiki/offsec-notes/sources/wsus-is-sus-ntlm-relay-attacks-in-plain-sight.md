@@ -10,8 +10,6 @@ source_filename: WSUS Is SUS_ NTLM Relay Attacks in Plain Sight.md
 status: integrated
 ---
 
-# WSUS Is SUS  NTLM Relay Attacks in Plain Sight
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/WSUS Is SUS_ NTLM Relay Attacks in Plain Sight.md`.
 
 **Status:** `integrated`

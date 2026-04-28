@@ -10,8 +10,6 @@ source_filename: Early Bird APC Injection.md
 status: catalogued
 ---
 
-# Early Bird APC Injection
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Early Bird APC Injection.md`.
 
 **Status:** `catalogued`

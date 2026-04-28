@@ -10,8 +10,6 @@ source_filename: BOF Linting for Accelerated Development.md
 status: integrated
 ---
 
-# BOF Linting for Accelerated Development
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/BOF Linting for Accelerated Development.md`.
 
 **Status:** `integrated`

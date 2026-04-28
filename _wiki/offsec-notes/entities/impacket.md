@@ -8,8 +8,6 @@ tags:
 - tool
 ---
 
-# Impacket
-
 **Type:** Tool / Library
 **Also known as:** Impacket suite
 **Related:** [Active Directory Attacks](/wiki/offsec-notes/concepts/active-directory-attacks/), [Kerberoasting](/wiki/offsec-notes/concepts/kerberoasting/), [Pass The Hash](/wiki/offsec-notes/concepts/pass-the-hash/), [Lateral Movement](/wiki/offsec-notes/concepts/lateral-movement/)

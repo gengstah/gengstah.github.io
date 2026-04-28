@@ -8,8 +8,6 @@ tags:
 - tool
 ---
 
-# BloodHound
-
 **Type:** Tool / Framework
 **Also known as:** BloodHound CE (Community Edition), BloodHound Enterprise (commercial)
 **Related:** [Active Directory Attacks](/wiki/offsec-notes/concepts/active-directory-attacks/), [Kerberoasting](/wiki/offsec-notes/concepts/kerberoasting/), [Lateral Movement](/wiki/offsec-notes/concepts/lateral-movement/)

@@ -10,8 +10,6 @@ source_filename: Linux Process Injection via Seccomp Notify.md
 status: integrated
 ---
 
-# Linux Process Injection via Seccomp Notify
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Linux Process Injection via Seccomp Notify.md`.
 
 **Status:** `integrated`

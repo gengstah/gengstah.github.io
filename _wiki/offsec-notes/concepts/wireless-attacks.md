@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# Wireless Attacks
-
 **Category:** Network / Physical
 **MITRE ATT&CK:** T1040 (Network Sniffing), Initial Access via wireless
 **Related:** [Network Scanning](/wiki/offsec-notes/concepts/network-scanning/), [Reconnaissance](/wiki/offsec-notes/concepts/reconnaissance/), [Social Engineering](/wiki/offsec-notes/concepts/social-engineering/), [Wi Fi Client Isolation Bypass](/wiki/offsec-notes/concepts/wi-fi-client-isolation-bypass/)

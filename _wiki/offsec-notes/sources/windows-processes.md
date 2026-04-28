@@ -10,8 +10,6 @@ source_filename: Windows Processes.md
 status: catalogued
 ---
 
-# Windows Processes
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Windows Processes.md`.
 
 **Status:** `catalogued`

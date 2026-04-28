@@ -10,8 +10,6 @@ source_filename: Helpful Hints for Writing (and Editing) Cybersecurity Reports.m
 status: integrated
 ---
 
-# Helpful Hints for Writing (and Editing) Cybersecurity Reports
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Helpful Hints for Writing (and Editing) Cybersecurity Reports.md`.
 
 **Status:** `integrated`

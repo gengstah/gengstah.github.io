@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# Reconnaissance
-
 **Category:** General / Pre-Engagement
 **MITRE ATT&CK:** Reconnaissance — TA0043
 **Related:** [Network Scanning](/wiki/offsec-notes/concepts/network-scanning/), [Social Engineering](/wiki/offsec-notes/concepts/social-engineering/), [Phishing](/wiki/offsec-notes/concepts/phishing/), [Vulnerability Assessment](/wiki/offsec-notes/concepts/vulnerability-assessment/)

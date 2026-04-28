@@ -10,8 +10,6 @@ source_filename: Payload Staging - Web Server.md
 status: catalogued
 ---
 
-# Payload Staging   Web Server
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Payload Staging - Web Server.md`.
 
 **Status:** `catalogued`

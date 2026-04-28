@@ -10,8 +10,6 @@ source_filename: Accelerating Offensive R&D with LLMs.md
 status: integrated
 ---
 
-# Accelerating Offensive R&D with LLMs
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Accelerating Offensive R&D with LLMs.md`.
 
 **Status:** `integrated`

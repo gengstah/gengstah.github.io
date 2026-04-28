@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# GAC Hijacking (.NET Assembly Tampering)
-
 **Category:** Persistence / Defense Evasion / Execution
 **MITRE ATT&CK:** T1574.001 — DLL Side-Loading; T1546 — Event Triggered Execution
 **Related:** [Dll Hijacking](/wiki/offsec-notes/concepts/dll-hijacking/), [Evasion Techniques](/wiki/offsec-notes/concepts/evasion-techniques/), Persistence

@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# Linux Process Injection
-
 **Category:** Execution / Defense Evasion
 **MITRE ATT&CK:** T1055 — Process Injection; T1055.008 — Ptrace System Calls
 **Related:** [Privilege Escalation Linux](/wiki/offsec-notes/concepts/privilege-escalation-linux/), [Evasion Techniques](/wiki/offsec-notes/concepts/evasion-techniques/), [Post Exploitation](/wiki/offsec-notes/concepts/post-exploitation/)

@@ -13,8 +13,6 @@ sources:
 updated: 2026-04-28
 ---
 
-# Broadcast Reflection
-
 > Layer: **Internal switching** · Section: **NDSS'26 §V-C** · CLI: `--c2c-broadcast`
 
 ## What it is

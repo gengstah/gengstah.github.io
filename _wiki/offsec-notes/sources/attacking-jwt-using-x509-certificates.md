@@ -10,8 +10,6 @@ source_filename: Attacking JWT using X509 Certificates.md
 status: integrated
 ---
 
-# Attacking JWT using X509 Certificates
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Attacking JWT using X509 Certificates.md`.
 
 **Status:** `integrated`

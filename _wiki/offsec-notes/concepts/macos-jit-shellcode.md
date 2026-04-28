@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# macOS JIT Memory and Shellcode Execution
-
 **Category:** Execution / Defense Evasion (macOS)
 **MITRE ATT&CK:** T1059 — Command and Scripting Interpreter; T1620 — Reflective Code Loading
 **Related:** [Evasion Techniques](/wiki/offsec-notes/concepts/evasion-techniques/), [Post Exploitation](/wiki/offsec-notes/concepts/post-exploitation/)

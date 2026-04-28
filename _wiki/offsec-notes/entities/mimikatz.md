@@ -8,8 +8,6 @@ tags:
 - tool
 ---
 
-# Mimikatz
-
 **Type:** Tool
 **Also known as:** mimi
 **Related:** [Active Directory Attacks](/wiki/offsec-notes/concepts/active-directory-attacks/), [Pass The Hash](/wiki/offsec-notes/concepts/pass-the-hash/), [Post Exploitation](/wiki/offsec-notes/concepts/post-exploitation/), [Kerberoasting](/wiki/offsec-notes/concepts/kerberoasting/)

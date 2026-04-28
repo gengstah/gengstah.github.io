@@ -11,8 +11,6 @@ sources:
 updated: 2026-04-28
 ---
 
-# airsnitch.py — CLI Reference
-
 `airsnitch.py` is the central executable. Lives at `airsnitch/research/airsnitch.py` in the upstream repo. It runs two `wpa_supplicant` instances (the simulated victim and attacker) against the target network, then drives the chosen test through helpers in `library/`.
 
 ```

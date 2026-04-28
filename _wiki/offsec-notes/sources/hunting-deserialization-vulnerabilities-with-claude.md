@@ -10,8 +10,6 @@ source_filename: Hunting Deserialization Vulnerabilities With Claude.md
 status: integrated
 ---
 
-# Hunting Deserialization Vulnerabilities With Claude
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Hunting Deserialization Vulnerabilities With Claude.md`.
 
 **Status:** `integrated`

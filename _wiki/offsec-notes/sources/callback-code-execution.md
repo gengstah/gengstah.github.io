@@ -10,8 +10,6 @@ source_filename: Callback Code Execution.md
 status: catalogued
 ---
 
-# Callback Code Execution
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Callback Code Execution.md`.
 
 **Status:** `catalogued`

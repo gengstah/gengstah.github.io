@@ -10,8 +10,6 @@ source_filename: ndss2026-airsnitch-paper.md
 status: catalogued
 ---
 
-# AirSnitch: Demystifying and Breaking Client Isolation in Wi-Fi Networks
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/airsnitch/ndss2026-airsnitch-paper.md`.
 
 **Status:** `catalogued`

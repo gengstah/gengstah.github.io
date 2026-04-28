@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# Web Application Testing
-
 **Category:** Web
 **MITRE ATT&CK:** Initial Access / Execution — multiple techniques
 **Related:** [Sql Injection](/wiki/offsec-notes/concepts/sql-injection/), [Xss](/wiki/offsec-notes/concepts/xss/), [Reconnaissance](/wiki/offsec-notes/concepts/reconnaissance/), [Vulnerability Assessment](/wiki/offsec-notes/concepts/vulnerability-assessment/)

@@ -10,8 +10,6 @@ source_filename: EDR Silencing.md
 status: integrated
 ---
 
-# EDR Silencing
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/EDR Silencing.md`.
 
 **Status:** `integrated`

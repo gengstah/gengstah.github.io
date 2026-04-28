@@ -10,8 +10,6 @@ source_filename: Thread Hijacking - Local Thread Creation.md
 status: catalogued
 ---
 
-# Thread Hijacking   Local Thread Creation
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Thread Hijacking - Local Thread Creation.md`.
 
 **Status:** `catalogued`

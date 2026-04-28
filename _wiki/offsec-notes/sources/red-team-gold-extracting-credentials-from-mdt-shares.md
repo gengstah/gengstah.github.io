@@ -10,8 +10,6 @@ source_filename: Red Team Gold_ Extracting Credentials from MDT Shares.md
 status: integrated
 ---
 
-# Red Team Gold  Extracting Credentials from MDT Shares
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Red Team Gold_ Extracting Credentials from MDT Shares.md`.
 
 **Status:** `integrated`

@@ -11,8 +11,6 @@ sources:
 updated: 2026-04-28
 ---
 
-# AirSnitch — Repository Layout
-
 What lives where in [`airsnitch/`](../../airsnitch/). The repo is the upstream [`vanhoefm/airsnitch`](https://github.com/vanhoefm/airsnitch); the NDSS'26 artifact-evaluated snapshot is at [`zhouxinan/airsnitch`](https://github.com/zhouxinan/airsnitch) / [Zenodo](https://doi.org/10.5281/zenodo.17905485).
 
 ## Top-level

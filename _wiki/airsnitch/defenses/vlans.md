@@ -13,8 +13,6 @@ sources:
 updated: 2026-04-28
 ---
 
-# VLANs and Firewall Rules
-
 The most practical defence available today against the L3 and switching-layer attacks. The principle: **put each isolation domain in its own VLAN and put firewall rules between them.**
 
 The headline win, from NDSS'26 §VII-D and §VIII-C: a properly configured TP-Link EAP613 with guest BSSIDs in separate VLANs **nullifies every technique in the AirSnitch table** (Table VI). VLANs are not a complete answer — they don't help against [shared-passphrase attacks](/wiki/airsnitch/attacks/machine-on-the-side/) or against attackers within the same VLAN — but they make the cross-domain attacks much harder.

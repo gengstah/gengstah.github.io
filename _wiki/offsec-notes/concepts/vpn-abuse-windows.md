@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# Windows Built-in VPN Abuse
-
 **Category:** Defense Evasion / Network Manipulation
 **MITRE ATT&CK:** T1599 — Network Boundary Bridging; T1557 — Adversary-in-the-Middle
 **Related:** [Evasion Techniques](/wiki/offsec-notes/concepts/evasion-techniques/), [Post Exploitation](/wiki/offsec-notes/concepts/post-exploitation/), [Lateral Movement](/wiki/offsec-notes/concepts/lateral-movement/)

@@ -13,8 +13,6 @@ sources:
 updated: 2026-04-28
 ---
 
-# Abusing GTK
-
 > Layer: **Wi-Fi encryption** · Section: **NDSS'26 §IV-B** · CLI: `--check-gtk-shared`
 
 ## What it is

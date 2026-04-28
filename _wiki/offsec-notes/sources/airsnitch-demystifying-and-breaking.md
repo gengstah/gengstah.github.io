@@ -10,8 +10,6 @@ source_filename: AirSnitch - Demystifying and Breaking.md
 status: integrated
 ---
 
-# AirSnitch: Demystifying and Breaking
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/AirSnitch - Demystifying and Breaking.md`.
 
 **Status:** `integrated`

@@ -10,8 +10,6 @@ source_filename: Credential Guard.md
 status: integrated
 ---
 
-# Credential Guard
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Credential Guard.md`.
 
 **Status:** `integrated`

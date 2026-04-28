@@ -10,8 +10,6 @@ source_filename: Detection Mechanisms.md
 status: catalogued
 ---
 
-# Detection Mechanisms
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Detection Mechanisms.md`.
 
 **Status:** `catalogued`

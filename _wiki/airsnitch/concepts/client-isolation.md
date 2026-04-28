@@ -13,8 +13,6 @@ sources:
 updated: 2026-04-28
 ---
 
-# Client Isolation
-
 **Client isolation** (also *AP isolation*, *station isolation*, *peer-to-peer blocking*) is a Wi-Fi network feature whose stated goal is to prevent associated clients from communicating with each other. It exists to mitigate insider attacks — a malicious guest on a coffee shop network shouldn't be able to ARP-poison another guest, a compromised IoT device shouldn't be able to reach a laptop on the same SSID.
 
 ## The problem: it isn't a standard

@@ -8,8 +8,6 @@ tags:
 - tool
 ---
 
-# Burp Suite
-
 **Type:** Tool
 **Also known as:** Burp, Burp Suite Professional, Burp Suite Community
 **Related:** [Web Application Testing](/wiki/offsec-notes/concepts/web-application-testing/), [Sql Injection](/wiki/offsec-notes/concepts/sql-injection/), [Xss](/wiki/offsec-notes/concepts/xss/)

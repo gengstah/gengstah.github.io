@@ -10,8 +10,6 @@ source_filename: GAC Hijacking.md
 status: integrated
 ---
 
-# GAC Hijacking
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/GAC Hijacking.md`.
 
 **Status:** `integrated`

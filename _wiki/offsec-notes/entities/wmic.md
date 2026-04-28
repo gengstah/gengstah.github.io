@@ -8,8 +8,6 @@ tags:
 - tool
 ---
 
-# WMIC
-
 **Category:** LOLBin / Post-Exploitation Shell
 **MITRE ATT&CK:** T1047 — Windows Management Instrumentation; T1059.003 — Windows Command Shell (as a substitute)
 **Related:** [Evasion Techniques](/wiki/offsec-notes/concepts/evasion-techniques/), [Lateral Movement](/wiki/offsec-notes/concepts/lateral-movement/), [Post Exploitation](/wiki/offsec-notes/concepts/post-exploitation/)

@@ -13,8 +13,6 @@ sources:
 updated: 2026-04-28
 ---
 
-# WPA Versions and Modes
-
 Which WPA mode you run determines which AirSnitch attacks work and which don't. Summary up front:
 
 | Mode | Machine-on-the-side | Rogue AP | Abusing GTK | Gateway Bouncing | Port Stealing | Broadcast Reflection |

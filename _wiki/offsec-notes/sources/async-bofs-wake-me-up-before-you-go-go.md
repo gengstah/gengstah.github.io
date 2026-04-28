@@ -10,8 +10,6 @@ source_filename: Async BOFs - _Wake Me Up, Before You Go Go_.md
 status: integrated
 ---
 
-# Async BOFs    Wake Me Up, Before You Go Go 
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Async BOFs - _Wake Me Up, Before You Go Go_.md`.
 
 **Status:** `integrated`

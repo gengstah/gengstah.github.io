@@ -10,8 +10,6 @@ source_filename: Local Mapping Injection.md
 status: catalogued
 ---
 
-# Local Mapping Injection
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Local Mapping Injection.md`.
 
 **Status:** `catalogued`

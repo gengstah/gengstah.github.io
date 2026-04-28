@@ -12,8 +12,6 @@ sources:
 updated: 2026-04-28
 ---
 
-# Management Frame Protection (MFP / 802.11w)
-
 **MFP** (IEEE 802.11w) is what you turn on when you don't want random attackers to deauth your clients off the network. It cryptographically protects a subset of management frames so they can't be forged after a client is associated.
 
 In AirSnitch's analysis, MFP raises the bar for a couple of attacks but doesn't defeat them.

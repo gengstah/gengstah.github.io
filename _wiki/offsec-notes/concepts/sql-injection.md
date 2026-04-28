@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# SQL Injection
-
 **Category:** Web
 **MITRE ATT&CK:** Initial Access / Execution — T1190 (Exploit Public-Facing Application)
 **Related:** [Web Application Testing](/wiki/offsec-notes/concepts/web-application-testing/), [Xss](/wiki/offsec-notes/concepts/xss/), [Privilege Escalation Linux](/wiki/offsec-notes/concepts/privilege-escalation-linux/)

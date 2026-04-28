@@ -12,8 +12,6 @@ sources:
 updated: 2026-04-28
 ---
 
-# BSSID, SSID, and ESS
-
 The four-letter alphabet soup that AirSnitch arguments like `--same-bss` and `--other-bss` map onto.
 
 ## SSID — Service Set Identifier

@@ -10,8 +10,6 @@ source_filename: Coding Basics.md
 status: catalogued
 ---
 
-# Coding Basics
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Coding Basics.md`.
 
 **Status:** `catalogued`

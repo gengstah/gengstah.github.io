@@ -8,8 +8,6 @@ tags:
 - concept
 ---
 
-# Phishing
-
 **Category:** Initial Access / Social Engineering
 **MITRE ATT&CK:** T1566 — Phishing (subtech: .001 Spearphishing Attachment, .002 Spearphishing Link, .003 Spearphishing via Service)
 **Related:** [Social Engineering](/wiki/offsec-notes/concepts/social-engineering/), [Command And Control](/wiki/offsec-notes/concepts/command-and-control/), [Evasion Techniques](/wiki/offsec-notes/concepts/evasion-techniques/)

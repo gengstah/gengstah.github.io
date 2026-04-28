@@ -10,8 +10,6 @@ source_filename: Payload Obfuscation (2).md
 status: catalogued
 ---
 
-# Payload Obfuscation (2)
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Payload Obfuscation (2).md`.
 
 **Status:** `catalogued`

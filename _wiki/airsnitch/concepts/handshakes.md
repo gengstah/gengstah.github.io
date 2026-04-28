@@ -12,8 +12,6 @@ sources:
 updated: 2026-04-28
 ---
 
-# Wi-Fi Handshakes
-
 Five handshakes carry [Wi-Fi keys](/wiki/airsnitch/concepts/wifi-key-hierarchy/) between the AP and a client. AirSnitch exploits weaknesses in *what each one is allowed to deliver*.
 
 ## 4-way handshake

@@ -10,8 +10,6 @@ source_filename: Hack-cessibility_ When DLL Hijacks Meet Windows Helpers.md
 status: integrated
 ---
 
-# Hack cessibility  When DLL Hijacks Meet Windows Helpers
-
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Hack-cessibility_ When DLL Hijacks Meet Windows Helpers.md`.
 
 **Status:** `integrated`

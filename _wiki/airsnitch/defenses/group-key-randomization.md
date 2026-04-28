@@ -12,8 +12,6 @@ sources:
 updated: 2026-04-28
 ---
 
-# Group Key Randomization
-
 The cleanest single fix to [Abusing GTK](/wiki/airsnitch/attacks/abusing-gtk/), [Broadcast Reflection](/wiki/airsnitch/attacks/broadcast-reflection/), and the [Passpoint flaws](/wiki/airsnitch/attacks/passpoint-flaws/) attack chain. The principle: **stop sharing the GTK between clients.** Give every client its own random GTK. Translate broadcast traffic that genuinely needs to reach all clients (ARP, DHCP, ND, mDNS) into multiple per-client unicasts at the AP.
 
 This is the defence Passpoint introduces under the name *DGAF Disable* (Downstream Group-Addressed Forwarding Disable). It works — when implemented in *every* GTK-bearing handshake. AirSnitch's contribution is showing that the Passpoint spec, until v3.4, only required it in the 4-way handshake (NDSS'26 §IV-B-2 and §VIII-C).
