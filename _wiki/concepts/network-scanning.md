@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/network-scanning/
+- /wiki/offsec-notes/concepts/network-scanning/
 ---
 
 **Category:** Network

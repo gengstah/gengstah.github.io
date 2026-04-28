@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/kerberoasting/
+- /wiki/offsec-notes/concepts/kerberoasting/
 ---
 
 **Category:** Active Directory / Credential Access

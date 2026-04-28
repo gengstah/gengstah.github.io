@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/linux-process-injection/
+- /wiki/offsec-notes/concepts/linux-process-injection/
 ---
 
 **Category:** Execution / Defense Evasion

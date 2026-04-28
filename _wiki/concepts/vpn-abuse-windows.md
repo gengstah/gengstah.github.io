@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/vpn-abuse-windows/
+- /wiki/offsec-notes/concepts/vpn-abuse-windows/
 ---
 
 **Category:** Defense Evasion / Network Manipulation

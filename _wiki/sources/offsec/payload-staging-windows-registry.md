@@ -9,7 +9,7 @@ tags:
 source_filename: Payload Staging - Windows Registry.md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/payload-staging-windows-registry/
+- /wiki/offsec-notes/sources/payload-staging-windows-registry/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Payload Staging - Windows Registry.md`.

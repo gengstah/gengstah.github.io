@@ -9,7 +9,7 @@ tags:
 source_filename: Introduction To The Windows API.md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/introduction-to-the-windows-api/
+- /wiki/offsec-notes/sources/introduction-to-the-windows-api/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Introduction To The Windows API.md`.

@@ -12,7 +12,7 @@ sources:
 - airsnitch-readme
 updated: 2026-04-28
 redirect_from:
-- /wiki/defenses/vlans/
+- /wiki/airsnitch/defenses/vlans/
 ---
 
 The most practical defence available today against the L3 and switching-layer attacks. The principle: **put each isolation domain in its own VLAN and put firewall rules between them.**

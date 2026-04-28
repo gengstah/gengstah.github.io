@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/chrome-ntlm-hash-leak/
+- /wiki/offsec-notes/concepts/chrome-ntlm-hash-leak/
 ---
 
 **Category:** Credential Access / Social Engineering

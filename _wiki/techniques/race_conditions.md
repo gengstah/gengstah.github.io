@@ -8,7 +8,7 @@ tags:
 - kernel-mode
 - technique
 redirect_from:
-- /wiki/techniques/race_conditions/
+- /wiki/windows-exploit-research/techniques/race_conditions/
 ---
 
 > **Last updated:** 2026-04-10  

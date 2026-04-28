@@ -9,7 +9,7 @@ tags:
 source_filename: Common Mobile Device Threat Vectors.md
 status: integrated
 redirect_from:
-- /wiki/sources/offsec/common-mobile-device-threat-vectors/
+- /wiki/offsec-notes/sources/common-mobile-device-threat-vectors/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Common Mobile Device Threat Vectors.md`.

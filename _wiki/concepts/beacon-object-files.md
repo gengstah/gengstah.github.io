@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/beacon-object-files/
+- /wiki/offsec-notes/concepts/beacon-object-files/
 ---
 
 **Category:** Command and Control / Execution / Defense Evasion

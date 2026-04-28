@@ -9,7 +9,7 @@ tags:
 source_filename: Spoofing PPID.md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/spoofing-ppid/
+- /wiki/offsec-notes/sources/spoofing-ppid/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Spoofing PPID.md`.

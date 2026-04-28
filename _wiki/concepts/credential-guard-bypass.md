@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/credential-guard-bypass/
+- /wiki/offsec-notes/concepts/credential-guard-bypass/
 ---
 
 **Category:** Credential Access / Defense Evasion

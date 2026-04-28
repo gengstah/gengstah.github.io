@@ -9,7 +9,7 @@ tags:
 source_filename: Command Line Underdog_ WMIC in Action.md
 status: integrated
 redirect_from:
-- /wiki/sources/offsec/command-line-underdog-wmic-in-action/
+- /wiki/offsec-notes/sources/command-line-underdog-wmic-in-action/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Command Line Underdog_ WMIC in Action.md`.

@@ -9,7 +9,7 @@ tags:
 source_filename: Red Team Gold_ Extracting Credentials from MDT Shares.md
 status: integrated
 redirect_from:
-- /wiki/sources/offsec/red-team-gold-extracting-credentials-from-mdt-shares/
+- /wiki/offsec-notes/sources/red-team-gold-extracting-credentials-from-mdt-shares/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Red Team Gold_ Extracting Credentials from MDT Shares.md`.

@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/privilege-escalation-linux/
+- /wiki/offsec-notes/concepts/privilege-escalation-linux/
 ---
 
 **Category:** Linux / Post-Exploitation

@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/phishing/
+- /wiki/offsec-notes/concepts/phishing/
 ---
 
 **Category:** Initial Access / Social Engineering

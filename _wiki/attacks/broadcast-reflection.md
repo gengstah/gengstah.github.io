@@ -12,7 +12,7 @@ sources:
 - airsnitch-readme
 updated: 2026-04-28
 redirect_from:
-- /wiki/attacks/broadcast-reflection/
+- /wiki/airsnitch/attacks/broadcast-reflection/
 ---
 
 > Layer: **Internal switching** · Section: **NDSS'26 §V-C** · CLI: `--c2c-broadcast`

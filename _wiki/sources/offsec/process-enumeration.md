@@ -9,7 +9,7 @@ tags:
 source_filename: Process Enumeration.md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/process-enumeration/
+- /wiki/offsec-notes/sources/process-enumeration/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Process Enumeration.md`.

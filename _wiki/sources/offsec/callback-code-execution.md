@@ -9,7 +9,7 @@ tags:
 source_filename: Callback Code Execution.md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/callback-code-execution/
+- /wiki/offsec-notes/sources/callback-code-execution/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Callback Code Execution.md`.

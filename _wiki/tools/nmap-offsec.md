@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - tool
 redirect_from:
-- /wiki/tools/nmap-offsec/
+- /wiki/offsec-notes/entities/nmap/
 ---
 
 **Type:** Tool

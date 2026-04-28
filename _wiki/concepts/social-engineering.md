@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/social-engineering/
+- /wiki/offsec-notes/concepts/social-engineering/
 ---
 
 **Category:** Initial Access / Human

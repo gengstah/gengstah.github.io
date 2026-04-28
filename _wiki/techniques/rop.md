@@ -8,7 +8,7 @@ tags:
 - kernel-mode
 - technique
 redirect_from:
-- /wiki/techniques/rop/
+- /wiki/windows-exploit-research/techniques/rop/
 ---
 
 > **Last updated:** 2026-04-11  

@@ -9,7 +9,7 @@ tags:
 source_filename: Introduction To Payload Encryption.md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/introduction-to-payload-encryption/
+- /wiki/offsec-notes/sources/introduction-to-payload-encryption/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Introduction To Payload Encryption.md`.

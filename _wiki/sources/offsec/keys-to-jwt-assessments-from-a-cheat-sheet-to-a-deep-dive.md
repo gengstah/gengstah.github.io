@@ -9,7 +9,7 @@ tags:
 source_filename: Keys to JWT Assessments - From a Cheat Sheet to a Deep Dive.md
 status: integrated
 redirect_from:
-- /wiki/sources/offsec/keys-to-jwt-assessments-from-a-cheat-sheet-to-a-deep-dive/
+- /wiki/offsec-notes/sources/keys-to-jwt-assessments-from-a-cheat-sheet-to-a-deep-dive/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Keys to JWT Assessments - From a Cheat Sheet to a Deep Dive.md`.

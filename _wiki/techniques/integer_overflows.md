@@ -8,7 +8,7 @@ tags:
 - kernel-mode
 - technique
 redirect_from:
-- /wiki/techniques/integer_overflows/
+- /wiki/windows-exploit-research/techniques/integer_overflows/
 ---
 
 > **Last updated:** 2026-04-10  

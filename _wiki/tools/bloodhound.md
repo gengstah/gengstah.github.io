@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - tool
 redirect_from:
-- /wiki/tools/bloodhound/
+- /wiki/offsec-notes/entities/bloodhound/
 ---
 
 **Type:** Tool / Framework

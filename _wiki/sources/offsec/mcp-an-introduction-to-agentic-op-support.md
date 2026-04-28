@@ -9,7 +9,7 @@ tags:
 source_filename: MCP_ An Introduction to Agentic Op Support.md
 status: integrated
 redirect_from:
-- /wiki/sources/offsec/mcp-an-introduction-to-agentic-op-support/
+- /wiki/offsec-notes/sources/mcp-an-introduction-to-agentic-op-support/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/MCP_ An Introduction to Agentic Op Support.md`.

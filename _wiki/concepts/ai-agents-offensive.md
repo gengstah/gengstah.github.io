@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/ai-agents-offensive/
+- /wiki/offsec-notes/concepts/ai-agents-offensive/
 ---
 
 **Category:** Emerging Techniques / Automation

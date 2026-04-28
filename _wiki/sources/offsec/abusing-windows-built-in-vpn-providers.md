@@ -9,7 +9,7 @@ tags:
 source_filename: Abusing Windows Built-in VPN Providers.md
 status: integrated
 redirect_from:
-- /wiki/sources/offsec/abusing-windows-built-in-vpn-providers/
+- /wiki/offsec-notes/sources/abusing-windows-built-in-vpn-providers/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Abusing Windows Built-in VPN Providers.md`.

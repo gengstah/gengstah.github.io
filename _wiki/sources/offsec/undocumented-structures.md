@@ -9,7 +9,7 @@ tags:
 source_filename: Undocumented Structures.md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/undocumented-structures/
+- /wiki/offsec-notes/sources/undocumented-structures/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Undocumented Structures.md`.

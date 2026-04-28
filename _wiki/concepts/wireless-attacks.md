@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/wireless-attacks/
+- /wiki/offsec-notes/concepts/wireless-attacks/
 ---
 
 **Category:** Network / Physical

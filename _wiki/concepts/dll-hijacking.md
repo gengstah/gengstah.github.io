@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/dll-hijacking/
+- /wiki/offsec-notes/concepts/dll-hijacking/
 ---
 
 **Category:** Persistence / Privilege Escalation / Defense Evasion

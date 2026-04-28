@@ -9,7 +9,7 @@ tags:
 source_filename: Payload Encryption (1).md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/payload-encryption-1/
+- /wiki/offsec-notes/sources/payload-encryption-1/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Payload Encryption (1).md`.

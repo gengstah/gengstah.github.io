@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - tool
 redirect_from:
-- /wiki/tools/airsnitch/
+- /wiki/offsec-notes/entities/airsnitch/
 ---
 
 **Type:** Tool / PoC Framework

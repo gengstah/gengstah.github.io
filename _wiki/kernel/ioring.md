@@ -8,7 +8,7 @@ tags:
 - kernel-mode
 - kernel
 redirect_from:
-- /wiki/kernel/ioring/
+- /wiki/windows-exploit-research/kernel/ioring/
 ---
 
 > **Last updated:** 2026-04-11  

@@ -9,7 +9,7 @@ tags:
 source_filename: Training Specialist Models.md
 status: integrated
 redirect_from:
-- /wiki/sources/offsec/training-specialist-models/
+- /wiki/offsec-notes/sources/training-specialist-models/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Training Specialist Models.md`.

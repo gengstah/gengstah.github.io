@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - tool
 redirect_from:
-- /wiki/tools/metasploit/
+- /wiki/offsec-notes/entities/metasploit/
 ---
 
 **Type:** Framework / Tool

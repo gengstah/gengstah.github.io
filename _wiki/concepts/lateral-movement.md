@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/lateral-movement/
+- /wiki/offsec-notes/concepts/lateral-movement/
 ---
 
 **Category:** Active Directory / Windows / Network

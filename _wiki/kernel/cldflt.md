@@ -8,7 +8,7 @@ tags:
 - kernel-mode
 - kernel
 redirect_from:
-- /wiki/kernel/cldflt/
+- /wiki/windows-exploit-research/kernel/cldflt/
 ---
 
 > **Last updated:** 2026-04-10  

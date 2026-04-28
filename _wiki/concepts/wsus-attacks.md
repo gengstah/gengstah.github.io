@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/wsus-attacks/
+- /wiki/offsec-notes/concepts/wsus-attacks/
 ---
 
 **Category:** Credential Access / Lateral Movement

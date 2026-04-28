@@ -9,7 +9,7 @@ tags:
 source_filename: LSASS Dump – Windows Error Reporting.md
 status: integrated
 redirect_from:
-- /wiki/sources/offsec/lsass-dump-windows-error-reporting/
+- /wiki/offsec-notes/sources/lsass-dump-windows-error-reporting/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/LSASS Dump – Windows Error Reporting.md`.

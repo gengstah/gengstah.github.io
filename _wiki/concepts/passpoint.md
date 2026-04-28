@@ -11,7 +11,7 @@ sources:
 - ndss2026-paper
 updated: 2026-04-28
 redirect_from:
-- /wiki/concepts/passpoint/
+- /wiki/airsnitch/concepts/passpoint/
 ---
 
 **Passpoint** (Wi-Fi Alliance Hotspot 2.0) is a specification that turns "find the right SSID and accept the captive portal" into automatic, certificate-backed authentication. It exists primarily to make commercial public hotspots usable. From the AirSnitch perspective, what matters is that **Passpoint is the only Wi-Fi spec that explicitly tries to enforce client isolation at the encryption layer** — and the way it does it has design flaws that AirSnitch exploits.

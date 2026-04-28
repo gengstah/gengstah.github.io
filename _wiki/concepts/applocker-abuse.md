@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/applocker-abuse/
+- /wiki/offsec-notes/concepts/applocker-abuse/
 ---
 
 **Category:** Defense Evasion / Execution

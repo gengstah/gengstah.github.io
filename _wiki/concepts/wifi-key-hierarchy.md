@@ -11,7 +11,7 @@ sources:
 - ndss2026-paper
 updated: 2026-04-28
 redirect_from:
-- /wiki/concepts/wifi-key-hierarchy/
+- /wiki/airsnitch/concepts/wifi-key-hierarchy/
 ---
 
 The keys WPA2/WPA3 use, in the order they are derived, plus the role each one plays in [client isolation](/wiki/concepts/client-isolation/) bypasses.

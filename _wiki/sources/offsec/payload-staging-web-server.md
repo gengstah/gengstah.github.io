@@ -9,7 +9,7 @@ tags:
 source_filename: Payload Staging - Web Server.md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/payload-staging-web-server/
+- /wiki/offsec-notes/sources/payload-staging-web-server/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Payload Staging - Web Server.md`.

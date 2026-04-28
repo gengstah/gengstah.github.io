@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/cloud-penetration-testing/
+- /wiki/offsec-notes/concepts/cloud-penetration-testing/
 ---
 
 **Category:** Cloud (AWS / Azure / GCP)

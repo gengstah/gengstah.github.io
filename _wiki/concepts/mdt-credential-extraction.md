@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/mdt-credential-extraction/
+- /wiki/offsec-notes/concepts/mdt-credential-extraction/
 ---
 
 **Category:** Credential Access / Internal Recon

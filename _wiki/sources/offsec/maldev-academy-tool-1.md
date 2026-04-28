@@ -9,7 +9,7 @@ tags:
 source_filename: Maldev Academy Tool (1).md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/maldev-academy-tool-1/
+- /wiki/offsec-notes/sources/maldev-academy-tool-1/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Maldev Academy Tool (1).md`.

@@ -12,8 +12,8 @@ sources:
 - airsnitch-readme
 updated: 2026-04-28
 redirect_from:
-- /wiki/concepts/airsnitch-overview/
-- /wiki/concepts/airsnitch-overview/
+- /wiki/airsnitch/
+- /wiki/airsnitch/overview/
 ---
 
 **AirSnitch** is a tool and a family of attacks for bypassing **Wi-Fi client isolation**, published at NDSS 2026 by Zhou, Pu, Liu, Qian, Tan, Krishnamurthy, and Vanhoef. It tests whether the "client isolation" feature that home and enterprise routers advertise actually prevents one Wi-Fi client from attacking another. The paper's headline finding: *every router and network the authors tested was vulnerable to at least one attack* (NDSS'26 §I).

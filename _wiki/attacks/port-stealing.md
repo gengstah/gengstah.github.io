@@ -12,7 +12,7 @@ sources:
 - airsnitch-readme
 updated: 2026-04-28
 redirect_from:
-- /wiki/attacks/port-stealing/
+- /wiki/airsnitch/attacks/port-stealing/
 ---
 
 # Port Stealing

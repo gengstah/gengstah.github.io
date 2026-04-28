@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - tool
 redirect_from:
-- /wiki/tools/wmic/
+- /wiki/offsec-notes/entities/wmic/
 ---
 
 **Category:** LOLBin / Post-Exploitation Shell

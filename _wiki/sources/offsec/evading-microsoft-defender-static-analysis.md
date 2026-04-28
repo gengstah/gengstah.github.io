@@ -9,7 +9,7 @@ tags:
 source_filename: Evading Microsoft Defender Static Analysis.md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/evading-microsoft-defender-static-analysis/
+- /wiki/offsec-notes/sources/evading-microsoft-defender-static-analysis/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Evading Microsoft Defender Static Analysis.md`.

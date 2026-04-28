@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - tool
 redirect_from:
-- /wiki/tools/impacket/
+- /wiki/offsec-notes/entities/impacket/
 ---
 
 **Type:** Tool / Library

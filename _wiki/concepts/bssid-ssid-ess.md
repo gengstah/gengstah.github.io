@@ -11,7 +11,7 @@ sources:
 - ndss2026-paper
 updated: 2026-04-28
 redirect_from:
-- /wiki/concepts/bssid-ssid-ess/
+- /wiki/airsnitch/concepts/bssid-ssid-ess/
 ---
 
 The four-letter alphabet soup that AirSnitch arguments like `--same-bss` and `--other-bss` map onto.

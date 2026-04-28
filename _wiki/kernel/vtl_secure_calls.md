@@ -8,7 +8,7 @@ tags:
 - kernel-mode
 - kernel
 redirect_from:
-- /wiki/kernel/vtl_secure_calls/
+- /wiki/windows-exploit-research/kernel/vtl_secure_calls/
 ---
 
 > **Last updated:** 2026-04-10  

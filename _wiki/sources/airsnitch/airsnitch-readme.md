@@ -9,7 +9,7 @@ tags:
 sources: []
 updated: 2026-04-28
 redirect_from:
-- /wiki/sources/airsnitch/airsnitch-readme/
+- /wiki/airsnitch/sources/airsnitch-readme/
 ---
 
 **File:** [`airsnitch/README.md`](../../airsnitch/README.md)

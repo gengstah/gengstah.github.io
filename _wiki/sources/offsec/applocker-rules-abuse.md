@@ -9,7 +9,7 @@ tags:
 source_filename: AppLocker Rules Abuse.md
 status: integrated
 redirect_from:
-- /wiki/sources/offsec/applocker-rules-abuse/
+- /wiki/offsec-notes/sources/applocker-rules-abuse/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/AppLocker Rules Abuse.md`.

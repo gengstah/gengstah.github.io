@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/sql-injection/
+- /wiki/offsec-notes/concepts/sql-injection/
 ---
 
 **Category:** Web

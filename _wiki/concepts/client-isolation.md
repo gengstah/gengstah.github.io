@@ -12,7 +12,7 @@ sources:
 - airsnitch-readme
 updated: 2026-04-28
 redirect_from:
-- /wiki/concepts/client-isolation/
+- /wiki/airsnitch/concepts/client-isolation/
 ---
 
 **Client isolation** (also *AP isolation*, *station isolation*, *peer-to-peer blocking*) is a Wi-Fi network feature whose stated goal is to prevent associated clients from communicating with each other. It exists to mitigate insider attacks — a malicious guest on a coffee shop network shouldn't be able to ARP-poison another guest, a compromised IoT device shouldn't be able to reach a laptop on the same SSID.

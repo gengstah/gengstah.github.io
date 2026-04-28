@@ -9,7 +9,7 @@ tags:
 source_filename: Payload Execution Control.md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/payload-execution-control/
+- /wiki/offsec-notes/sources/payload-execution-control/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Payload Execution Control.md`.

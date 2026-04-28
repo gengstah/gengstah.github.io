@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/wi-fi-client-isolation-bypass/
+- /wiki/offsec-notes/concepts/wi-fi-client-isolation-bypass/
 ---
 
 **Category:** Network / Wireless

@@ -9,7 +9,7 @@ tags:
 source_filename: Process Argument Spoofing (2).md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/process-argument-spoofing-2/
+- /wiki/offsec-notes/sources/process-argument-spoofing-2/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Process Argument Spoofing (2).md`.

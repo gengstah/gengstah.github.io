@@ -9,7 +9,7 @@ tags:
 source_filename: Payload Encryption - AES Encryption.md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/payload-encryption-aes-encryption/
+- /wiki/offsec-notes/sources/payload-encryption-aes-encryption/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Payload Encryption - AES Encryption.md`.

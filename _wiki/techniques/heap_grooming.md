@@ -8,7 +8,7 @@ tags:
 - kernel-mode
 - technique
 redirect_from:
-- /wiki/techniques/heap_grooming/
+- /wiki/windows-exploit-research/techniques/heap_grooming/
 ---
 
 > **Last updated:** 2026-04-11  

@@ -9,7 +9,7 @@ tags:
 source_filename: AirSnitch - Demystifying and Breaking.md
 status: integrated
 redirect_from:
-- /wiki/sources/offsec/airsnitch-demystifying-and-breaking/
+- /wiki/offsec-notes/sources/airsnitch-demystifying-and-breaking/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/AirSnitch - Demystifying and Breaking.md`.

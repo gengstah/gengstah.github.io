@@ -11,7 +11,7 @@ sources:
 - ndss2026-paper
 updated: 2026-04-28
 redirect_from:
-- /wiki/concepts/mfp/
+- /wiki/airsnitch/concepts/mfp/
 ---
 
 **MFP** (IEEE 802.11w) is what you turn on when you don't want random attackers to deauth your clients off the network. It cryptographically protects a subset of management frames so they can't be forged after a client is associated.

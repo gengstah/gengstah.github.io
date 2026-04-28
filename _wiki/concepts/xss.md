@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/xss/
+- /wiki/offsec-notes/concepts/xss/
 ---
 
 **Category:** Web

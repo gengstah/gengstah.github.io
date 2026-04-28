@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/active-directory-attacks/
+- /wiki/offsec-notes/concepts/active-directory-attacks/
 ---
 
 **Category:** Active Directory / Windows

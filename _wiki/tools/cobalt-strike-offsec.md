@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - tool
 redirect_from:
-- /wiki/tools/cobalt-strike-offsec/
+- /wiki/offsec-notes/entities/cobalt-strike/
 ---
 
 **Type:** Framework / C2 Tool

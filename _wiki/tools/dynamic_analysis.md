@@ -8,6 +8,6 @@ tags:
 - kernel-mode
 - tool
 redirect_from:
-- /wiki/tools/dynamic_analysis/
+- /wiki/windows-exploit-research/tools/dynamic_analysis/
 ---
 

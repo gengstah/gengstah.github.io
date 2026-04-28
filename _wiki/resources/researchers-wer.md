@@ -8,7 +8,7 @@ tags:
 - kernel-mode
 - resource
 redirect_from:
-- /wiki/resources/researchers-wer/
+- /wiki/windows-exploit-research/resources/researchers/
 ---
 
 > **Last updated:** 2026-04-15  

@@ -9,7 +9,7 @@ tags:
 source_filename: Portable Executable Format.md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/portable-executable-format/
+- /wiki/offsec-notes/sources/portable-executable-format/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Portable Executable Format.md`.

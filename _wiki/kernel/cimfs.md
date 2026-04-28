@@ -8,7 +8,7 @@ tags:
 - kernel-mode
 - kernel
 redirect_from:
-- /wiki/kernel/cimfs/
+- /wiki/windows-exploit-research/kernel/cimfs/
 ---
 
 > **Last updated:** 2026-04-10  

@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/evasion-techniques/
+- /wiki/offsec-notes/concepts/evasion-techniques/
 ---
 
 **Category:** Defense Evasion / Cross-cutting

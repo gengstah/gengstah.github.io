@@ -10,7 +10,7 @@ sources:
 - airsnitch-readme
 updated: 2026-04-28
 redirect_from:
-- /wiki/tools/configurations/
+- /wiki/airsnitch/tools/configurations/
 ---
 
 # Configuration Files

@@ -9,7 +9,7 @@ tags:
 source_filename: Payload Placement - .text Section.md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/payload-placement-text-section/
+- /wiki/offsec-notes/sources/payload-placement-text-section/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Payload Placement - .text Section.md`.

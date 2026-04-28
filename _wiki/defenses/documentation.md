@@ -12,7 +12,7 @@ sources:
 - airsnitch-readme
 updated: 2026-04-28
 redirect_from:
-- /wiki/defenses/documentation/
+- /wiki/airsnitch/defenses/documentation/
 ---
 
 Not a technical defence. A *deployment* defence. The AirSnitch authors put it first in their list (README §6.1, NDSS'26 §VIII-C "Proper documentation") because **most insecure deployments are insecure because nobody knew what the feature actually did**.

@@ -9,7 +9,7 @@ tags:
 source_filename: BOF Linting for Accelerated Development.md
 status: integrated
 redirect_from:
-- /wiki/sources/offsec/bof-linting-for-accelerated-development/
+- /wiki/offsec-notes/sources/bof-linting-for-accelerated-development/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/BOF Linting for Accelerated Development.md`.

@@ -9,7 +9,7 @@ tags:
 sources: []
 updated: 2026-04-28
 redirect_from:
-- /wiki/sources/airsnitch/ndss2026-paper/
+- /wiki/airsnitch/sources/ndss2026-paper/
 ---
 
 **Title:** *AirSnitch: Demystifying and Breaking Client Isolation in Wi-Fi Networks*

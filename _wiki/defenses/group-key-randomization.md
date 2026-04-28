@@ -11,7 +11,7 @@ sources:
 - ndss2026-paper
 updated: 2026-04-28
 redirect_from:
-- /wiki/defenses/group-key-randomization/
+- /wiki/airsnitch/defenses/group-key-randomization/
 ---
 
 The cleanest single fix to [Abusing GTK](/wiki/attacks/abusing-gtk/), [Broadcast Reflection](/wiki/attacks/broadcast-reflection/), and the [Passpoint flaws](/wiki/attacks/passpoint-flaws/) attack chain. The principle: **stop sharing the GTK between clients.** Give every client its own random GTK. Translate broadcast traffic that genuinely needs to reach all clients (ARP, DHCP, ND, mDNS) into multiple per-client unicasts at the AP.

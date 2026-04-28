@@ -9,7 +9,7 @@ tags:
 source_filename: Operating Inside the Interpreted_ Offensive Python.md
 status: integrated
 redirect_from:
-- /wiki/sources/offsec/operating-inside-the-interpreted-offensive-python/
+- /wiki/offsec-notes/sources/operating-inside-the-interpreted-offensive-python/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Operating Inside the Interpreted_ Offensive Python.md`.

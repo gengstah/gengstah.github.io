@@ -9,7 +9,7 @@ tags:
 source_filename: GAC Hijacking.md
 status: integrated
 redirect_from:
-- /wiki/sources/offsec/gac-hijacking/
+- /wiki/offsec-notes/sources/gac-hijacking/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/GAC Hijacking.md`.

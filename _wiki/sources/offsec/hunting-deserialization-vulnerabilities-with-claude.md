@@ -9,7 +9,7 @@ tags:
 source_filename: Hunting Deserialization Vulnerabilities With Claude.md
 status: integrated
 redirect_from:
-- /wiki/sources/offsec/hunting-deserialization-vulnerabilities-with-claude/
+- /wiki/offsec-notes/sources/hunting-deserialization-vulnerabilities-with-claude/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Hunting Deserialization Vulnerabilities With Claude.md`.

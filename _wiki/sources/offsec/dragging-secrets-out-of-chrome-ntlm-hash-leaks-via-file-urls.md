@@ -9,7 +9,7 @@ tags:
 source_filename: Dragging Secrets Out of Chrome_ NTLM Hash Leaks via File URLs.md
 status: integrated
 redirect_from:
-- /wiki/sources/offsec/dragging-secrets-out-of-chrome-ntlm-hash-leaks-via-file-urls/
+- /wiki/offsec-notes/sources/dragging-secrets-out-of-chrome-ntlm-hash-leaks-via-file-urls/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Dragging Secrets Out of Chrome_ NTLM Hash Leaks via File URLs.md`.

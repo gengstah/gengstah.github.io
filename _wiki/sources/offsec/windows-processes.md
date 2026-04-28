@@ -9,7 +9,7 @@ tags:
 source_filename: Windows Processes.md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/windows-processes/
+- /wiki/offsec-notes/sources/windows-processes/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Windows Processes.md`.

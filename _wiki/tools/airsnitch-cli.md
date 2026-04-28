@@ -10,7 +10,7 @@ sources:
 - airsnitch-readme
 updated: 2026-04-28
 redirect_from:
-- /wiki/tools/airsnitch-cli/
+- /wiki/airsnitch/tools/airsnitch-cli/
 ---
 
 `airsnitch.py` is the central executable. Lives at `airsnitch/research/airsnitch.py` in the upstream repo. It runs two `wpa_supplicant` instances (the simulated victim and attacker) against the target network, then drives the chosen test through helpers in `library/`.

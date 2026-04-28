@@ -9,7 +9,7 @@ tags:
 source_filename: Hack-cessibility_ When DLL Hijacks Meet Windows Helpers.md
 status: integrated
 redirect_from:
-- /wiki/sources/offsec/hack-cessibility-when-dll-hijacks-meet-windows-helpers/
+- /wiki/offsec-notes/sources/hack-cessibility-when-dll-hijacks-meet-windows-helpers/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Hack-cessibility_ When DLL Hijacks Meet Windows Helpers.md`.

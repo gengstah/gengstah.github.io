@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/macos-jit-shellcode/
+- /wiki/offsec-notes/concepts/macos-jit-shellcode/
 ---
 
 **Category:** Execution / Defense Evasion (macOS)

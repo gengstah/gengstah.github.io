@@ -11,7 +11,7 @@ sources:
 - ndss2026-paper
 updated: 2026-04-28
 redirect_from:
-- /wiki/concepts/virtual-ports/
+- /wiki/airsnitch/concepts/virtual-ports/
 ---
 
 A central insight of AirSnitch: **every BSSID on a Wi-Fi AP is a virtual port on an internal Ethernet switch.** Once you adopt that model, classic switch attacks — port stealing, MAC flooding — apply to Wi-Fi, with Wi-Fi-specific twists (NDSS'26 §V-B).

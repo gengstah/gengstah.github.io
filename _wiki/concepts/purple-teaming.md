@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/purple-teaming/
+- /wiki/offsec-notes/concepts/purple-teaming/
 ---
 
 **Category:** Engagement Methodology

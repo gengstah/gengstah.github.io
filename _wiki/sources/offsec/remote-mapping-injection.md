@@ -9,7 +9,7 @@ tags:
 source_filename: Remote Mapping Injection.md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/remote-mapping-injection/
+- /wiki/offsec-notes/sources/remote-mapping-injection/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Remote Mapping Injection.md`.

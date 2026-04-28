@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - tool
 redirect_from:
-- /wiki/tools/burp-suite/
+- /wiki/offsec-notes/entities/burp-suite/
 ---
 
 **Type:** Tool

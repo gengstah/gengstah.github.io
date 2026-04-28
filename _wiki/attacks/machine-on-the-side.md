@@ -11,7 +11,7 @@ sources:
 - ndss2026-paper
 updated: 2026-04-28
 redirect_from:
-- /wiki/attacks/machine-on-the-side/
+- /wiki/airsnitch/attacks/machine-on-the-side/
 ---
 
 # Machine-on-the-Side

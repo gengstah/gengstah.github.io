@@ -9,7 +9,7 @@ tags:
 source_filename: Attacking JWT using X509 Certificates.md
 status: integrated
 redirect_from:
-- /wiki/sources/offsec/attacking-jwt-using-x509-certificates/
+- /wiki/offsec-notes/sources/attacking-jwt-using-x509-certificates/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Attacking JWT using X509 Certificates.md`.

@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - tool
 redirect_from:
-- /wiki/tools/mimikatz/
+- /wiki/offsec-notes/entities/mimikatz/
 ---
 
 **Type:** Tool

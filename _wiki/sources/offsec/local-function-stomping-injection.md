@@ -9,7 +9,7 @@ tags:
 source_filename: Local Function Stomping Injection.md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/local-function-stomping-injection/
+- /wiki/offsec-notes/sources/local-function-stomping-injection/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Local Function Stomping Injection.md`.

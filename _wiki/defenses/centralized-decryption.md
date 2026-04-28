@@ -11,7 +11,7 @@ sources:
 - ndss2026-paper
 updated: 2026-04-28
 redirect_from:
-- /wiki/defenses/centralized-decryption/
+- /wiki/airsnitch/defenses/centralized-decryption/
 ---
 
 In most APs, encryption terminates *at the AP*: PTK and GTK are held on the AP, decryption happens on the AP, the bridge handles cleartext, and the AP re-encrypts on egress. AirSnitch's [port stealing](/wiki/attacks/port-stealing/) and [broadcast reflection](/wiki/attacks/broadcast-reflection/) attacks exploit precisely this AP-local cleartext bridge.

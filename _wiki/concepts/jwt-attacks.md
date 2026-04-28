@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/jwt-attacks/
+- /wiki/offsec-notes/concepts/jwt-attacks/
 ---
 
 **Category:** Web / Authentication

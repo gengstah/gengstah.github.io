@@ -9,7 +9,7 @@ tags:
 source_filename: macOS JIT Memory.md
 status: integrated
 redirect_from:
-- /wiki/sources/offsec/macos-jit-memory/
+- /wiki/offsec-notes/sources/macos-jit-memory/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/macOS JIT Memory.md`.

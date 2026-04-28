@@ -9,7 +9,7 @@ tags:
 source_filename: Coding Basics.md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/coding-basics/
+- /wiki/offsec-notes/sources/coding-basics/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Coding Basics.md`.

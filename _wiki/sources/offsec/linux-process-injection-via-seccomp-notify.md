@@ -9,7 +9,7 @@ tags:
 source_filename: Linux Process Injection via Seccomp Notify.md
 status: integrated
 redirect_from:
-- /wiki/sources/offsec/linux-process-injection-via-seccomp-notify/
+- /wiki/offsec-notes/sources/linux-process-injection-via-seccomp-notify/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Linux Process Injection via Seccomp Notify.md`.

@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - tool
 redirect_from:
-- /wiki/tools/responder/
+- /wiki/offsec-notes/entities/responder/
 ---
 
 **Type:** Tool

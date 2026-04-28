@@ -8,7 +8,7 @@ tags:
 - kernel-mode
 - kernel
 redirect_from:
-- /wiki/kernel/primitives/
+- /wiki/windows-exploit-research/kernel/primitives/
 ---
 
 > **Last updated:** 2026-04-10  

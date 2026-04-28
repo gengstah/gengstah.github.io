@@ -9,7 +9,7 @@ tags:
 source_filename: Process Injection - DLL Injection.md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/process-injection-dll-injection/
+- /wiki/offsec-notes/sources/process-injection-dll-injection/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Process Injection - DLL Injection.md`.

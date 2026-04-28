@@ -12,7 +12,7 @@ sources:
 - airsnitch-readme
 updated: 2026-04-28
 redirect_from:
-- /wiki/attacks/abusing-gtk/
+- /wiki/airsnitch/attacks/abusing-gtk/
 ---
 
 > Layer: **Wi-Fi encryption** · Section: **NDSS'26 §IV-B** · CLI: `--check-gtk-shared`

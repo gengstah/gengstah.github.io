@@ -9,7 +9,7 @@ tags:
 source_filename: Accelerating Offensive R&D with LLMs.md
 status: integrated
 redirect_from:
-- /wiki/sources/offsec/accelerating-offensive-r-d-with-llms/
+- /wiki/offsec-notes/sources/accelerating-offensive-r-d-with-llms/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Accelerating Offensive R&D with LLMs.md`.

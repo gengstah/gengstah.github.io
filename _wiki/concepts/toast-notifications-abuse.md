@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/toast-notifications-abuse/
+- /wiki/offsec-notes/concepts/toast-notifications-abuse/
 ---
 
 **Category:** Social Engineering / Execution

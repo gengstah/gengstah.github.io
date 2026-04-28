@@ -9,7 +9,7 @@ tags:
 source_filename: Process Injection - Shellcode Injection.md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/process-injection-shellcode-injection/
+- /wiki/offsec-notes/sources/process-injection-shellcode-injection/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Process Injection - Shellcode Injection.md`.

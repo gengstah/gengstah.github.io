@@ -9,7 +9,7 @@ tags:
 source_filename: WSUS Is SUS_ NTLM Relay Attacks in Plain Sight.md
 status: integrated
 redirect_from:
-- /wiki/sources/offsec/wsus-is-sus-ntlm-relay-attacks-in-plain-sight/
+- /wiki/offsec-notes/sources/wsus-is-sus-ntlm-relay-attacks-in-plain-sight/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/WSUS Is SUS_ NTLM Relay Attacks in Plain Sight.md`.

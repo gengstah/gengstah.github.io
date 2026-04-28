@@ -9,7 +9,7 @@ tags:
 source_filename: Detecting Active Directory Password-Spraying with a Honeypot Account.md
 status: integrated
 redirect_from:
-- /wiki/sources/offsec/detecting-active-directory-password-spraying-with-a-honeypot-account/
+- /wiki/offsec-notes/sources/detecting-active-directory-password-spraying-with-a-honeypot-account/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Detecting Active Directory Password-Spraying with a Honeypot Account.md`.

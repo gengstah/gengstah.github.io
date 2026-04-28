@@ -9,7 +9,7 @@ tags:
 source_filename: Thread Hijacking - Remote Thread Creation.md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/thread-hijacking-remote-thread-creation/
+- /wiki/offsec-notes/sources/thread-hijacking-remote-thread-creation/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Thread Hijacking - Remote Thread Creation.md`.

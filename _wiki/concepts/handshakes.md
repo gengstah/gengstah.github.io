@@ -11,7 +11,7 @@ sources:
 - ndss2026-paper
 updated: 2026-04-28
 redirect_from:
-- /wiki/concepts/handshakes/
+- /wiki/airsnitch/concepts/handshakes/
 ---
 
 Five handshakes carry [Wi-Fi keys](/wiki/concepts/wifi-key-hierarchy/) between the AP and a client. AirSnitch exploits weaknesses in *what each one is allowed to deliver*.

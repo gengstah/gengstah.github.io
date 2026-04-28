@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/windows-service-triggers/
+- /wiki/offsec-notes/concepts/windows-service-triggers/
 ---
 
 **Category:** Execution / Persistence / Privilege Escalation

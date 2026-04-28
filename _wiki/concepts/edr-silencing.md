@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/edr-silencing/
+- /wiki/offsec-notes/concepts/edr-silencing/
 ---
 
 **Category:** Defense Evasion

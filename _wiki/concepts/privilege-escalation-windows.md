@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/privilege-escalation-windows/
+- /wiki/offsec-notes/concepts/privilege-escalation-windows/
 ---
 
 **Category:** Windows / Post-Exploitation

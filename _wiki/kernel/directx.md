@@ -8,7 +8,7 @@ tags:
 - kernel-mode
 - kernel
 redirect_from:
-- /wiki/kernel/directx/
+- /wiki/windows-exploit-research/kernel/directx/
 ---
 
 > **Last updated:** 2026-04-12  

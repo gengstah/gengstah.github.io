@@ -9,7 +9,7 @@ tags:
 source_filename: Local Mapping Injection.md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/local-mapping-injection/
+- /wiki/offsec-notes/sources/local-mapping-injection/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Local Mapping Injection.md`.

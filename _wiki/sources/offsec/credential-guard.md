@@ -9,7 +9,7 @@ tags:
 source_filename: Credential Guard.md
 status: integrated
 redirect_from:
-- /wiki/sources/offsec/credential-guard/
+- /wiki/offsec-notes/sources/credential-guard/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Credential Guard.md`.

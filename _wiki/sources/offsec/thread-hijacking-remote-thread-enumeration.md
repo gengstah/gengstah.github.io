@@ -9,7 +9,7 @@ tags:
 source_filename: Thread Hijacking - Remote Thread Enumeration.md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/thread-hijacking-remote-thread-enumeration/
+- /wiki/offsec-notes/sources/thread-hijacking-remote-thread-enumeration/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Thread Hijacking - Remote Thread Enumeration.md`.

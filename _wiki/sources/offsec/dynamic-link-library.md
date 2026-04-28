@@ -9,7 +9,7 @@ tags:
 source_filename: Dynamic-Link Library.md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/dynamic-link-library/
+- /wiki/offsec-notes/sources/dynamic-link-library/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Dynamic-Link Library.md`.

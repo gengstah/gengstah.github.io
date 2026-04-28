@@ -9,7 +9,7 @@ tags:
 source_filename: Notepad++ Plugins_ Plug and Payload.md
 status: integrated
 redirect_from:
-- /wiki/sources/offsec/notepad-plugins-plug-and-payload/
+- /wiki/offsec-notes/sources/notepad-plugins-plug-and-payload/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Notepad++ Plugins_ Plug and Payload.md`.

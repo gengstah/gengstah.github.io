@@ -8,7 +8,7 @@ tags:
 - kernel-mode
 - kernel
 redirect_from:
-- /wiki/kernel/pool_internals/
+- /wiki/windows-exploit-research/kernel/pool_internals/
 ---
 
 > **Last updated:** 2026-04-10  

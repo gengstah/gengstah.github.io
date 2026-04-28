@@ -9,7 +9,7 @@ tags:
 source_filename: Payload Obfuscation.md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/payload-obfuscation/
+- /wiki/offsec-notes/sources/payload-obfuscation/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Payload Obfuscation.md`.

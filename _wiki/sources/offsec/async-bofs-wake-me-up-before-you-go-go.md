@@ -9,7 +9,7 @@ tags:
 source_filename: Async BOFs - _Wake Me Up, Before You Go Go_.md
 status: integrated
 redirect_from:
-- /wiki/sources/offsec/async-bofs-wake-me-up-before-you-go-go/
+- /wiki/offsec-notes/sources/async-bofs-wake-me-up-before-you-go-go/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Async BOFs - _Wake Me Up, Before You Go Go_.md`.

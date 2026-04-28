@@ -8,7 +8,7 @@ tags:
 - kernel-mode
 - resource
 redirect_from:
-- /wiki/resources/cve_template/
+- /wiki/windows-exploit-research/resources/cve_template/
 ---
 
 > **Last updated:** 2026-04-10  

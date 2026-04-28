@@ -9,7 +9,7 @@ tags:
 source_filename: Microsoft Speech.md
 status: integrated
 redirect_from:
-- /wiki/sources/offsec/microsoft-speech/
+- /wiki/offsec-notes/sources/microsoft-speech/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Microsoft Speech.md`.

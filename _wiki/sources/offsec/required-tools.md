@@ -9,7 +9,7 @@ tags:
 source_filename: Required Tools.md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/required-tools/
+- /wiki/offsec-notes/sources/required-tools/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Required Tools.md`.

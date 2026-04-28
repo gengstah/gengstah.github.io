@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/command-and-control/
+- /wiki/offsec-notes/concepts/command-and-control/
 ---
 
 **Category:** Post-Exploitation / Infrastructure

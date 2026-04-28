@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/mobile-security/
+- /wiki/offsec-notes/concepts/mobile-security/
 ---
 
 **Category:** Mobile / Application Security

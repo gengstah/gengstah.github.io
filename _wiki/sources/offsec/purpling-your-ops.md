@@ -9,7 +9,7 @@ tags:
 source_filename: Purpling Your Ops.md
 status: integrated
 redirect_from:
-- /wiki/sources/offsec/purpling-your-ops/
+- /wiki/offsec-notes/sources/purpling-your-ops/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Purpling Your Ops.md`.

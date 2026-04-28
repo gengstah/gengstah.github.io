@@ -9,7 +9,7 @@ tags:
 source_filename: Detection Mechanisms.md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/detection-mechanisms/
+- /wiki/offsec-notes/sources/detection-mechanisms/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Detection Mechanisms.md`.

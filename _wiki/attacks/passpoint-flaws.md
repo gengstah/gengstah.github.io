@@ -11,7 +11,7 @@ sources:
 - ndss2026-paper
 updated: 2026-04-28
 redirect_from:
-- /wiki/attacks/passpoint-flaws/
+- /wiki/airsnitch/attacks/passpoint-flaws/
 ---
 
 # Passpoint Flaws

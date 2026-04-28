@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/lnk-file-attacks/
+- /wiki/offsec-notes/concepts/lnk-file-attacks/
 ---
 
 **Category:** Initial Access / Credential Theft / Persistence

@@ -9,7 +9,7 @@ tags:
 source_filename: Local Payload Execution (1).md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/local-payload-execution-1/
+- /wiki/offsec-notes/sources/local-payload-execution-1/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Local Payload Execution (1).md`.

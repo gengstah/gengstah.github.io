@@ -8,7 +8,7 @@ tags:
 - kernel-mode
 - kernel
 redirect_from:
-- /wiki/kernel/tcpip_stack/
+- /wiki/windows-exploit-research/kernel/tcpip_stack/
 ---
 
 > **Last updated:** 2026-04-19  

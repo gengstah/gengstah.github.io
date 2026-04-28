@@ -8,7 +8,7 @@ tags:
 - kernel-mode
 - user-mode
 redirect_from:
-- /wiki/usermode/mitigations/
+- /wiki/windows-exploit-research/usermode/mitigations/
 ---
 
 > **Last updated:** 2026-04-10  

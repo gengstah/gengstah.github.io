@@ -8,7 +8,7 @@ tags:
 - kernel-mode
 - resource
 redirect_from:
-- /wiki/resources/papers_and_blogs/
+- /wiki/windows-exploit-research/resources/papers_and_blogs/
 ---
 
 > **Last updated:** 2026-04-12  

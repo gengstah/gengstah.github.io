@@ -8,7 +8,7 @@ tags:
 - kernel-mode
 - kernel
 redirect_from:
-- /wiki/kernel/mitigations/
+- /wiki/windows-exploit-research/kernel/mitigations/
 ---
 
 > **Last updated:** 2026-04-11  

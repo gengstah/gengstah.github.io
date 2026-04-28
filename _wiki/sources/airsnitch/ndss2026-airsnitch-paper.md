@@ -9,7 +9,7 @@ tags:
 source_filename: ndss2026-airsnitch-paper.md
 status: catalogued
 redirect_from:
-- /wiki/sources/airsnitch/ndss2026-airsnitch-paper/
+- /wiki/airsnitch/sources/ndss2026-airsnitch-paper/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/airsnitch/ndss2026-airsnitch-paper.md`.

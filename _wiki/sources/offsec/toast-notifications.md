@@ -9,7 +9,7 @@ tags:
 source_filename: Toast Notifications.md
 status: integrated
 redirect_from:
-- /wiki/sources/offsec/toast-notifications/
+- /wiki/offsec-notes/sources/toast-notifications/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Toast Notifications.md`.

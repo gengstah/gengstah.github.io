@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/lsass-dumping/
+- /wiki/offsec-notes/concepts/lsass-dumping/
 ---
 
 **Category:** Credential Access

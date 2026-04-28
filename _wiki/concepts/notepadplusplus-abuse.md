@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/notepadplusplus-abuse/
+- /wiki/offsec-notes/concepts/notepadplusplus-abuse/
 ---
 
 **Category:** Defense Evasion / Persistence / Execution

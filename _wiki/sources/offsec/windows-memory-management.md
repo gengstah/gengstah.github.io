@@ -9,7 +9,7 @@ tags:
 source_filename: Windows Memory Management.md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/windows-memory-management/
+- /wiki/offsec-notes/sources/windows-memory-management/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Windows Memory Management.md`.

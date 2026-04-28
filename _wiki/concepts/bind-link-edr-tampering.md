@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/bind-link-edr-tampering/
+- /wiki/offsec-notes/concepts/bind-link-edr-tampering/
 ---
 
 **Category:** Defense Evasion / Persistence

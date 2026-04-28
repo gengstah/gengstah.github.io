@@ -10,7 +10,7 @@ source_filename: PatchGuard Peekaboo_ Hiding Processes on Systems with PatchGuar
   in 2026.md
 status: integrated
 redirect_from:
-- /wiki/sources/offsec/patchguard-peekaboo-hiding-processes-on-systems-with-patchguard-in-2026/
+- /wiki/offsec-notes/sources/patchguard-peekaboo-hiding-processes-on-systems-with-patchguard-in-2026/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/PatchGuard Peekaboo_ Hiding Processes on Systems with PatchGuard in 2026.md`.

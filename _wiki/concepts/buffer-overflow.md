@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/buffer-overflow/
+- /wiki/offsec-notes/concepts/buffer-overflow/
 ---
 
 **Category:** Exploit Development / Binary Exploitation

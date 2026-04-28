@@ -8,7 +8,7 @@ tags:
 - kernel-mode
 - kernel
 redirect_from:
-- /wiki/kernel/kernel_streaming/
+- /wiki/windows-exploit-research/kernel/kernel_streaming/
 ---
 
 > **Last updated:** 2026-04-19  

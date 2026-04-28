@@ -8,7 +8,7 @@ tags:
 - kernel-mode
 - technique
 redirect_from:
-- /wiki/techniques/use_after_free/
+- /wiki/windows-exploit-research/techniques/use_after_free/
 ---
 
 > **Last updated:** 2026-04-10  

@@ -8,7 +8,7 @@ tags:
 - kernel-mode
 - user-mode
 redirect_from:
-- /wiki/usermode/heap_internals/
+- /wiki/windows-exploit-research/usermode/heap_internals/
 ---
 
 > **Last updated:** 2026-04-10  

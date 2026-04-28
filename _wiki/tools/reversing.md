@@ -8,7 +8,7 @@ tags:
 - kernel-mode
 - tool
 redirect_from:
-- /wiki/tools/reversing/
+- /wiki/windows-exploit-research/tools/reversing/
 ---
 
 > **Last updated:** 2026-04-19  

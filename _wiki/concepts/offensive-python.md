@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/offensive-python/
+- /wiki/offsec-notes/concepts/offensive-python/
 ---
 
 **Category:** Execution / Defense Evasion

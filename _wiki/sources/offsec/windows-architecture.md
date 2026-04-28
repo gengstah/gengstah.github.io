@@ -9,7 +9,7 @@ tags:
 source_filename: Windows Architecture.md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/windows-architecture/
+- /wiki/offsec-notes/sources/windows-architecture/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Windows Architecture.md`.

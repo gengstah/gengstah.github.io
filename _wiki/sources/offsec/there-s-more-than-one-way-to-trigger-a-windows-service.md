@@ -9,7 +9,7 @@ tags:
 source_filename: There's More than One Way to Trigger a Windows Service.md
 status: integrated
 redirect_from:
-- /wiki/sources/offsec/there-s-more-than-one-way-to-trigger-a-windows-service/
+- /wiki/offsec-notes/sources/there-s-more-than-one-way-to-trigger-a-windows-service/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/There's More than One Way to Trigger a Windows Service.md`.

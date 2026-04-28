@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/red-teaming/
+- /wiki/offsec-notes/concepts/red-teaming/
 ---
 
 **Category:** Engagement Methodology

@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/gac-hijacking/
+- /wiki/offsec-notes/concepts/gac-hijacking/
 ---
 
 **Category:** Persistence / Defense Evasion / Execution

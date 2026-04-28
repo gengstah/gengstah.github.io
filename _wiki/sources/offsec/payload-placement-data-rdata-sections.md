@@ -9,7 +9,7 @@ tags:
 source_filename: Payload Placement - .data & .rdata Sections.md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/payload-placement-data-rdata-sections/
+- /wiki/offsec-notes/sources/payload-placement-data-rdata-sections/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Payload Placement - .data & .rdata Sections.md`.

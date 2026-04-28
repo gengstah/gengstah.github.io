@@ -8,7 +8,7 @@ tags:
 - kernel-mode
 - kernel
 redirect_from:
-- /wiki/kernel/wnf_internals/
+- /wiki/windows-exploit-research/kernel/wnf_internals/
 ---
 
 > **Last updated:** 2026-04-11  

@@ -9,7 +9,7 @@ tags:
 source_filename: APC Injection.md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/apc-injection/
+- /wiki/offsec-notes/sources/apc-injection/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/APC Injection.md`.

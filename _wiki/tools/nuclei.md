@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - tool
 redirect_from:
-- /wiki/tools/nuclei/
+- /wiki/offsec-notes/entities/nuclei/
 ---
 
 **Type:** Tool

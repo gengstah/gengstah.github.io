@@ -8,7 +8,7 @@ tags:
 - kernel-mode
 - kernel
 redirect_from:
-- /wiki/kernel/clfs/
+- /wiki/windows-exploit-research/kernel/clfs/
 ---
 
 > **Last updated:** 2026-04-10  

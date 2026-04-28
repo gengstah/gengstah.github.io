@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/reconnaissance/
+- /wiki/offsec-notes/concepts/reconnaissance/
 ---
 
 **Category:** General / Pre-Engagement

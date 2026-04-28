@@ -8,7 +8,7 @@ tags:
 - kernel-mode
 - technique
 redirect_from:
-- /wiki/techniques/type_confusion/
+- /wiki/windows-exploit-research/techniques/type_confusion/
 ---
 
 > **Last updated:** 2026-04-19  

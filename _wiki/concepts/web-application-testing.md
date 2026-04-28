@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/web-application-testing/
+- /wiki/offsec-notes/concepts/web-application-testing/
 ---
 
 **Category:** Web

@@ -11,7 +11,7 @@ sources:
 - ndss2026-paper
 updated: 2026-04-28
 redirect_from:
-- /wiki/defenses/spoofing-prevention/
+- /wiki/airsnitch/defenses/spoofing-prevention/
 ---
 
 # Spoofing Prevention

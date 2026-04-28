@@ -11,7 +11,7 @@ sources:
 - ndss2026-paper
 updated: 2026-04-28
 redirect_from:
-- /wiki/concepts/radius/
+- /wiki/airsnitch/concepts/radius/
 ---
 
 **RADIUS** (Remote Authentication Dial-In User Service, RFC 2865 + many extensions) is the protocol enterprise APs use to talk to the authentication server during WPA2/WPA3-Enterprise. The AP terminates the 802.1X / EAP exchange with the client; everything from the EAP-Identity onwards is wrapped in RADIUS messages and forwarded to a central RADIUS server (often FreeRADIUS, Cisco ISE, Microsoft NPS).

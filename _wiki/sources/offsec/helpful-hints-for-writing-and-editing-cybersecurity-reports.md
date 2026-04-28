@@ -9,7 +9,7 @@ tags:
 source_filename: Helpful Hints for Writing (and Editing) Cybersecurity Reports.md
 status: integrated
 redirect_from:
-- /wiki/sources/offsec/helpful-hints-for-writing-and-editing-cybersecurity-reports/
+- /wiki/offsec-notes/sources/helpful-hints-for-writing-and-editing-cybersecurity-reports/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/ingested/Helpful Hints for Writing (and Editing) Cybersecurity Reports.md`.

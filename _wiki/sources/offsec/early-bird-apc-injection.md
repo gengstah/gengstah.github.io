@@ -9,7 +9,7 @@ tags:
 source_filename: Early Bird APC Injection.md
 status: catalogued
 redirect_from:
-- /wiki/sources/offsec/early-bird-apc-injection/
+- /wiki/offsec-notes/sources/early-bird-apc-injection/
 ---
 
 > **Source provenance.** Raw material catalogued for the wiki ingest pipeline. Lives offline at `raw_sources/offensive-security/Early Bird APC Injection.md`.

@@ -12,7 +12,7 @@ sources:
 - airsnitch-readme
 updated: 2026-04-28
 redirect_from:
-- /wiki/defenses/filter-unicast-in-broadcast/
+- /wiki/airsnitch/defenses/filter-unicast-in-broadcast/
 ---
 
 A small, OS-side defence against the data-plane endpoint of [GTK abuse](/wiki/attacks/abusing-gtk/), [Broadcast Reflection](/wiki/attacks/broadcast-reflection/), and the [Passpoint flaws](/wiki/attacks/passpoint-flaws/) attack chain.

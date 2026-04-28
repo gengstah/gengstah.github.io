@@ -12,7 +12,7 @@ sources:
 - airsnitch-readme
 updated: 2026-04-28
 redirect_from:
-- /wiki/attacks/gateway-bouncing/
+- /wiki/airsnitch/attacks/gateway-bouncing/
 ---
 
 > Layer: **IP routing** · Section: **NDSS'26 §V-A** · CLI: `--c2c-ip`

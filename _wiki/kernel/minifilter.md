@@ -8,7 +8,7 @@ tags:
 - kernel-mode
 - kernel
 redirect_from:
-- /wiki/kernel/minifilter/
+- /wiki/windows-exploit-research/kernel/minifilter/
 ---
 
 > **Last updated:** 2026-04-12  

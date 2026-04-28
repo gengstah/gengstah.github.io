@@ -7,7 +7,7 @@ tags:
 - offsec-notes
 - concept
 redirect_from:
-- /wiki/concepts/pass-the-hash/
+- /wiki/offsec-notes/concepts/pass-the-hash/
 ---
 
 **Category:** Active Directory / Credential Access / Lateral Movement
