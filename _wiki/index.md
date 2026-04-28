@@ -50,6 +50,7 @@ redirect_from:
 .wiki-card .examples a { white-space: nowrap; }
 .wiki-section { margin-top: 2em; }
 .wiki-section h2 { border-bottom: 1px solid rgba(127,127,127,.25); padding-bottom: .3em; }
+.wiki-section .lead { opacity: .8; margin-top: -.3em; margin-bottom: .8em; font-size: .95em; }
 </style>
 
 <div class="wiki-hero" markdown="0">
@@ -60,6 +61,7 @@ redirect_from:
 
 <div class="wiki-section" markdown="0">
   <h2>The four pillars</h2>
+  <p class="lead">The disciplines this wiki covers. Each pillar links to its landing page.</p>
   <div class="wiki-grid">
     <div class="wiki-card">
       <h3><a href="/wiki/domains/penetration-testing/">Penetration Testing</a></h3>
@@ -81,27 +83,25 @@ redirect_from:
 </div>
 
 <div class="wiki-section" markdown="0">
-  <h2>Browse by category</h2>
+  <h2>Foundations &amp; operator tradecraft</h2>
+  <p class="lead">What you need to read, do, and use during an engagement — kill-chain stages, TTPs, runbooks, tools.</p>
   <div class="wiki-grid">
-
     <div class="wiki-card">
       <h3><a href="/wiki/concepts/">Concepts</a></h3>
-      <div class="count">60 pages</div>
+      <div class="count">60 pages — foundations + AD / cloud / web / mobile / Wi-Fi attack concepts</div>
       <p class="examples">
-        <a href="/wiki/concepts/cyber-kill-chain/">cyber kill chain</a> ·
-        <a href="/wiki/concepts/mitre-attack/">MITRE ATT&amp;CK</a> ·
+        <a href="/wiki/concepts/cyber-kill-chain/">kill chain</a> ·
+        <a href="/wiki/concepts/mitre-attack/">ATT&amp;CK</a> ·
         <a href="/wiki/concepts/opsec/">OPSEC</a> ·
         <a href="/wiki/concepts/kerberoasting/">kerberoasting</a> ·
-        <a href="/wiki/concepts/active-directory-attacks/">AD attacks</a> ·
         <a href="/wiki/concepts/lsass-dumping/">LSASS dumping</a> ·
-        <a href="/wiki/concepts/wifi-key-hierarchy/">Wi-Fi key hierarchy</a> ·
-        <a href="/wiki/concepts/dll-hijacking/">DLL hijacking</a>
+        <a href="/wiki/concepts/dll-hijacking/">DLL hijacking</a> ·
+        <a href="/wiki/concepts/edr-silencing/">EDR silencing</a>
       </p>
     </div>
-
     <div class="wiki-card">
       <h3><a href="/wiki/techniques/">Techniques</a></h3>
-      <div class="count">11 pages — TTPs across operations and exploitation</div>
+      <div class="count">11 pages — TTPs across operations and exploit dev</div>
       <p class="examples">
         <a href="/wiki/techniques/recon/">recon</a> ·
         <a href="/wiki/techniques/initial-access/">initial access</a> ·
@@ -109,11 +109,19 @@ redirect_from:
         <a href="/wiki/techniques/lateral-movement/">lateral movement</a> ·
         <a href="/wiki/techniques/persistence/">persistence</a> ·
         <a href="/wiki/techniques/rop/">ROP</a> ·
-        <a href="/wiki/techniques/use_after_free/">UAF</a> ·
-        <a href="/wiki/techniques/heap_grooming/">heap grooming</a>
+        <a href="/wiki/techniques/use_after_free/">UAF</a>
       </p>
     </div>
-
+    <div class="wiki-card">
+      <h3><a href="/wiki/playbooks/">Playbooks</a></h3>
+      <div class="count">4 pages — engagement runbooks</div>
+      <p class="examples">
+        <a href="/wiki/playbooks/active-directory-pentest/">AD pentest</a> ·
+        <a href="/wiki/playbooks/external-pentest/">external</a> ·
+        <a href="/wiki/playbooks/internal-network-pentest/">internal network</a> ·
+        <a href="/wiki/playbooks/web-app-pentest/">web app</a>
+      </p>
+    </div>
     <div class="wiki-card">
       <h3><a href="/wiki/tools/">Tools</a></h3>
       <div class="count">23 pages — frameworks, debuggers, scanners, C2</div>
@@ -124,12 +132,26 @@ redirect_from:
         <a href="/wiki/tools/cobalt-strike/">Cobalt Strike</a> ·
         <a href="/wiki/tools/bloodhound/">BloodHound</a> ·
         <a href="/wiki/tools/mimikatz/">mimikatz</a> ·
-        <a href="/wiki/tools/impacket/">impacket</a> ·
-        <a href="/wiki/tools/debugging/">WinDbg</a> ·
-        <a href="/wiki/tools/fuzzing/">fuzzing</a>
+        <a href="/wiki/tools/impacket/">impacket</a>
       </p>
     </div>
+    <div class="wiki-card">
+      <h3><a href="/wiki/resources/">Resources</a></h3>
+      <div class="count">5 pages — reading lists, researchers, templates</div>
+      <p class="examples">
+        <a href="/wiki/resources/reading-list/">reading list</a> ·
+        <a href="/wiki/resources/researchers/">researchers</a> ·
+        <a href="/wiki/resources/papers_and_blogs/">papers &amp; blogs</a> ·
+        <a href="/wiki/resources/cve_template/">CVE template</a>
+      </p>
+    </div>
+  </div>
+</div>
 
+<div class="wiki-section" markdown="0">
+  <h2>Windows exploitation research</h2>
+  <p class="lead">CVE deep-dives plus the kernel-mode and user-mode internals exercised by them. Start with the <a href="/wiki/concepts/windows-exploit-research-overview/">Windows research overview</a>.</p>
+  <div class="wiki-grid">
     <div class="wiki-card">
       <h3><a href="/wiki/cves/">CVEs</a></h3>
       <div class="count">29 deep-dive write-ups</div>
@@ -141,10 +163,9 @@ redirect_from:
         <a href="/wiki/cves/CVE-2024-26170/">CimFS</a>
       </p>
     </div>
-
     <div class="wiki-card">
-      <h3><a href="/wiki/kernel/">Kernel internals</a></h3>
-      <div class="count">15 pages — Windows kernel attack surface</div>
+      <h3><a href="/wiki/kernel/">Kernel-mode exploitation</a></h3>
+      <div class="count">15 pages — drivers, subsystems, primitives, mitigations</div>
       <p class="examples">
         <a href="/wiki/kernel/architecture/">architecture</a> ·
         <a href="/wiki/kernel/clfs/">CLFS</a> ·
@@ -155,7 +176,6 @@ redirect_from:
         <a href="/wiki/kernel/mitigations/">mitigations</a>
       </p>
     </div>
-
     <div class="wiki-card">
       <h3><a href="/wiki/usermode/">User-mode exploitation</a></h3>
       <div class="count">4 pages — heap, stack, browser, mitigations</div>
@@ -166,10 +186,16 @@ redirect_from:
         <a href="/wiki/usermode/mitigations/">mitigations</a>
       </p>
     </div>
+  </div>
+</div>
 
+<div class="wiki-section" markdown="0">
+  <h2>Wi-Fi protocol research</h2>
+  <p class="lead">The AirSnitch (NDSS'26) corpus — eight attacks that defeat Wi-Fi client isolation, the defenses that work, and the devices tested. Start with the <a href="/wiki/concepts/airsnitch-overview/">AirSnitch overview</a>.</p>
+  <div class="wiki-grid">
     <div class="wiki-card">
-      <h3><a href="/wiki/attacks/">Attacks (Wi-Fi)</a></h3>
-      <div class="count">8 pages — AirSnitch / NDSS 2026</div>
+      <h3><a href="/wiki/attacks/">Attacks</a></h3>
+      <div class="count">8 pages — the eight techniques + auxiliary helpers</div>
       <p class="examples">
         <a href="/wiki/attacks/abusing-gtk/">abusing GTK</a> ·
         <a href="/wiki/attacks/port-stealing/">port stealing</a> ·
@@ -178,10 +204,9 @@ redirect_from:
         <a href="/wiki/attacks/rogue-ap/">rogue AP</a>
       </p>
     </div>
-
     <div class="wiki-card">
-      <h3><a href="/wiki/defenses/">Defenses (Wi-Fi)</a></h3>
-      <div class="count">8 pages — controls vs. AirSnitch</div>
+      <h3><a href="/wiki/defenses/">Defenses</a></h3>
+      <div class="count">8 pages — controls that actually stop the attacks</div>
       <p class="examples">
         <a href="/wiki/defenses/group-key-randomization/">group-key randomization</a> ·
         <a href="/wiki/defenses/macsec/">MACsec</a> ·
@@ -189,45 +214,29 @@ redirect_from:
         <a href="/wiki/defenses/spoofing-prevention/">spoofing prevention</a>
       </p>
     </div>
-
     <div class="wiki-card">
-      <h3><a href="/wiki/playbooks/">Playbooks</a></h3>
-      <div class="count">4 pages — engagement runbooks</div>
+      <h3><a href="/wiki/devices/">Devices</a></h3>
+      <div class="count">1 page — vendor / device test results</div>
       <p class="examples">
-        <a href="/wiki/playbooks/active-directory-pentest/">AD pentest</a> ·
-        <a href="/wiki/playbooks/external-pentest/">external</a> ·
-        <a href="/wiki/playbooks/internal-network-pentest/">internal network</a> ·
-        <a href="/wiki/playbooks/web-app-pentest/">web app</a>
+        <a href="/wiki/devices/tested-devices/">tested devices</a> — Tables I–III digest, which routers fail which tests.
       </p>
     </div>
+  </div>
+</div>
 
+<div class="wiki-section" markdown="0">
+  <h2>Source material</h2>
+  <p class="lead">One provenance page per raw source file that fed the wiki — title, filename, status, excerpt. Raw text stays offline; this catalogue is what the LLM ingest pipeline operates on.</p>
+  <div class="wiki-grid">
     <div class="wiki-card">
-      <h3><a href="/wiki/devices/tested-devices/">Devices</a></h3>
-      <div class="count">1 page — Wi-Fi vendor test results</div>
-      <p class="examples">Routers and APs tested in the AirSnitch suite (Tables I–III digest).</p>
-    </div>
-
-    <div class="wiki-card">
-      <h3><a href="/wiki/resources/">Resources</a></h3>
-      <div class="count">5 pages — reading lists, researchers, templates</div>
-      <p class="examples">
-        <a href="/wiki/resources/reading-list/">reading list</a> ·
-        <a href="/wiki/resources/researchers/">researchers</a> ·
-        <a href="/wiki/resources/papers_and_blogs/">papers &amp; blogs</a> ·
-        <a href="/wiki/resources/cve_template/">CVE template</a>
-      </p>
-    </div>
-
-    <div class="wiki-card">
-      <h3><a href="/wiki/sources/">Sources</a></h3>
-      <div class="count">146 provenance pages — raw material that fed the wiki</div>
+      <h3><a href="/wiki/sources/">All sources</a></h3>
+      <div class="count">146 provenance pages, grouped by origin</div>
       <p class="examples">
         <a href="/wiki/sources/airsnitch/">airsnitch</a> ·
         <a href="/wiki/sources/windows-exploit-research/">windows-exploit-research</a> ·
         <a href="/wiki/sources/offsec/">offsec</a>
       </p>
     </div>
-
   </div>
 </div>
 
