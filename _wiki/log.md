@@ -122,6 +122,27 @@ author_profile: true
 
 ---
 
+## [2026-04-29] INGEST | The Wi-Fi research canon — KRACK, Dragonblood, FragAttacks, et al.
+
+- **Source:** open-web — academic papers and project pages located via search and fetched directly. Specifically: krackattacks.com, wpa3.mathyvanhoef.com, fragattacks.com, papers.mathyvanhoef.com (USENIX/CCS/S&P/WiSec PDFs), tunnelcrack.mathyvanhoef.com, top10vpn.com (PEAP/IWD writeups), Hack.lu archive (Bongard slides).
+- **Pages created (9):**
+  - `attacks/krack.md` — Vanhoef + Piessens, *Key Reinstallation Attacks: Forcing Nonce Reuse in WPA2* (CCS 2017). Ten-CVE cluster including the Linux/Android all-zero-key variant.
+  - `attacks/dragonblood.md` — Vanhoef + Ronen, *Dragonblood: A Security Analysis of WPA3's SAE Handshake* (S&P 2020). Cache + timing side channels on hunting-and-pecking; downgrade attacks; EAP-pwd auth bypass.
+  - `attacks/fragattacks.md` — Vanhoef, *Fragment and Forge: Breaking Wi-Fi Through Frame Aggregation and Fragmentation* (USENIX Security 2021). Three design flaws (A-MSDU flag unauthenticated, mixed-key fragmentation, fragment cache not flushed) + nine implementation bugs.
+  - `attacks/framing-frames.md` — Schepers + Ranganathan + Vanhoef, *Framing Frames: Bypassing Wi-Fi Encryption by Manipulating Transmit Queues* (USENIX Security 2023); includes MacStealer and CVE-2022-47522.
+  - `attacks/tunnelcrack.md` — Xue + Malla + Xia + Pöpper + Vanhoef, *Bypassing Tunnels: Leaking VPN Client Traffic by Abusing Routing Tables* (USENIX Security 2023). LocalNet + ServerIP attacks.
+  - `attacks/ssid-confusion.md` — Gollier + Vanhoef, *SSID Confusion: Making Wi-Fi Clients Connect to the Wrong Network* (WiSec 2024 best paper). CVE-2023-52424 — SSID not authenticated by 4-way handshake.
+  - `attacks/peap-bypass.md` — Vanhoef, CVE-2023-52160 (wpa_supplicant PEAP TLV-Success bypass) + CVE-2023-52161 (IWD handshake state-machine bypass), Feb 2024.
+  - `attacks/mfp-deauthentication.md` — Schepers + Vanhoef + Ranganathan, *On the Robustness of Wi-Fi Deauthentication Countermeasures* (WiSec 2022) and the related *Cut It* (FPS 2022).
+  - `attacks/pixie-dust-wps.md` — Bongard, *Offline brute-force attack on WiFi Protected Setup* (Hack.lu 2014). Weak-PRNG → offline PIN recovery.
+- **Pages modified:** `_wiki/attacks/index.md` regenerated (8 → 17), `_wiki/resources/researchers.md` (added Piessens, Ronen, Schepers, Ranganathan, Gollier, Pöpper-et-al, Bongard; expanded Vanhoef row to link every page).
+- **Key additions:**
+  - Wi-Fi corpus now spans the canonical works from 2014 (Pixie Dust) through 2024 (SSID Confusion) and into the 2026 [AirSnitch](/wiki/concepts/airsnitch-overview/) line.
+  - Each page emphasises *why the attack is structurally possible* — i.e. which decision the standard punted on (A-MSDU bit, power-save bit, SSID, fragment cache, hash-to-curve constant-timeness). The recurring theme — security-relevant decisions placed in unauthenticated framing fields — is reinforced across pages.
+  - Cross-references threaded through [Wi-Fi Key Hierarchy](/wiki/concepts/wifi-key-hierarchy/), [Handshakes](/wiki/concepts/handshakes/), [WPA Versions](/wiki/concepts/wpa-versions/), [MFP](/wiki/concepts/mfp/), [Client Isolation](/wiki/concepts/client-isolation/).
+
+---
+
 ## [2026-04-28] INGEST | Catalogue all un-ingested raw references (146 source-provenance pages)
 
 - **Source:** raw materials referenced by the three topic wikis but not yet present on the published site:

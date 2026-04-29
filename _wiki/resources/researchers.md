@@ -117,8 +117,14 @@ tags:
 
 | Researcher | Affiliation | Areas |
 |------------|-------------|-------|
-| Mathy Vanhoef | NYU Abu Dhabi / KU Leuven | KRACK, Dragonblood, FragAttacks, MacStealer, [AirSnitch](/wiki/concepts/airsnitch-overview/) — sustained body of Wi-Fi protocol VR. |
-| Domien Schepers | NYU Abu Dhabi | "Framing frames" / MacStealer (USENIX'23) — Wi-Fi queue confusion, MAC layer attacks. |
+| Mathy Vanhoef | NYU Abu Dhabi / KU Leuven | [KRACK](/wiki/attacks/krack/), [Dragonblood](/wiki/attacks/dragonblood/), [FragAttacks](/wiki/attacks/fragattacks/), [Framing Frames](/wiki/attacks/framing-frames/), [TunnelCrack](/wiki/attacks/tunnelcrack/), [SSID Confusion](/wiki/attacks/ssid-confusion/), [PEAP/IWD bypass](/wiki/attacks/peap-bypass/), [AirSnitch](/wiki/concepts/airsnitch-overview/) — sustained body of Wi-Fi protocol VR. |
+| Frank Piessens | KU Leuven | KRACK co-author (CCS 2017); systems security generally. |
+| Eyal Ronen | Tel Aviv University | [Dragonblood](/wiki/attacks/dragonblood/) co-author; cryptographic protocol attacks. |
+| Domien Schepers | Northeastern | [Framing Frames / MacStealer](/wiki/attacks/framing-frames/) (USENIX'23); [MFP deauthentication](/wiki/attacks/mfp-deauthentication/) (WiSec'22). |
+| Aanjhan Ranganathan | Northeastern | Wireless security; co-author on Framing Frames + MFP deauth work. |
+| Héloïse Gollier | KU Leuven | [SSID Confusion](/wiki/attacks/ssid-confusion/) (WiSec'24 best paper). |
+| Christina Pöpper, Nian Xue, Yashaswi Malla, Zihang Xia | NYU Abu Dhabi | [TunnelCrack](/wiki/attacks/tunnelcrack/) (USENIX'23) — VPN routing-table attacks. |
+| Dominique Bongard | 0xcite (CH) | [Pixie Dust](/wiki/attacks/pixie-dust-wps/) — offline WPS PIN recovery (Hack.lu 2014). |
 | Mengyuan Zhou, Ang Pu, Yuxuan Liu, Feng Qian, Yuanjie Tan | UC Riverside / KU Leuven | [AirSnitch](/wiki/concepts/airsnitch-overview/) (NDSS'26) co-authors. |
 | Srikanth V. Krishnamurthy | UC Riverside | Wireless / network security; AirSnitch co-author. |
 
