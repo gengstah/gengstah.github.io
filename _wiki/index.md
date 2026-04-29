@@ -191,12 +191,21 @@ redirect_from:
 
 <div class="wiki-section" markdown="0">
   <h2>Wi-Fi protocol research</h2>
-  <p class="lead">The AirSnitch (NDSS'26) corpus — eight attacks that defeat Wi-Fi client isolation, the defenses that work, and the devices tested. Start with the <a href="/wiki/concepts/airsnitch-overview/">AirSnitch overview</a>.</p>
+  <p class="lead">The Wi-Fi research canon — from <a href="/wiki/attacks/pixie-dust-wps/">Pixie Dust WPS</a> (2014) and <a href="/wiki/attacks/krack/">KRACK</a> (2017) through <a href="/wiki/attacks/dragonblood/">Dragonblood</a>, <a href="/wiki/attacks/fragattacks/">FragAttacks</a>, <a href="/wiki/attacks/framing-frames/">Framing Frames / MacStealer</a>, <a href="/wiki/attacks/tunnelcrack/">TunnelCrack</a>, <a href="/wiki/attacks/ssid-confusion/">SSID Confusion</a>, <a href="/wiki/attacks/peap-bypass/">PEAP/IWD bypass</a>, <a href="/wiki/attacks/mfp-deauthentication/">MFP deauthentication</a>, and into the 2026 <a href="/wiki/concepts/airsnitch-overview/">AirSnitch</a> client-isolation work. The recurring theme: security-relevant decisions placed in unauthenticated framing fields.</p>
   <div class="wiki-grid">
     <div class="wiki-card">
       <h3><a href="/wiki/attacks/">Attacks</a></h3>
-      <div class="count">8 pages — the eight techniques + auxiliary helpers</div>
+      <div class="count">17 pages — protocol breaks across WEP / WPA / WPA2 / WPA3 / 802.1X / WPS</div>
       <p class="examples">
+        <a href="/wiki/attacks/krack/">KRACK</a> ·
+        <a href="/wiki/attacks/dragonblood/">Dragonblood</a> ·
+        <a href="/wiki/attacks/fragattacks/">FragAttacks</a> ·
+        <a href="/wiki/attacks/framing-frames/">Framing Frames</a> ·
+        <a href="/wiki/attacks/tunnelcrack/">TunnelCrack</a> ·
+        <a href="/wiki/attacks/ssid-confusion/">SSID Confusion</a> ·
+        <a href="/wiki/attacks/peap-bypass/">PEAP/IWD bypass</a> ·
+        <a href="/wiki/attacks/mfp-deauthentication/">MFP deauth</a> ·
+        <a href="/wiki/attacks/pixie-dust-wps/">Pixie Dust</a> ·
         <a href="/wiki/attacks/abusing-gtk/">abusing GTK</a> ·
         <a href="/wiki/attacks/port-stealing/">port stealing</a> ·
         <a href="/wiki/attacks/gateway-bouncing/">gateway bouncing</a> ·
@@ -206,7 +215,7 @@ redirect_from:
     </div>
     <div class="wiki-card">
       <h3><a href="/wiki/defenses/">Defenses</a></h3>
-      <div class="count">8 pages — controls that actually stop the attacks</div>
+      <div class="count">8 pages — controls that actually stop the attacks (AirSnitch corpus)</div>
       <p class="examples">
         <a href="/wiki/defenses/group-key-randomization/">group-key randomization</a> ·
         <a href="/wiki/defenses/macsec/">MACsec</a> ·
@@ -216,9 +225,23 @@ redirect_from:
     </div>
     <div class="wiki-card">
       <h3><a href="/wiki/devices/">Devices</a></h3>
-      <div class="count">1 page — vendor / device test results</div>
+      <div class="count">1 page — AirSnitch vendor / router test results</div>
       <p class="examples">
         <a href="/wiki/devices/tested-devices/">tested devices</a> — Tables I–III digest, which routers fail which tests.
+      </p>
+    </div>
+    <div class="wiki-card">
+      <h3>Wi-Fi concepts</h3>
+      <div class="count">background needed to read the attacks</div>
+      <p class="examples">
+        <a href="/wiki/concepts/wifi-key-hierarchy/">key hierarchy</a> ·
+        <a href="/wiki/concepts/handshakes/">handshakes</a> ·
+        <a href="/wiki/concepts/wpa-versions/">WPA versions</a> ·
+        <a href="/wiki/concepts/mfp/">MFP / 802.11w</a> ·
+        <a href="/wiki/concepts/client-isolation/">client isolation</a> ·
+        <a href="/wiki/concepts/bssid-ssid-ess/">BSSID / SSID / ESS</a> ·
+        <a href="/wiki/concepts/passpoint/">Passpoint</a> ·
+        <a href="/wiki/concepts/radius/">RADIUS</a>
       </p>
     </div>
   </div>
