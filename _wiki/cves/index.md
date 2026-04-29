@@ -7,7 +7,7 @@ author_profile: true
 
 Deep-dive write-ups for individual vulnerabilities — root cause, exploitation flow, primitives, references.
 
-**29 pages** in this category.
+**38 pages** in this category.
 
 ---
 
@@ -23,6 +23,7 @@ Deep-dive write-ups for individual vulnerabilities — root cause, exploitation 
 - [CVE-2022-34718 — EvilESP: Windows TCP/IP IPsec ESP OOB Write RCE](/wiki/cves/CVE-2022-34718/)
 - [CVE-2022-37969 — CLFS OOB Write via SignaturesOffset Corruption](/wiki/cves/CVE-2022-37969/)
 - [CVE-2023-23376 — CLFS CONTROL Block OOB via DumpCount/Sector Signature Overlap](/wiki/cves/CVE-2023-23376/)
+- [CVE-2023-28218 — afd.sys CMSGBuffer Integer Overflow Heap Corruption](/wiki/cves/CVE-2023-28218/)
 - [CVE-2023-28229 + CVE-2023-36906 — CNG Key Isolation UAF + OOB Read (AppContainer Escape)](/wiki/cves/CVE-2023-28229/)
 - [CVE-2023-28252 — CLFS OOB Write → Arbitrary Increment → LPE (Nokoyawa)](/wiki/cves/CVE-2023-28252/)
 - [CVE-2023-36802 — MSKSSRV Type Confusion: FsContextReg/FSStreamReg OOB → PreviousMode LPE](/wiki/cves/CVE-2023-36802/)
@@ -31,12 +32,20 @@ Deep-dive write-ups for individual vulnerabilities — root cause, exploitation 
 - [CVE-2024-26230 — Windows Telephony Service UAF (EoP)](/wiki/cves/CVE-2024-26230/)
 - [CVE-2024-30084 — Kernel Streaming IOCTL_KS_PROPERTY Double Fetch](/wiki/cves/CVE-2024-30084/)
 - [CVE-2024-30085 — cldflt.sys Heap Overflow (EoP)](/wiki/cves/CVE-2024-30085/)
+- [CVE-2024-30088 — NT Kernel TokenAccessInformation TOCTOU](/wiki/cves/CVE-2024-30088/)
 - [CVE-2024-30090 — Kernel Streaming Event Double Fetch + Arbitrary Address Increment](/wiki/cves/CVE-2024-30090/)
 - [CVE-2024-35250 — Kernel Streaming KSPROPSETID_DrmAudioStream Arbitrary Call](/wiki/cves/CVE-2024-35250/)
 - [CVE-2024-38063 — Windows TCP/IP IPv6 Integer Underflow → Kernel Heap Overflow](/wiki/cves/CVE-2024-38063/)
 - [CVE-2024-38238 — Kernel Streaming Forgotten MDL Lock → Arbitrary Physical Memory Write](/wiki/cves/CVE-2024-38238/)
 - [CVE-2024-38245 — Kernel Streaming Frame Buffer Misalignment → LookasideList Corruption](/wiki/cves/CVE-2024-38245/)
 - [CVE-2024-49138 — CLFS Heap-Based Buffer Overflow via Shadow Block pbImage Sharing](/wiki/cves/CVE-2024-49138/)
+- [CVE-2025-21333 — Hyper-V vkrnlintvsp.sys Heap Overflow (WNF + IORING)](/wiki/cves/CVE-2025-21333/)
 - [CVE-2025-29824 — CLFS CClfsLogCcb Use-After-Free (IRP Race)](/wiki/cves/CVE-2025-29824/)
+- [CVE-2025-30385 — CLFS Driver Use-After-Free](/wiki/cves/CVE-2025-30385/)
+- [CVE-2025-32701 — CLFS Log Stream Use-After-Free (ITW Zero-Day)](/wiki/cves/CVE-2025-32701/)
 - [CVE-2025-53136 — NT Kernel TOKEN Address Leak via TOCTOU (KASLR Defeat)](/wiki/cves/CVE-2025-53136/)
+- [CVE-2025-60709 — CLFS Container Parsing OOB Read → Arbitrary Write](/wiki/cves/CVE-2025-60709/)
+- [CVE-2025-60719 — afd.sys Multi-Routine UAF (Endpoint Unbind Race)](/wiki/cves/CVE-2025-60719/)
+- [CVE-2025-62215 — NT Kernel Race / Double-Free LPE (ITW)](/wiki/cves/CVE-2025-62215/)
+- [CVE-2025-8061 — Lenovo LnvMSRIO.sys BYOVD (Arbitrary MSR + Physical Memory)](/wiki/cves/CVE-2025-8061/)
 - [CVE-2026-20820 — CLFS ScanContainers Integer Overflow (IOCTL 0x80076816)](/wiki/cves/CVE-2026-20820/)

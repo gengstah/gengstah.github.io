@@ -28,6 +28,11 @@ tags:
 | Cherie-Anne Lee | StarLabs | cldflt.sys, CimFS, kernel pool exploitation. |
 | Grant Willcox | (Trend ZDI / Immersive Labs) | Windows kernel CVE write-ups. |
 | Filip Dragović | n/a | Windows logic bugs, redirection-based escalation. |
+| carrot_c4k3 | n/a | Pwn2Own 2024 — Windows LPE chain via [CVE-2024-30088](/wiki/cves/CVE-2024-30088/) (NT-kernel TOCTOU + IORING). |
+| Frontier Squad (Theori) | Theori | afd.sys exploitation; [CVE-2023-28218](/wiki/cves/CVE-2023-28218/) Hexacon 2023. |
+| Akamai security research | Akamai | PatchDiff-AI; root-cause analysis pipelines; [CVE-2025-60719](/wiki/cves/CVE-2025-60719/) afd.sys UAF write-up. |
+| Alessandro Iandoli (MrAle98) | n/a | Hyper-V exploitation; [CVE-2025-21333](/wiki/cves/CVE-2025-21333/) PoC introducing single-entry IORING corruption. |
+| Luis Casvella | Quarkslab | BYOVD research; [CVE-2025-8061](/wiki/cves/CVE-2025-8061/) Lenovo `LnvMSRIO.sys`. |
 
 ---
 

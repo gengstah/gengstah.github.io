@@ -100,6 +100,28 @@ author_profile: true
 
 ---
 
+## [2026-04-28] INGEST | Nine new Windows kernel CVE write-ups (web-sourced)
+
+- **Source:** open-web research — vendor advisories, public exploit write-ups, conference talks, and PoC repos located via search and fetched directly. Specifically: exploits.forsale (Pwn2Own 2024), Theori (Hexacon 2023), ZeroPath, Akamai PatchDiff-AI, Quarkslab, MrAle98 PoC, Crowdfense, Help Net Security, SOC Prime.
+- **Pages created (9):**
+  - `cves/CVE-2024-30088.md` — NT kernel TOCTOU in `AuthzBasepCopyoutInternalSecurityAttributes` (`NtQueryInformationToken(TokenAccessInformation)`); APT34 / OilRig ITW; Pwn2Own 2024 (carrot_c4k3) writeup with IORING `RegBuffers` corruption chain.
+  - `cves/CVE-2023-28218.md` — afd.sys `AfdCopyCMSGBuffer` integer-overflow → paged-pool heap overflow; Frontier Squad / Theori; Hexacon 2023; `_IO_COMPLETION_CONTEXT` spray + `IopReplaceCompletionPort` arbitrary decrement → `KTHREAD.PreviousMode` flip.
+  - `cves/CVE-2025-21333.md` — Hyper-V `vkrnlintvsp.sys` heap overflow; ITW (CISA KEV); MrAle98 PoC introducing the *single-entry* WNF + IORING `_IOP_MC_BUFFER_ENTRY` corruption pattern.
+  - `cves/CVE-2025-30385.md` — CLFS UAF (May 2025).
+  - `cves/CVE-2025-32701.md` — CLFS log-stream UAF; ITW zero-day; May 2025.
+  - `cves/CVE-2025-60709.md` — CLFS container-parse OOB read → arbitrary kernel write; Nov 2025.
+  - `cves/CVE-2025-60719.md` — afd.sys multi-routine UAF (endpoint-unbind race); Akamai PatchDiff-AI analysis; `AfdPreventUnbind` / `AfdReallowUnbind` is the patch's synchronization barrier.
+  - `cves/CVE-2025-62215.md` — NT kernel race / double-free; ITW zero-day; Nov 2025 (out-of-band update for non-ESU Win10).
+  - `cves/CVE-2025-8061.md` — Lenovo `LnvMSRIO.sys` BYOVD; arbitrary MSR R/W + arbitrary physical-memory R/W via IOCTLs on a no-DACL device; Quarkslab; LSTAR-overwrite-and-syscall trick to land ring-0 code execution.
+- **Pages modified:** `_wiki/cves/index.md` regenerated (29 → 38 entries).
+- **Key additions:**
+  - CVE corpus now covers all four major 2025 CLFS LPEs (29824 / 30385 / 32701 / 60709) plus the November 2025 zero-day (62215).
+  - First afd.sys / WinSock entries — the dominant 2023–2025 LPE surface beside CLFS.
+  - First Hyper-V VSP entry; first BYOVD entry.
+  - Cross-references woven into existing kernel pages: [CLFS](/wiki/kernel/clfs/), [IORING](/wiki/kernel/ioring/), [WNF Internals](/wiki/kernel/wnf_internals/), and the [Use-After-Free](/wiki/techniques/use_after_free/) / [Race Conditions](/wiki/techniques/race_conditions/) / [Integer Overflows](/wiki/techniques/integer_overflows/) technique pages.
+
+---
+
 ## [2026-04-28] INGEST | Catalogue all un-ingested raw references (146 source-provenance pages)
 
 - **Source:** raw materials referenced by the three topic wikis but not yet present on the published site:
