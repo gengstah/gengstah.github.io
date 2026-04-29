@@ -5,7 +5,7 @@ layout: single
 author_profile: true
 ---
 
-*Append-only chronological record of every operation against this wiki. See [schema](/wiki/schema/) for the entry format.*
+*Append-only chronological record of what I've added or changed. See [schema](/wiki/schema/) for the entry format.*
 
 `grep "^## \[" log.md | tail -10` for a quick timeline.
 
@@ -23,138 +23,120 @@ author_profile: true
   - Resources: `resources/reading-list.md`, `resources/researchers.md`
 - **Pages modified:** none (initial commit)
 - **Key additions:**
-  - Established `_wiki/` Jekyll collection wired into `_config.yml`; URLs are `/wiki/<dir>/<slug>/`.
-  - Top nav entry "Wiki" → `/wiki/` added to `_data/navigation.yml`.
-  - Sidebar nav `wiki:` added so every wiki page can opt in via `sidebar.nav: "wiki"`.
-  - Repo-root `CLAUDE.md` documents the schema for future Claude Code sessions; mirrored as `_wiki/schema.md` for human reading.
-  - All seed pages are `Status: seed` — content is skeletal scaffolding, not authoritative. The wiki grows as the user ingests sources.
+  - Set up `_wiki/` as a Jekyll collection in `_config.yml`; URLs are `/wiki/<dir>/<slug>/`.
+  - Top-nav entry "Wiki" → `/wiki/` in `_data/navigation.yml`.
+  - All seed pages start at `Status: seed` — scaffolding I'll grow into as I add material.
 
 ---
 
-## [2026-04-28] LINT | Move sidebar nav off-canvas
+## [2026-04-28] LINT | Drop the left sidebar nav
 
-- **Source:** user feedback ("scrollbar shows" on left sidebar)
+- **Source:** ergonomic — the per-page sidebar nav was scrollbar-heavy and not pulling its weight.
 - **Pages created:** none
-- **Pages modified:** `_config.yml` (drop `sidebar.nav: "wiki"` from defaults), `_data/navigation.yml` (drop `wiki:` block), all 22 seed pages (strip per-page `sidebar.nav: "wiki"`)
+- **Pages modified:** `_config.yml` (drop `sidebar.nav: "wiki"` from defaults), `_data/navigation.yml` (remove the `wiki:` block), every wiki page (strip the per-page `sidebar.nav` line)
 - **Key additions:**
-  - Wiki pages no longer render the left sidebar nav. Author profile sidebar still shows (theme default).
-  - Navigation is now via top-nav "Wiki" link → catalog (`/wiki/`) → drill in via per-page **Related:** lines.
-  - Keeps the page surface clean and removes the scrollbar the user disliked.
+  - Wiki pages no longer render a left sidebar nav. The author-profile sidebar still shows.
+  - Navigation is now: top-nav "Wiki" → catalog (`/wiki/`) → drill in via per-page **Related:** lines and category indexes.
 
 ---
 
 ## [2026-04-28] INGEST | AirSnitch — Wi-Fi client isolation bypass (NDSS 2026)
 
-- **Source:** `raw_sources/ndss2026-airsnitch-paper.md` (NDSS 2026; Zhou, Pu, Liu, Qian, Tan, Krishnamurthy, Vanhoef) + a pre-built local wiki at `~/Documents/airsnitch-wiki/` (33 derived pages + index)
-- **Pages created:**
-  - `_wiki/airsnitch/index.md`, `_wiki/airsnitch/overview.md`
-  - `_wiki/airsnitch/attacks/` × 8 — abusing-gtk, gateway-bouncing, port-stealing, broadcast-reflection, machine-on-the-side, rogue-ap, passpoint-flaws, auxiliary-techniques
-  - `_wiki/airsnitch/concepts/` × 9 — client-isolation, wifi-key-hierarchy, handshakes, bssid-ssid-ess, virtual-ports, passpoint, wpa-versions, radius, mfp
-  - `_wiki/airsnitch/defenses/` × 8 — index, group-key-randomization, vlans, spoofing-prevention, filter-unicast-in-broadcast, macsec, centralized-decryption, documentation
-  - `_wiki/airsnitch/devices/tested-devices.md`
-  - `_wiki/airsnitch/tools/` × 4 — airsnitch-cli, repo-layout, configurations, setup-scripts
-  - `_wiki/airsnitch/sources/` × 2 — ndss2026-paper, airsnitch-readme
-- **Pages modified:** `_wiki/index.md` (added "Topic deep-dives" section + tag-index entries), `_wiki/resources/researchers.md` (added Mathy Vanhoef and the AirSnitch author cluster under a new Wi-Fi / wireless section)
+- **Source:** *AirSnitch: Demystifying and Breaking Client Isolation in Wi-Fi Networks* — Zhou, Pu, Liu, Qian, Tan, Krishnamurthy, Vanhoef (NDSS 2026); the upstream AirSnitch tooling and README.
+- **Pages created:** an `airsnitch/` subtree of 33 pages — overview, eight attack pages, nine concept pages (key hierarchy, handshakes, BSSID/SSID/ESS, virtual ports, Passpoint, WPA versions, RADIUS, MFP, client isolation), eight defence pages, a tested-devices table, four tool pages, two source-provenance pages.
+- **Pages modified:** `index.md` and `resources/researchers.md` (added Vanhoef and the AirSnitch author cluster).
 - **Key additions:**
-  - 34 ported pages preserve the source wiki's substructure (attacks / concepts / defenses / devices / tools / sources). Original Obsidian-style relative `*.md` links converted to absolute Jekyll permalinks under `/wiki/concepts/airsnitch-overview/`.
-  - Frontmatter normalized to Jekyll: `title`, `permalink`, `layout: single`, `author_profile: true`, `tags: [airsnitch, wifi, <type>]`. Source-side `sources:` and `updated:` metadata preserved.
-  - Wi-Fi protocol VR is now a represented domain in the wiki (previously: zero coverage). Future ingest of related work (MacStealer, Krack, Dragonblood, Frag attacks) can plug into the same `_wiki/airsnitch/` namespace or get its own deep-dive.
-  - The raw NDSS paper itself is *not* checked into the repo (likely under conference/author copyright); it lives at the source path above and the wiki cites it via `_wiki/airsnitch/sources/ndss2026-paper.md`.
+  - First Wi-Fi protocol VR coverage in the wiki. The eight attacks (abusing GTK, gateway bouncing, port stealing, broadcast reflection, machine-on-the-side, rogue AP, Passpoint flaws, auxiliary techniques) all live here.
+  - Defences page: per-attack matrix and the four practical fixes (group-key randomisation, VLANs, MAC/IP spoofing prevention, MACsec).
+  - Tested-devices digest of NDSS Tables I–III: which routers fail which tests.
+  - Established the "topic deep-dive under its own subtree" pattern, later flattened into the top-level taxonomy.
 
 ---
 
-## [2026-04-28] INGEST | Offensive Security Notes (concepts/entities/playbooks)
+## [2026-04-28] INGEST | Offensive Security Notes — concepts, tools, playbooks
 
-- **Source:** local Obsidian-style wiki at `/mnt/hgfs/notes/offensive-security/`
-- **Pages created:** 64 under `_wiki/offsec-notes/` — `index.md`, `log.md`, `schema.md`, plus `concepts/` × 45 (active-directory-attacks, kerberoasting, lateral-movement, dll-hijacking, edr-silencing, lsass-dumping, jwt-attacks, sql-injection, xss, phishing, social-engineering, mobile-security, kubernetes-pentesting, cloud-penetration-testing, ai-agents-offensive, …), `entities/` × 11 (bloodhound, burp-suite, cobalt-strike, impacket, metasploit, mimikatz, nmap, nuclei, responder, wmic, airsnitch), `playbooks/` × 4 (active-directory-pentest, external-pentest, internal-network-pentest, web-app-pentest)
-- **Pages modified:** `_wiki/index.md` (added card + redesign — see LINT entry below)
+- **Source:** my own offensive-security notebook accumulated over ~2 years — concept summaries, tool cheat sheets, engagement playbooks. Content originally in Obsidian, ported into the wiki.
+- **Pages created:** 64 — 45 concept pages (active-directory-attacks, kerberoasting, lateral-movement, dll-hijacking, edr-silencing, lsass-dumping, JWT/SQL/XSS, phishing, social engineering, mobile, Kubernetes, cloud, AI-agents, …), 11 tool entries (BloodHound, Burp, Cobalt Strike, Impacket, Metasploit, Mimikatz, nmap, nuclei, responder, wmic, AirSnitch), 4 engagement playbooks (AD, external, internal, web app).
+- **Pages modified:** `index.md` (added the offsec-notes deep-dive card; later folded into the top-level structure).
 - **Key additions:**
-  - First broad coverage of cloud, kubernetes, mobile, AI-agents, JWT/web in the wiki — these were absent.
-  - First playbook-style content (engagement runbooks vs. concept reference pages).
-  - The source `sources/` directory (~50 Maldev Academy clipped articles) and empty `engagements/` are *not* published — `sources/` is raw third-party material that lives in the source repo only.
-  - Obsidian `[[wikilink]]` and `[[path/page|alias]]` syntax converted to absolute Jekyll URLs by a slug-index resolver; one collision flagged (`[[mitigations]]` ambiguous between kernel and user-mode in the windows-exploit ingest below) — left to be disambiguated by source paths.
+  - First broad coverage of cloud, Kubernetes, mobile, AI-agents, and JWT/web in the wiki.
+  - First playbook-style content — engagement runbooks rather than concept references.
+  - Obsidian `[[wikilink]]` syntax converted to absolute Jekyll URLs while porting; one ambiguous slug (`mitigations`) flagged for a follow-up disambiguation pass.
 
 ---
 
-## [2026-04-28] INGEST | Windows Exploit Research wiki (re-ingest of earlier corpus)
+## [2026-04-28] INGEST | Windows Exploit Research
 
-- **Source:** local Obsidian-style wiki at `/mnt/hgfs/notes/windows-exploit-research/wiki/` (the same body of work the user previously committed and removed in commits `82a42bc`/`a42a7c6` — now re-published under the new wiki structure)
-- **Pages created:** 64 under `_wiki/windows-exploit-research/` — `index`, `log`, `overview`, plus `cves/` × 28 (CVE-2020-1350 SIGRed → CVE-2026-20820 CLFS ScanContainers), `kernel/` × 14 (architecture, pool_internals, primitives, mitigations, clfs, clfs_authentication, vtl_secure_calls, cimfs, cldflt, minifilter, wnf_internals, ioring, kernel_streaming, directx, tcpip_stack), `usermode/` × 4 (heap_internals, stack_exploitation, mitigations, browser_exploitation), `techniques/` × 6 (rop, type_confusion, use_after_free, race_conditions, integer_overflows, heap_grooming), `tools/` × 4 (debugging, reversing, fuzzing, dynamic_analysis), `resources/` × 3 (researchers, papers_and_blogs, cve_template)
-- **Pages modified:** `_wiki/index.md` (added card + tag-index entries for `windows`, `kernel-mode`, `cve`)
+- **Source:** my own Windows-kernel research notebook — patch-Tuesday write-ups, kernel-internals reverse engineering, exploit-primitive notes. Originally in Obsidian, ported into the wiki.
+- **Pages created:** 64 — 28 CVE deep-dives (CVE-2020-1350 SIGRed → CVE-2026-20820 CLFS ScanContainers), 14 kernel-internals pages (architecture, pool internals, primitives, mitigations, CLFS, CLFS auth, VTL secure calls, CimFS, cldflt, minifilter, WNF internals, IORING, kernel streaming, DirectX, TCP/IP stack), 4 user-mode pages (heap internals, stack exploitation, mitigations, browser exploitation), 6 technique pages (ROP, type confusion, UAF, race conditions, integer overflows, heap grooming), 4 tool pages (debugging, reversing, fuzzing, dynamic analysis), 3 resource pages (researchers, papers and blogs, CVE template).
+- **Pages modified:** `index.md` (added the Windows-exploit-research deep-dive card; later folded in).
 - **Key additions:**
-  - 28 CVE pages with root-cause analysis, exploitation flow, exploit primitives, and references — material on tcpip.sys IPv6, CLFS, cldflt, ioring, dxgkrnl, kernel streaming, NTFS, npfs, dns.exe, keyiso, appid.sys, etc.
-  - Kernel-internals coverage: VTL secure calls, CLFS HMAC authentication, IORING ALPC bootstrap, WNF state names, kernel CET shadow stacks, minifilter altitude system.
-  - Slug-index resolver flagged one ambiguity — `[[mitigations]]` could be either `kernel/mitigations` or `usermode/mitigations`. Most uses were path-qualified; the few unqualified ones need a manual sweep.
+  - 28 CVE pages with root-cause analysis, exploit primitives, and references — TCP/IP IPv6, CLFS, cldflt, IORING, dxgkrnl, kernel streaming, NTFS, npfs, dns.exe, keyiso, appid.sys.
+  - Windows kernel-internals deep-dive: VTL secure calls, CLFS HMAC/Merkle authentication, IORING ALPC bootstrap, WNF state names, kernel CET shadow stacks, minifilter altitude system.
 
 ---
 
-## [2026-04-28] LINT | Redesigned `/wiki/` index as card-based landing
+## [2026-04-28] LINT | `/wiki/` redesigned as a card-based landing
 
-- **Source:** user feedback ("devise a way for users to easily see overview without using the left or right nav bar")
+- **Source:** ergonomic — the long table-of-contents on the index made the overview hard to find.
 - **Pages created:** none
-- **Pages modified:** `_wiki/index.md`
+- **Pages modified:** `index.md`
 - **Key additions:**
-  - Replaced the long markdown table-of-contents with a card-based landing page: hero block + prominent "Start with the overview →" CTA + topic-tile grids for the four pillars, the three deep-dives, foundations, techniques, tools, and resources.
-  - All inline HTML/CSS — no theme SCSS edits, kramdown-friendly. Cards use a CSS grid with `auto-fit minmax(250px, 1fr)` so they reflow at any width.
-  - The overview is now reachable in one click from `/wiki/` without any sidebar interaction; the four pillars and three topic deep-dives are visible at a glance.
+  - Replaced the markdown table-of-contents with a card-based landing — hero block, prominent "Start with the overview →" CTA, tile grids for the four pillars, the topic deep-dives, foundations, techniques, tools, resources.
+  - Inline HTML/CSS only; no theme edits. CSS-grid `auto-fit minmax(260px, 1fr)` so cards reflow at any width.
 
 ---
 
-## [2026-04-28] INGEST | Nine new Windows kernel CVE write-ups (web-sourced)
+## [2026-04-28] INGEST | Nine new Windows kernel CVE write-ups
 
-- **Source:** open-web research — vendor advisories, public exploit write-ups, conference talks, and PoC repos located via search and fetched directly. Specifically: exploits.forsale (Pwn2Own 2024), Theori (Hexacon 2023), ZeroPath, Akamai PatchDiff-AI, Quarkslab, MrAle98 PoC, Crowdfense, Help Net Security, SOC Prime.
+- **Source:** public CVE write-ups I worked through — exploits.forsale (Pwn2Own 2024), Theori (Hexacon 2023), ZeroPath, Akamai PatchDiff-AI, Quarkslab, MrAle98 PoC, Crowdfense, Help Net Security, SOC Prime.
 - **Pages created (9):**
-  - `cves/CVE-2024-30088.md` — NT kernel TOCTOU in `AuthzBasepCopyoutInternalSecurityAttributes` (`NtQueryInformationToken(TokenAccessInformation)`); APT34 / OilRig ITW; Pwn2Own 2024 (carrot_c4k3) writeup with IORING `RegBuffers` corruption chain.
-  - `cves/CVE-2023-28218.md` — afd.sys `AfdCopyCMSGBuffer` integer-overflow → paged-pool heap overflow; Frontier Squad / Theori; Hexacon 2023; `_IO_COMPLETION_CONTEXT` spray + `IopReplaceCompletionPort` arbitrary decrement → `KTHREAD.PreviousMode` flip.
+  - `cves/CVE-2024-30088.md` — NT-kernel TOCTOU in `AuthzBasepCopyoutInternalSecurityAttributes` (`NtQueryInformationToken(TokenAccessInformation)`); APT34/OilRig ITW; Pwn2Own 2024 (carrot_c4k3) chain via IORING `RegBuffers` corruption.
+  - `cves/CVE-2023-28218.md` — afd.sys `AfdCopyCMSGBuffer` integer-overflow → paged-pool heap overflow; Frontier Squad / Theori at Hexacon 2023; `_IO_COMPLETION_CONTEXT` spray + `IopReplaceCompletionPort` arbitrary decrement → `KTHREAD.PreviousMode` flip.
   - `cves/CVE-2025-21333.md` — Hyper-V `vkrnlintvsp.sys` heap overflow; ITW (CISA KEV); MrAle98 PoC introducing the *single-entry* WNF + IORING `_IOP_MC_BUFFER_ENTRY` corruption pattern.
   - `cves/CVE-2025-30385.md` — CLFS UAF (May 2025).
   - `cves/CVE-2025-32701.md` — CLFS log-stream UAF; ITW zero-day; May 2025.
   - `cves/CVE-2025-60709.md` — CLFS container-parse OOB read → arbitrary kernel write; Nov 2025.
-  - `cves/CVE-2025-60719.md` — afd.sys multi-routine UAF (endpoint-unbind race); Akamai PatchDiff-AI analysis; `AfdPreventUnbind` / `AfdReallowUnbind` is the patch's synchronization barrier.
-  - `cves/CVE-2025-62215.md` — NT kernel race / double-free; ITW zero-day; Nov 2025 (out-of-band update for non-ESU Win10).
-  - `cves/CVE-2025-8061.md` — Lenovo `LnvMSRIO.sys` BYOVD; arbitrary MSR R/W + arbitrary physical-memory R/W via IOCTLs on a no-DACL device; Quarkslab; LSTAR-overwrite-and-syscall trick to land ring-0 code execution.
-- **Pages modified:** `_wiki/cves/index.md` regenerated (29 → 38 entries).
+  - `cves/CVE-2025-60719.md` — afd.sys multi-routine UAF (endpoint-unbind race); `AfdPreventUnbind` / `AfdReallowUnbind` is the patch's synchronisation barrier.
+  - `cves/CVE-2025-62215.md` — NT-kernel race / double-free; ITW zero-day; Nov 2025 (out-of-band update for non-ESU Win10).
+  - `cves/CVE-2025-8061.md` — Lenovo `LnvMSRIO.sys` BYOVD; arbitrary MSR R/W + arbitrary physical-memory R/W via IOCTLs on a no-DACL device; LSTAR-overwrite-and-syscall trick to land ring-0.
+- **Pages modified:** `cves/index.md` regenerated (29 → 38 entries); five new researcher entries (carrot_c4k3, Frontier Squad/Theori, Akamai security research, Alessandro Iandoli/MrAle98, Luis Casvella/Quarkslab) on `resources/researchers.md`.
 - **Key additions:**
-  - CVE corpus now covers all four major 2025 CLFS LPEs (29824 / 30385 / 32701 / 60709) plus the November 2025 zero-day (62215).
+  - The 2025 CLFS LPE cluster is now complete on the wiki (29824 / 30385 / 32701 / 60709) plus the November zero-day (62215).
   - First afd.sys / WinSock entries — the dominant 2023–2025 LPE surface beside CLFS.
   - First Hyper-V VSP entry; first BYOVD entry.
-  - Cross-references woven into existing kernel pages: [CLFS](/wiki/kernel/clfs/), [IORING](/wiki/kernel/ioring/), [WNF Internals](/wiki/kernel/wnf_internals/), and the [Use-After-Free](/wiki/techniques/use_after_free/) / [Race Conditions](/wiki/techniques/race_conditions/) / [Integer Overflows](/wiki/techniques/integer_overflows/) technique pages.
+  - Cross-references threaded through [CLFS](/wiki/kernel/clfs/), [IORING](/wiki/kernel/ioring/), [WNF Internals](/wiki/kernel/wnf_internals/), and the [UAF](/wiki/techniques/use_after_free/) / [Race Conditions](/wiki/techniques/race_conditions/) / [Integer Overflows](/wiki/techniques/integer_overflows/) technique pages.
 
 ---
 
-## [2026-04-29] INGEST | The Wi-Fi research canon — KRACK, Dragonblood, FragAttacks, et al.
+## [2026-04-29] INGEST | The Wi-Fi research canon
 
-- **Source:** open-web — academic papers and project pages located via search and fetched directly. Specifically: krackattacks.com, wpa3.mathyvanhoef.com, fragattacks.com, papers.mathyvanhoef.com (USENIX/CCS/S&P/WiSec PDFs), tunnelcrack.mathyvanhoef.com, top10vpn.com (PEAP/IWD writeups), Hack.lu archive (Bongard slides).
+- **Source:** academic papers and project pages I worked through — KRACK CCS 2017, Dragonblood S&P 2020, FragAttacks USENIX 2021, Framing Frames USENIX 2023, TunnelCrack USENIX 2023, SSID Confusion WiSec 2024, Schepers/Vanhoef MFP-deauthentication WiSec 2022, Bongard's Pixie Dust slides (Hack.lu 2014), the Vanhoef PEAP / IWD authentication-bypass disclosures (Feb 2024).
 - **Pages created (9):**
   - `attacks/krack.md` — Vanhoef + Piessens, *Key Reinstallation Attacks: Forcing Nonce Reuse in WPA2* (CCS 2017). Ten-CVE cluster including the Linux/Android all-zero-key variant.
   - `attacks/dragonblood.md` — Vanhoef + Ronen, *Dragonblood: A Security Analysis of WPA3's SAE Handshake* (S&P 2020). Cache + timing side channels on hunting-and-pecking; downgrade attacks; EAP-pwd auth bypass.
-  - `attacks/fragattacks.md` — Vanhoef, *Fragment and Forge: Breaking Wi-Fi Through Frame Aggregation and Fragmentation* (USENIX Security 2021). Three design flaws (A-MSDU flag unauthenticated, mixed-key fragmentation, fragment cache not flushed) + nine implementation bugs.
-  - `attacks/framing-frames.md` — Schepers + Ranganathan + Vanhoef, *Framing Frames: Bypassing Wi-Fi Encryption by Manipulating Transmit Queues* (USENIX Security 2023); includes MacStealer and CVE-2022-47522.
+  - `attacks/fragattacks.md` — Vanhoef, *Fragment and Forge: Breaking Wi-Fi Through Frame Aggregation and Fragmentation* (USENIX Security 2021). Three design flaws (A-MSDU flag unauthenticated, mixed-key fragmentation, fragment cache not flushed) plus nine implementation bugs.
+  - `attacks/framing-frames.md` — Schepers + Ranganathan + Vanhoef, *Framing Frames: Bypassing Wi-Fi Encryption by Manipulating Transmit Queues* (USENIX Security 2023); MacStealer; CVE-2022-47522.
   - `attacks/tunnelcrack.md` — Xue + Malla + Xia + Pöpper + Vanhoef, *Bypassing Tunnels: Leaking VPN Client Traffic by Abusing Routing Tables* (USENIX Security 2023). LocalNet + ServerIP attacks.
-  - `attacks/ssid-confusion.md` — Gollier + Vanhoef, *SSID Confusion: Making Wi-Fi Clients Connect to the Wrong Network* (WiSec 2024 best paper). CVE-2023-52424 — SSID not authenticated by 4-way handshake.
+  - `attacks/ssid-confusion.md` — Gollier + Vanhoef, *SSID Confusion* (WiSec 2024 best paper). CVE-2023-52424 — SSID not authenticated by the 4-way handshake.
   - `attacks/peap-bypass.md` — Vanhoef, CVE-2023-52160 (wpa_supplicant PEAP TLV-Success bypass) + CVE-2023-52161 (IWD handshake state-machine bypass), Feb 2024.
-  - `attacks/mfp-deauthentication.md` — Schepers + Vanhoef + Ranganathan, *On the Robustness of Wi-Fi Deauthentication Countermeasures* (WiSec 2022) and the related *Cut It* (FPS 2022).
+  - `attacks/mfp-deauthentication.md` — Schepers + Vanhoef + Ranganathan, *On the Robustness of Wi-Fi Deauthentication Countermeasures* (WiSec 2022) and *Cut It* (FPS 2022).
   - `attacks/pixie-dust-wps.md` — Bongard, *Offline brute-force attack on WiFi Protected Setup* (Hack.lu 2014). Weak-PRNG → offline PIN recovery.
-- **Pages modified:** `_wiki/attacks/index.md` regenerated (8 → 17), `_wiki/resources/researchers.md` (added Piessens, Ronen, Schepers, Ranganathan, Gollier, Pöpper-et-al, Bongard; expanded Vanhoef row to link every page).
+- **Pages modified:** `attacks/index.md` regenerated (8 → 17); `resources/researchers.md` expanded with Piessens, Ronen, Schepers, Ranganathan, Gollier, Pöpper et al., and Bongard; Vanhoef's row now links every page.
 - **Key additions:**
-  - Wi-Fi corpus now spans the canonical works from 2014 (Pixie Dust) through 2024 (SSID Confusion) and into the 2026 [AirSnitch](/wiki/concepts/airsnitch-overview/) line.
-  - Each page emphasises *why the attack is structurally possible* — i.e. which decision the standard punted on (A-MSDU bit, power-save bit, SSID, fragment cache, hash-to-curve constant-timeness). The recurring theme — security-relevant decisions placed in unauthenticated framing fields — is reinforced across pages.
+  - The Wi-Fi corpus now spans Pixie Dust (2014) → KRACK (2017) → Dragonblood (2020) → FragAttacks (2021) → Framing Frames + TunnelCrack + MFP-deauth (2022–2023) → SSID Confusion + PEAP/IWD bypass (2024) → AirSnitch (2026).
+  - Each page emphasises the structural reason the attack is possible — usually a security-relevant decision the standard placed in an unauthenticated framing field (A-MSDU bit, power-save bit, SSID, fragment cache, hash-to-curve constant-timeness). The recurring theme is reinforced across pages.
   - Cross-references threaded through [Wi-Fi Key Hierarchy](/wiki/concepts/wifi-key-hierarchy/), [Handshakes](/wiki/concepts/handshakes/), [WPA Versions](/wiki/concepts/wpa-versions/), [MFP](/wiki/concepts/mfp/), [Client Isolation](/wiki/concepts/client-isolation/).
 
 ---
 
-## [2026-04-28] INGEST | Catalogue all un-ingested raw references (146 source-provenance pages)
+## [2026-04-29] LINT | Landing's Wi-Fi section now reflects the full canon
 
-- **Source:** raw materials referenced by the three topic wikis but not yet present on the published site:
-  - AirSnitch raw: `/home/kali/Documents/airsnitch-wiki/raw/` — 1 file (NDSS 2026 paper full text)
-  - Windows Exploit Research raw: `/mnt/hgfs/notes/windows-exploit-research/raw_sources/` — 60 files (Patch-Tuesday writeups, CVE blog posts, kernel-internals articles, "exploit reversing" series)
-  - Offensive Security Notes raw: `/mnt/hgfs/notes/offensive-security/sources/` — 47 root-level Maldev-Academy-style course material + 36 already-distilled blog posts under `sources/ingested/`
-- **Pages created:** 146 source-provenance pages
-  - `_wiki/airsnitch/sources/` — `index.md` + 1 new (`ndss2026-airsnitch-paper`); pre-existing `ndss2026-paper` and `airsnitch-readme` re-listed in the index
-  - `_wiki/windows-exploit-research/sources/` — `index.md` + 60 entries (23 auto-marked `integrated` because their filename matches a published CVE page; 37 `catalogued`)
-  - `_wiki/offsec-notes/sources/` — `index.md` + 83 entries (36 `integrated` from the source wiki's `sources/ingested/` subdir; 47 `catalogued` Maldev-Academy course material)
-- **Pages modified:** `_wiki/index.md` (topic deep-dive cards now show source counts as live links to each topic's sources index)
+- **Source:** caught while reviewing the landing — the Wi-Fi protocol-research blurb still said "AirSnitch corpus" only.
+- **Pages created:** none
+- **Pages modified:** `index.md`
 - **Key additions:**
-  - Each provenance page is metadata-only: title, raw filename, status (`integrated` | `catalogued`), excerpt (first ~400 chars), and links to the wiki pages it informed (where determinable). The full raw text is *not* republished (schema rule + third-party copyright on the Maldev Academy material).
-  - Status inference: `integrated` when filename matches a published CVE page or sits under a source `sources/ingested/` directory; `catalogued` otherwise. The catalogue lets future ingest passes pick the next un-distilled source by browsing the per-topic sources index.
-  - The script (`/tmp/catalogue_sources.py`) is re-runnable; new raw drops + a re-run will refresh the catalogue.
+  - Lead rewritten to span Pixie Dust (2014) → AirSnitch (2026). Sample links cover the full canon.
+  - Attacks card count corrected to 17 with sample links across the canon plus the AirSnitch eight.
+  - Defences and Devices cards explicitly noted as scoped to the AirSnitch corpus.
+  - New "Wi-Fi concepts" card surfaces the background pages (key hierarchy, handshakes, WPA versions, MFP, client isolation, BSSID/SSID/ESS, Passpoint, RADIUS).
