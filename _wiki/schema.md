@@ -33,7 +33,7 @@ _wiki/
   index.md              landing
   overview.md           landscape map
   schema.md             this file
-  log.md                chronological record of additions
+  log.md                reverse-chronological record of additions
   domains/              the four pillars
   concepts/             foundational ideas + topic concepts
   techniques/           TTPs across operations and exploit dev
