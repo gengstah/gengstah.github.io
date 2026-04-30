@@ -7,7 +7,7 @@ author_profile: true
 
 Deep-dive write-ups for individual vulnerabilities — root cause, exploitation flow, primitives, references.
 
-**38 pages** in this category.
+**39 pages** in this category.
 
 ---
 
@@ -49,3 +49,4 @@ Deep-dive write-ups for individual vulnerabilities — root cause, exploitation 
 - [CVE-2025-62215 — NT Kernel Race / Double-Free LPE (ITW)](/wiki/cves/CVE-2025-62215/)
 - [CVE-2025-8061 — Lenovo LnvMSRIO.sys BYOVD (Arbitrary MSR + Physical Memory)](/wiki/cves/CVE-2025-8061/)
 - [CVE-2026-20820 — CLFS ScanContainers Integer Overflow (IOCTL 0x80076816)](/wiki/cves/CVE-2026-20820/)
+- [CVE-2026-31431 — Copy Fail: algif_aead authencesn 4-Byte Page-Cache Write → Linux LPE](/wiki/cves/CVE-2026-31431/)

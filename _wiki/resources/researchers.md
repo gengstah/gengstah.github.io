@@ -36,6 +36,15 @@ tags:
 
 ---
 
+## Linux kernel exploitation
+
+| Researcher | Affiliation | Areas |
+|------------|-------------|-------|
+| Brian Pak | Theori / Xint Code | Linux kernel VR; AI-assisted vulnerability discovery (Xint Code scanner). [CVE-2026-31431](/wiki/cves/CVE-2026-31431/) "Copy Fail" co-discoverer. |
+| Taeyang Lee | Theori / Xint Code | Linux kernel crypto subsystem; identified `AF_ALG + splice` as a page-cache exposure vector that surfaced [CVE-2026-31431](/wiki/cves/CVE-2026-31431/). |
+
+---
+
 ## Browser / JS engine exploitation
 
 | Researcher | Areas |

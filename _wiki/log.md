@@ -11,6 +11,19 @@ author_profile: true
 
 ---
 
+## [2026-04-30] INGEST | Copy Fail (CVE-2026-31431) — Linux kernel LPE
+
+- **Source:** Theori / Xint *Copy Fail: 732 Bytes to Root on Every Major Linux Distribution* (<https://xint.io/blog/copy-fail-linux-distributions>); canonical writeup at <https://copy.fail/>; supporting coverage from Bugcrowd, The Register, heise online; PoCs at `wiire-a/copy-fail-c` mirror and `rootsecdev/cve_2026_31431`.
+- **Pages created (1):** `cves/CVE-2026-31431.md` — Copy Fail. Logic flaw between the 2017 `algif_aead` in-place scatterlist optimisation and the `authencesn` template's post-output 4-byte scratch write. Splicing a readable setuid binary into an `AF_ALG` AEAD operation lets an unprivileged user write 4 attacker-chosen bytes at an attacker-chosen offset into the page-cache page that backs the binary's `.text`. `execve()` of the (now-corrupted-in-cache) setuid binary returns root. Mainline fix is commit `a664bf3d603d`; backported to `6.18.22`, `6.19.12`, `7.0`.
+- **Pages modified:** `cves/index.md` (38 → 39); `resources/researchers.md` — new "Linux kernel exploitation" section seeded with Brian Pak and Taeyang Lee (Theori / Xint Code).
+- **Key additions:**
+  - First Linux kernel CVE in the wiki — opens the door to broader Linux LPE coverage alongside the Windows kernel corpus.
+  - Captures the structural lesson: a deterministic 4-byte page-cache write is sufficient for root when it can land in a setuid binary's cached `.text` page. No race, no info leak, no kernel offsets — the same 732-byte Python PoC works across every major distro shipping kernels from 2017 onward.
+  - Highlights the cross-team interaction failure: the in-place optimisation was reviewed against GCM/CCM/authenc (none of which write past the output boundary); `authencesn` is rare enough that no fuzzer in the field caught the scratch write.
+  - Notes the Xint Code AI scanner's role — Lee's analyst-level prompt about `AF_ALG + splice` exposure narrowed the search space; the scanner surfaced the bug in roughly an hour.
+
+---
+
 ## [2026-04-29] LINT | Landing's Wi-Fi section now reflects the full canon
 
 - **Source:** caught while reviewing the landing — the Wi-Fi protocol-research blurb still said "AirSnitch corpus" only.
