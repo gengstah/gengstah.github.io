@@ -7,7 +7,7 @@ author_profile: true
 
 Frameworks, debuggers, scanners, C2, post-ex utilities.
 
-**23 pages** in this category.
+**27 pages** in this category.
 
 ---
 
@@ -21,6 +21,7 @@ Frameworks, debuggers, scanners, C2, post-ex utilities.
 - [Configuration Files (client.conf, eap.conf, multipsk.conf, saepk.conf)](/wiki/tools/configurations/)
 - [Debugging Tools for Windows Exploit Research](/wiki/tools/debugging/)
 - [Dynamic Analysis](/wiki/tools/dynamic_analysis/)
+- [Evil Clippy](/wiki/tools/evil-clippy/)
 - [Fuzzing Tools for Windows Kernel & User-Mode](/wiki/tools/fuzzing/)
 - [Ghidra](/wiki/tools/ghidra/) — NSA-developed reverse-engineering suite. The free alternative to IDA Pro that's actually competitive.
 - [Impacket](/wiki/tools/impacket/)
@@ -29,6 +30,9 @@ Frameworks, debuggers, scanners, C2, post-ex utilities.
 - [Nmap](/wiki/tools/nmap-offsec/)
 - [nmap](/wiki/tools/nmap/) — The reference network scanner. Service discovery, version detection, scriptable probes.
 - [Nuclei](/wiki/tools/nuclei/)
+- [OST — Outflank Security Tooling](/wiki/tools/ost/)
+- [Outflank C2](/wiki/tools/outflank-c2/)
+- [RedELK](/wiki/tools/redelk/)
 - [AirSnitch — Repository Layout](/wiki/tools/repo-layout/)
 - [Responder](/wiki/tools/responder/)
 - [Reverse Engineering Tools](/wiki/tools/reversing/)

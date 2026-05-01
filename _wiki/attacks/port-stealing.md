@@ -169,4 +169,4 @@ sudo ./airsnitch.py wlan2 --c2c-port-steal-uplink wlan3 --no-ssid-check --other-
 - [Virtual ports](/wiki/concepts/virtual-ports/)
 - [Auxiliary techniques](/wiki/attacks/auxiliary-techniques/) — server/client-triggered port restoration, Inter-NIC relaying.
 - [Broadcast Reflection](/wiki/attacks/broadcast-reflection/), [Gateway Bouncing](/wiki/attacks/gateway-bouncing/) — return-path partners.
-- [MacStealer comparison](/wiki/sources/airsnitch/macstealer/) *(planned)*
+- [MacStealer comparison](/wiki/attacks/framing-frames/) — the Schepers / Vanhoef / Ranganathan USENIX'23 work where the MacStealer port-stealing primitive originated.

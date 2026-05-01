@@ -36,6 +36,24 @@ tags:
 
 ---
 
+## Red-team tradecraft / Cobalt Strike / EDR evasion
+
+| Researcher | Affiliation | Areas |
+|------------|-------------|-------|
+| Marc Smeets | Outflank / Fortra | Co-founder; [RedELK](/wiki/tools/redelk/); OST direction; year-end retrospectives; AD-lab automation. [Outflank catalogue](/wiki/resources/outflank/). |
+| Pieter Ceelen | Outflank | Office maldoc tradecraft; [AMSI for VBA](/wiki/techniques/amsi-bypass/); macro-detection (defender side). |
+| Stan Hegt | Outflank | Office maldoc tradecraft (XLM, SYLK, Visual Studio); [HTML smuggling](/wiki/concepts/html-smuggling/) explainer; [Evil Clippy](/wiki/tools/evil-clippy/). |
+| Cornelis de Plaa | Outflank | Direct syscalls + sRDI; AD recon via ADSI; [Direct Syscalls in BOFs](/wiki/techniques/edr-unhooking/); advanced process monitoring. |
+| Mark Bergman | Outflank | [Cobalt Strike External C2](/wiki/concepts/external-c2/); DoH C2; mail-handler exploitation. |
+| Cedric Van Bockhaven | Outflank | [Secure enclaves for offensive ops](/wiki/concepts/secure-enclaves-offensive/); [GrimResource (MSC)](/wiki/concepts/grimresource-msc/); BOF linting; Superfetch internals; named-pipe enumeration. |
+| Dima van de Wouw | Outflank | [Early Cascade Injection](/wiki/techniques/early-cascade-injection/); [EDR Unhooking](/wiki/techniques/edr-unhooking/); [VSTO-signed phishing](/wiki/concepts/vsto-phishing/); Async BOFs. |
+| Kyle Avery | Outflank | EDR internals (macOS / Linux); [Unmanaged .NET patching](/wiki/techniques/amsi-bypass/); [seccomp-notify Linux injection](/wiki/techniques/seccomp-notify-injection/); [macOS JIT](/wiki/concepts/macos-jit-shellcode/); LLM-assisted offensive R&D. |
+| Mariusz Banach | Outflank (joined 2026) | Red Macros Factory; modern Office macro tradecraft. |
+| Daniel Duggan ("RastaMouse") | Zero-Point Security / Fortra (joined 2026) | Offensive-security training (CRTO / CRTL). |
+| Ksawery Czapczyński | Outflank | Windows kernel tradecraft (PatchGuard Peekaboo). |
+
+---
+
 ## Linux kernel exploitation
 
 | Researcher | Affiliation | Areas |

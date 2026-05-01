@@ -84,5 +84,5 @@ Each BSSID is a virtualised port on the internal bridge. The bridge is what the 
 ## See also
 
 - [Virtual ports](/wiki/concepts/virtual-ports/)
-- [Distribution system](/wiki/concepts/airsnitch-overview/concepts/distribution-system/) *(planned, currently summarised here)*
+- [802.11 frame types](/wiki/concepts/80211-frame-types/) — the ToDS / FromDS bits encode distribution-system direction; the four-address WDS form rides the DS.
 - [Port stealing](/wiki/attacks/port-stealing/)

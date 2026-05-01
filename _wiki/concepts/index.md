@@ -7,7 +7,7 @@ author_profile: true
 
 Foundational ideas, attack concepts, and reference material across the wiki.
 
-**91 pages** in this category.
+**98 pages** in this category.
 
 ---
 
@@ -37,6 +37,7 @@ Foundational ideas, attack concepts, and reference material across the wiki.
 - [Cyber Kill Chain](/wiki/concepts/cyber-kill-chain/) — Lockheed Martin's seven-stage model of how a targeted intrusion unfolds.
 - [DLL Hijacking & Sideloading](/wiki/concepts/dll-hijacking/)
 - [DPP — Device Provisioning Protocol (Wi-Fi Easy Connect)](/wiki/concepts/dpp-easy-connect/)
+- [External C2 (Cobalt Strike External C2 Spec)](/wiki/concepts/external-c2/)
 - [EAP Framework](/wiki/concepts/eap-framework/)
 - [EAP-PWD](/wiki/concepts/eap-pwd/)
 - [EAP-TLS](/wiki/concepts/eap-tls/)
@@ -44,6 +45,8 @@ Foundational ideas, attack concepts, and reference material across the wiki.
 - [Evasion Techniques](/wiki/concepts/evasion-techniques/)
 - [Fast BSS Transition (802.11r)](/wiki/concepts/fast-bss-transition/)
 - [GAC Hijacking (.NET Assembly Tampering)](/wiki/concepts/gac-hijacking/)
+- [GrimResource — MSC File Format Abuse](/wiki/concepts/grimresource-msc/)
+- [HTML Smuggling](/wiki/concepts/html-smuggling/)
 - [Wi-Fi Handshakes](/wiki/concepts/handshakes/)
 - [JWT Attacks](/wiki/concepts/jwt-attacks/)
 - [Kerberoasting](/wiki/concepts/kerberoasting/)
@@ -55,12 +58,14 @@ Foundational ideas, attack concepts, and reference material across the wiki.
 - [macOS JIT Memory and Shellcode Execution](/wiki/concepts/macos-jit-shellcode/)
 - [MDT Credential Extraction](/wiki/concepts/mdt-credential-extraction/)
 - [Management Frame Protection (MFP / 802.11w)](/wiki/concepts/mfp/)
+- [Mark-of-the-Web (MotW)](/wiki/concepts/mark-of-the-web/)
 - [MITRE ATT&CK](/wiki/concepts/mitre-attack/) — An empirical knowledge base of adversary tactics, techniques, and procedures observed in real intrusions.
 - [Mobile Security Testing](/wiki/concepts/mobile-security/)
 - [Monitor Mode and Packet Injection](/wiki/concepts/monitor-mode-injection/)
 - [Network Scanning](/wiki/concepts/network-scanning/)
 - [Notepad++ Plugin Abuse](/wiki/concepts/notepadplusplus-abuse/)
 - [Offensive Python](/wiki/concepts/offensive-python/)
+- [Office Macro Tradecraft (VBA, XLM, SYLK, Word Fields)](/wiki/concepts/office-macro-tradecraft/)
 - [OFDM, OFDMA, MU-MIMO, Beamforming](/wiki/concepts/ofdm-ofdma/)
 - [OPSEC](/wiki/concepts/opsec/) — Operational security — keeping the operator's signature below the defender's noise floor.
 - [OWE — Opportunistic Wireless Encryption (Enhanced Open)](/wiki/concepts/owe/)
@@ -80,12 +85,14 @@ Foundational ideas, attack concepts, and reference material across the wiki.
 - [Red Teaming](/wiki/concepts/red-teaming/)
 - [RSN Information Element](/wiki/concepts/rsn-information-element/)
 - [SAE — Simultaneous Authentication of Equals (Dragonfly)](/wiki/concepts/sae-dragonfly/)
+- [Secure Enclaves for Offensive Operations (VBS / VTL1)](/wiki/concepts/secure-enclaves-offensive/)
 - [Social Engineering](/wiki/concepts/social-engineering/)
 - [SQL Injection](/wiki/concepts/sql-injection/)
 - [Toast Notifications Abuse](/wiki/concepts/toast-notifications-abuse/)
 - [TWT — Target Wake Time](/wiki/concepts/twt/)
 - [Virtual Ports and the AP's Internal Switch](/wiki/concepts/virtual-ports/)
 - [Windows Built-in VPN Abuse](/wiki/concepts/vpn-abuse-windows/)
+- [VSTO-Signed Phishing](/wiki/concepts/vsto-phishing/)
 - [Vulnerability Assessment](/wiki/concepts/vulnerability-assessment/)
 - [Web Application Testing](/wiki/concepts/web-application-testing/)
 - [WEP (Wired Equivalent Privacy)](/wiki/concepts/wep/)

@@ -11,6 +11,35 @@ author_profile: true
 
 ---
 
+## [2026-05-01] LINT | Broken-link fixes + Wi-Fi-concepts card anchor on the landing
+
+- **Source:** lint pass over `_wiki/` (broken `(/wiki/...)` links, orphans, stale labels, duplicate H1, self-loop redirects, tag inconsistencies, inbound-link counts on the new Wi-Fi pages); landing-page review.
+- **Pages created:** none.
+- **Pages modified (6):** `index.md` (Wi-Fi-concepts card now wraps the heading in `<a href="/wiki/concepts/">`, examples expanded from 8 to 28 to surface the new canon); `attacks/port-stealing.md` (planned MacStealer-comparison link redirected to `attacks/framing-frames`); `concepts/bssid-ssid-ess.md`, `concepts/client-isolation.md` (planned `distribution-system` placeholders re-pointed at `concepts/80211-frame-types/` ToDS/FromDS coverage); `concepts/wpa-versions.md` (planned PEAP-misconfig placeholder re-pointed at `concepts/eap-tls/` and `concepts/peap-ttls/`); `sources/windows-exploit-research/index.md` (removed dangling "Drop new sources here / readme" row).
+- **Key additions:**
+  - All five lint-flagged broken `/wiki/...` links now resolve.
+  - Wi-Fi-concepts landing card no longer dead-ends on its heading; surfaces 28 canonical entry points across PHY, MAC, security, roaming, provisioning, and tooling.
+  - Lint pass also confirmed: zero orphan pages, no stale `seed`/`sketch` over 100 lines, no duplicate-H1 pages, no self-loop `redirect_from`, no tag inconsistencies. Inbound coverage on the 31 new Wi-Fi pages: minimum 2, with TWT and a few peripheral pages at the lower end (acceptable; they're terminal-leaf concepts).
+
+---
+
+## [2026-05-01] INGEST | Outflank blog corpus — catalogue + 13 derivative pages
+
+- **Source:** Outflank blog (<https://www.outflank.nl/blog/>) — 53 posts spanning 2017-09-14 → 2026-04-02. Full enumeration via the RSS feed (the HTML index is gated by Cloudflare). Authors: Marc Smeets, Pieter Ceelen, Stan Hegt, Cornelis de Plaa, Mark Bergman, Cedric Van Bockhaven, Dima van de Wouw, Kyle Avery, Mariusz Banach, Daniel Duggan ("RastaMouse"), Ksawery Czapczyński, Jarno.
+- **Pages created (13):**
+  - **Catalogue:** `resources/outflank.md` — complete index of all 53 posts grouped by year, with per-post topic summaries and threading into wiki pages.
+  - **Concepts (7):** `concepts/html-smuggling.md`, `concepts/mark-of-the-web.md`, `concepts/office-macro-tradecraft.md` (umbrella for VBA / XLM / SYLK / Word fields), `concepts/vsto-phishing.md`, `concepts/grimresource-msc.md`, `concepts/external-c2.md`, `concepts/secure-enclaves-offensive.md`.
+  - **Techniques (4):** `techniques/amsi-bypass.md` (covers VBA AMSI bypass + Unmanaged .NET patching), `techniques/edr-unhooking.md` (covers direct syscalls + sRDI + the 2023 unhooking writeup), `techniques/early-cascade-injection.md`, `techniques/seccomp-notify-injection.md`.
+  - **Tools (3):** `tools/redelk.md` (3-part RedELK series), `tools/evil-clippy.md` (VBA stomping), `tools/outflank-c2.md` (2024 Outflank C2 launch), and `tools/ost.md` (the OST commercial bundle umbrella).
+- **Pages modified:** `resources/researchers.md` (new "Red-team tradecraft / Cobalt Strike / EDR evasion" section seeded with 11 Outflank operators); `resources/index.md` (5 → 6); `concepts/index.md` (91 → 98); `techniques/index.md` (11 → 15); `tools/index.md` (23 → 27).
+- **Key additions:**
+  - The catalogue captures all 53 posts so future ingests can extend rather than recurate.
+  - Tradecraft canon now has dedicated pages for the topics Outflank canonised — HTML smuggling, Mark-of-the-Web, VSTO phishing, AMSI bypass, EDR unhooking, External C2, Office macro tradecraft as an umbrella across VBA/XLM/SYLK/fields.
+  - Recent additions captured: Early Cascade Injection (2024), Secure Enclaves Pt I/II (2025), Seccomp-notifier Linux injection (2025), Unmanaged .NET patching (2024), GrimResource (2024).
+  - Cross-references threaded — every existing offensive-security page that touches macros, AMSI, EDR evasion, Cobalt Strike, or red-team logging now links into the new pages.
+
+---
+
 ## [2026-05-01] INGEST | Wi-Fi technologies canon — 31 new concept pages
 
 - **Source:** IEEE 802.11-2020 + amendments (a, b, g, n, ac, ax, be, e, i, k, r, s, u, v, w, ah, az, ba); RFC 3610 (CCM), 5216 (EAP-TLS), 5281 (TTLS), 5931 (EAP-PWD), 7664 (Dragonfly), 8110 (OWE), 8908 / 8910 (Captive-Portal API), 9190 (EAP-TLS 1.3), 9380 (Hash-to-Curve); Wi-Fi Alliance certifications (WPA3, Hotspot 2.0 / Passpoint, Wi-Fi Easy Connect / DPP, Enhanced Open, EasyMesh, Wi-Fi 6/6E/7); academic / Vanhoef-corpus papers I had already worked through (KRACK, Dragonblood, FragAttacks, Framing Frames, ASIA-CCS-2016 MAC-randomisation, Heinrich AirDrop USENIX'21).

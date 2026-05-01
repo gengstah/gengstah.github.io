@@ -231,17 +231,37 @@ redirect_from:
       </p>
     </div>
     <div class="wiki-card">
-      <h3>Wi-Fi concepts</h3>
-      <div class="count">background needed to read the attacks</div>
+      <h3><a href="/wiki/concepts/">Wi-Fi concepts</a></h3>
+      <div class="count">background needed to read the attacks — PHY, MAC, security, roaming, provisioning</div>
       <p class="examples">
+        <a href="/wiki/concepts/802-11-standards/">802.11 standards</a> ·
+        <a href="/wiki/concepts/wifi-frequency-bands/">frequency bands</a> ·
+        <a href="/wiki/concepts/80211-frame-types/">frame types</a> ·
+        <a href="/wiki/concepts/beacon-frames/">beacons</a> ·
+        <a href="/wiki/concepts/probe-requests-pnl/">probes / PNL</a> ·
         <a href="/wiki/concepts/wifi-key-hierarchy/">key hierarchy</a> ·
         <a href="/wiki/concepts/handshakes/">handshakes</a> ·
+        <a href="/wiki/concepts/sae-dragonfly/">SAE / Dragonfly</a> ·
+        <a href="/wiki/concepts/ccmp-gcmp/">CCMP / GCMP</a> ·
+        <a href="/wiki/concepts/rsn-information-element/">RSN IE</a> ·
         <a href="/wiki/concepts/wpa-versions/">WPA versions</a> ·
         <a href="/wiki/concepts/mfp/">MFP / 802.11w</a> ·
-        <a href="/wiki/concepts/client-isolation/">client isolation</a> ·
-        <a href="/wiki/concepts/bssid-ssid-ess/">BSSID / SSID / ESS</a> ·
+        <a href="/wiki/concepts/8021x/">802.1X</a> ·
+        <a href="/wiki/concepts/eap-framework/">EAP</a> ·
+        <a href="/wiki/concepts/eap-tls/">EAP-TLS</a> ·
+        <a href="/wiki/concepts/peap-ttls/">PEAP / TTLS</a> ·
+        <a href="/wiki/concepts/wep/">WEP</a> ·
+        <a href="/wiki/concepts/wps/">WPS</a> ·
+        <a href="/wiki/concepts/owe/">OWE</a> ·
+        <a href="/wiki/concepts/fast-bss-transition/">802.11r FT</a> ·
+        <a href="/wiki/concepts/radio-resource-mgmt/">802.11k+v</a> ·
+        <a href="/wiki/concepts/wnm-anqp/">WNM / ANQP</a> ·
+        <a href="/wiki/concepts/dpp-easy-connect/">DPP</a> ·
+        <a href="/wiki/concepts/wifi-direct-tdls/">Wi-Fi Direct / TDLS</a> ·
         <a href="/wiki/concepts/passpoint/">Passpoint</a> ·
-        <a href="/wiki/concepts/radius/">RADIUS</a>
+        <a href="/wiki/concepts/client-isolation/">client isolation</a> ·
+        <a href="/wiki/concepts/captive-portals/">captive portals</a> ·
+        <a href="/wiki/concepts/monitor-mode-injection/">monitor mode &amp; injection</a>
       </p>
     </div>
   </div>

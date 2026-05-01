@@ -78,5 +78,5 @@ Each [attack](/wiki/concepts/airsnitch-overview/#the-eight-attacks) targets a sp
 
 - [Wi-Fi key hierarchy](/wiki/concepts/wifi-key-hierarchy/) — the keys that allegedly enforce isolation.
 - [Virtual ports](/wiki/concepts/virtual-ports/) — the abstraction port stealing exploits.
-- [Distribution system](/wiki/concepts/airsnitch-overview/concepts/distribution-system/) *(planned)* — how cross-AP traffic flows.
+- [802.11 frame types](/wiki/concepts/80211-frame-types/) — distribution-system direction is encoded in ToDS / FromDS; cross-AP forwarding rides the four-address (WDS) form.
 - [Defences](/wiki/defenses/) — what actually works.

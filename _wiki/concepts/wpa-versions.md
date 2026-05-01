@@ -51,7 +51,7 @@ Same shared passphrase, but the PMK is established via the [Dragonfly handshake]
 Per-user credentials authenticated against a [RADIUS server](/wiki/concepts/radius/) using one of the EAP methods (PEAP-MSCHAPv2, EAP-TLS, EAP-TTLS). The PMK is derived from the EAP MSK, unique per session, never derivable from another client's traffic.
 
 - Defeats machine-on-the-side.
-- Defeats rogue AP **if** the EAP method authenticates the *server* (e.g. EAP-TLS with proper CA pinning, or PEAP/TTLS configured to verify the RADIUS cert). Misconfigured clients can still be tricked by a rogue AP advertising the same SSID. See [PEAP / EAP misconfiguration](/wiki/concepts/airsnitch-overview/concepts/peap-misconfig/) *(planned)*.
+- Defeats rogue AP **if** the EAP method authenticates the *server* (e.g. [EAP-TLS](/wiki/concepts/eap-tls/) with proper CA pinning, or [PEAP / EAP-TTLS](/wiki/concepts/peap-ttls/) configured to verify the RADIUS cert). Misconfigured clients can still be tricked by a rogue AP advertising the same SSID — see the misconfiguration section in the PEAP / EAP-TTLS page.
 - Does **not** defeat any of the L3/switching attacks. The AirSnitch authors leak WPA2-Enterprise traffic in plaintext on a real university network (NDSS'26 §VII-F).
 
 The home-router lesson: turning on a RADIUS server (often built into the router) gets you out of the worst exposure of WPA2-PSK.
