@@ -18,7 +18,7 @@ redirect_from:
 
 ## Excerpt
 
-> Module 49 - Process Argument Spoofing (2) In the previous module, Procmon was tricked into logging the dummy command line arguments. However, the same technique does not work as well against some tools such as Process Hacker. The image below shows the result of argument spoofing in Process Hacker. ![[spoofing-109614220-d9136e16-4a7e-4ce2-a309-db47577d6f88.png|Image]] The legitimate arguments are b…
+> Module 49 - Process Argument Spoofing (2) In the previous module, Procmon was tricked into logging the dummy command line arguments. However, the same technique does not work as well against some tools such as Process Hacker. The image below shows the result of argument spoofing in Process Hacker. The legitimate arguments are b…
 
 ## Likely wiki targets
 

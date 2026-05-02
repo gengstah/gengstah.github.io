@@ -37,7 +37,7 @@ redirect_from:
 
 ## Local copy
 
-[`raw/ndss2026-airsnitch-paper.md`](../../raw/ndss2026-airsnitch-paper.md) — text extraction provided by the user during wiki bootstrapping. Layout artefacts; cite by section, not page number.
+`raw/ndss2026-airsnitch-paper.md` — text extraction kept offline during wiki bootstrapping. Layout artefacts; cite by section, not page number.
 
 ## Summary
 
@@ -47,13 +47,13 @@ Builds end-to-end MitM primitives that work across home and enterprise networks,
 
 ## Pages this source informs
 
-(Every wiki page with `sources: [ndss2026-paper]` in its frontmatter — listed here as a manual cross-check; if this list goes out of sync with reality, that's a [lint](/wiki/schema/#lint) failure.)
+(Every wiki page with `sources: [ndss2026-paper]` in its frontmatter — listed here as a manual cross-check; if this list goes out of sync with reality, that's a [lint](/wiki/schema/) failure.)
 
 - [overview](/wiki/concepts/airsnitch-overview/)
-- [Concepts](../concepts/) — all of them
-- [Attacks](../attacks/) — all of them
-- [Defences](../defenses/) — all of them
-- [Tools](../tools/) — implicitly via the artifact appendix
+- [Concepts](/wiki/concepts/) — all of them
+- [Attacks](/wiki/attacks/) — all of them
+- [Defences](/wiki/defenses/) — all of them
+- [Tools](/wiki/tools/) — implicitly via the artifact appendix
 - [Tested devices](/wiki/devices/tested-devices/)
 
 ## Citation

@@ -13,7 +13,7 @@ redirect_from:
 - /wiki/airsnitch/tools/repo-layout/
 ---
 
-What lives where in [`airsnitch/`](../../airsnitch/). The repo is the upstream [`vanhoefm/airsnitch`](https://github.com/vanhoefm/airsnitch); the NDSS'26 artifact-evaluated snapshot is at [`zhouxinan/airsnitch`](https://github.com/zhouxinan/airsnitch) / [Zenodo](https://doi.org/10.5281/zenodo.17905485).
+What lives where in the upstream [`vanhoefm/airsnitch`](https://github.com/vanhoefm/airsnitch) repo; the NDSS'26 artifact-evaluated snapshot is at [`zhouxinan/airsnitch`](https://github.com/zhouxinan/airsnitch) / [Zenodo](https://doi.org/10.5281/zenodo.17905485).
 
 ## Top-level
 
@@ -81,9 +81,9 @@ See [configuration files](/wiki/tools/configurations/) for what each `.conf` is 
 
 Three files describe AirSnitch's own runtime model:
 
-- **[`daemon.py`](../../airsnitch/library/daemon.py)** — wraps one `wpa_supplicant` instance, including the named-pipe (`wpaspy_ctrl`) the harness uses to drive it. One Daemon per simulated party.
-- **[`station.py`](../../airsnitch/library/station.py)** — a per-NIC state machine (398 lines). Drives association, captures handshake state, and exposes the hooks each test plugs into.
-- **[`testcase.py`](../../airsnitch/library/testcase.py)** — the small declarative DSL used by the tests:
+- **[`daemon.py`](https://github.com/vanhoefm/airsnitch/blob/main/library/daemon.py)** — wraps one `wpa_supplicant` instance, including the named-pipe (`wpaspy_ctrl`) the harness uses to drive it. One Daemon per simulated party.
+- **[`station.py`](https://github.com/vanhoefm/airsnitch/blob/main/library/station.py)** — a per-NIC state machine (398 lines). Drives association, captures handshake state, and exposes the hooks each test plugs into.
+- **[`testcase.py`](https://github.com/vanhoefm/airsnitch/blob/main/library/testcase.py)** — the small declarative DSL used by the tests:
   - `Trigger`: `NoTrigger`, `AfterAuth`, `Received`, `Associated`, `Connected`, `Disconnected`.
   - `Action`: `NoAction`, `GetIp`, `Reconnect`, `Inject`, `Function`, `Receive`, `Terminate`.
 
@@ -108,4 +108,4 @@ Two pinned versions of `hostap` (the upstream `hostapd` + `wpa_supplicant` sourc
 - [airsnitch.py CLI](/wiki/tools/airsnitch-cli/)
 - [Configuration files](/wiki/tools/configurations/)
 - [Setup scripts](/wiki/tools/setup-scripts/)
-- Upstream README: [`airsnitch/README.md`](../../airsnitch/README.md)
+- Upstream README: [`vanhoefm/airsnitch/README.md`](https://github.com/vanhoefm/airsnitch/blob/main/README.md)

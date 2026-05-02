@@ -38,7 +38,7 @@ The first positional `<iface>` is the victim's NIC; whichever test flag is used 
 
 ## Test flags
 
-Each test takes a second NIC as its argument and runs a specific [attack](../attacks/) end-to-end.
+Each test takes a second NIC as its argument and runs a specific [attack](/wiki/attacks/) end-to-end.
 
 | Flag | Attack | Page |
 | --- | --- | --- |

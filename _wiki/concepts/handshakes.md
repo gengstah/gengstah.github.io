@@ -16,7 +16,7 @@ redirect_from:
 
 Five handshakes carry [Wi-Fi keys](/wiki/concepts/wifi-key-hierarchy/) between the AP and a client. AirSnitch exploits weaknesses in *what each one is allowed to deliver*.
 
-## 4-way handshake
+## 4-way handshake {#4-way-handshake}
 
 The flagship. Run after 802.11 authentication and association on every fresh connection. Derives the PTK from the PMK + nonces + MAC addresses, and delivers the AP's GTK and IGTK to the client encrypted under the just-derived PTK. Opens the 802.11i "controlled port" (IEEE 802.11i §5.9.2.1) on success.
 
@@ -26,7 +26,7 @@ Relevance to AirSnitch:
 - The handshake is also the entry point for [port stealing](/wiki/attacks/port-stealing/): if the attacker authenticates with the *victim's* MAC on a different BSSID, completing this handshake overwrites the AP's per-BSSID `<MAC, PTK>` mapping for that MAC.
 - The GTK delivered here *can* be randomized per client (Passpoint DGAF Disable). The other handshakes below cannot (NDSS'26 §IV-B-2).
 
-## Group-key handshake
+## Group-key handshake {#group-key-handshake}
 
 Two-message EAPOL exchange that delivers a refreshed GTK to existing clients. APs use it to rotate the GTK on a timer (typical: 1 hour).
 

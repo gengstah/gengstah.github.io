@@ -121,4 +121,4 @@ Don't. The harness checks for this and warns. Override with `--no-id-warning` on
 
 - [airsnitch.py CLI](/wiki/tools/airsnitch-cli/) — the runtime that consumes these configs.
 - [WPA versions](/wiki/concepts/wpa-versions/) — what each mode means.
-- [Configuration testing notes from the AirSnitch artifact appendix](../../raw/ndss2026-airsnitch-paper.md#appendix) — also documents `client-simulated-AE-*.conf` variants used by `setup-br0-*.sh`.
+- Configuration testing notes from the AirSnitch artifact appendix (NDSS'26 paper, appendix) — also documents `client-simulated-AE-*.conf` variants used by `setup-br0-*.sh`. See [the source page](/wiki/sources/airsnitch/ndss2026-paper/) for citation details.

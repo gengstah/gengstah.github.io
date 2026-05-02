@@ -12,7 +12,7 @@ redirect_from:
 - /wiki/airsnitch/sources/airsnitch-readme/
 ---
 
-**File:** [`airsnitch/README.md`](../../airsnitch/README.md)
+**File:** [`airsnitch/README.md`](https://github.com/vanhoefm/airsnitch/blob/main/README.md) (upstream).
 
 The user-facing operator's manual for the AirSnitch tool, maintained by Mathy Vanhoef. Lives at the root of the [`vanhoefm/airsnitch`](https://github.com/vanhoefm/airsnitch) GitHub repo.
 
@@ -31,17 +31,17 @@ Operational walkthrough of AirSnitch from prerequisites to per-attack invocation
 
 ## Local copy
 
-The README is not duplicated under `raw/`. Read it directly at [`airsnitch/README.md`](../../airsnitch/README.md). It is updated upstream; pull the latest version with `git pull` inside the `airsnitch/` directory.
+The README is not duplicated under `raw/`. Read it directly at [`vanhoefm/airsnitch/README.md`](https://github.com/vanhoefm/airsnitch/blob/main/README.md) (upstream). It is updated upstream; pull the latest version with `git pull` inside the `airsnitch/` directory.
 
 ## Pages this source informs
 
 (Every wiki page with `sources: [airsnitch-readme]` in its frontmatter.)
 
 - [overview](/wiki/concepts/airsnitch-overview/)
-- [Concepts: client isolation, WPA versions](../concepts/)
-- [Attacks: abusing-gtk, gateway-bouncing, port-stealing, broadcast-reflection](../attacks/)
-- [Defences: index, vlans, filter-unicast-in-broadcast, documentation](../defenses/)
-- [Tools: airsnitch-cli, configurations, repo-layout, setup-scripts](../tools/)
+- [Concepts: client isolation, WPA versions](/wiki/concepts/)
+- [Attacks: abusing-gtk, gateway-bouncing, port-stealing, broadcast-reflection](/wiki/attacks/)
+- [Defences: index, vlans, filter-unicast-in-broadcast, documentation](/wiki/defenses/)
+- [Tools: airsnitch-cli, configurations, repo-layout, setup-scripts](/wiki/tools/)
 
 ## Notable framing choices in the README
 

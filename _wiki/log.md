@@ -11,6 +11,23 @@ author_profile: true
 
 ---
 
+## [2026-05-02] LINT | Comprehensive link audit — relative paths, anchors, Obsidian image embeds
+
+- **Source:** full-coverage lint of every Markdown link across `_wiki/` after the previous lint missed link classes other than absolute `/wiki/...`. The flagged page was `https://gengstah.github.io/wiki/sources/airsnitch/airsnitch-readme/`, which had relative `../../airsnitch/README.md` and `../concepts/`-style links that resolved to non-existent paths under Jekyll.
+- **Pages created:** none.
+- **Pages modified (16):**
+  - **Relative external-repo refs converted to upstream GitHub URLs** — `sources/airsnitch/airsnitch-readme.md`, `sources/airsnitch/ndss2026-paper.md`, `attacks/auxiliary-techniques.md`, `tools/repo-layout.md`, `tools/setup-scripts.md`, `tools/configurations.md`. Targets: `vanhoefm/airsnitch`, `vanhoefm/airsnitch/blob/main/...`, etc.
+  - **Relative `../concepts/` etc. converted to absolute** — `sources/airsnitch/airsnitch-readme.md`, `sources/airsnitch/ndss2026-paper.md`, `tools/airsnitch-cli.md`.
+  - **Cross-page anchor fixes** — added `{#4-way-handshake}` and `{#group-key-handshake}` to `concepts/handshakes.md`; converted the in-bullet `{#duplicate-mac}` in `defenses/spoofing-prevention.md` to an explicit HTML anchor; fixed the `#lint` reference in `sources/airsnitch/ndss2026-paper.md` to point at the schema page (no anchor).
+  - **Obsidian image embeds stripped** — `![[name.jpg|alt]]` removed from 10 source pages: `sources/offsec/process-argument-spoofing-2.md` plus 9 `sources/windows-exploit-research/...` pages (CLFS exploits 1–5, Puzzlemaker, hn-security CVE-2024-49138, HEVD-Windows-10-22H2, the WIN-uai page).
+  - **Same-page broken anchors stripped** — `#CheatSheet`, `#New`, `#Implementation` in `sources/offsec/keys-to-jwt-assessments-from-a-cheat-sheet-to-a-deep-dive.md` (no matching headings; were leftover from the upstream blog post).
+- **Key additions:**
+  - All 41 lint-flagged items resolved. Final pass returns one `[[wikilink]]` match in `log.md` line 163 — a literal description of the syntax inside backticks (safe).
+  - The `airsnitch-readme` page (the user's original report) now has zero broken or ambiguous links.
+  - Coverage of the lint pass itself broadened: future runs catch absolute, relative, bare, Obsidian-style, and cross-page-anchor links.
+
+---
+
 ## [2026-05-01] LINT | Broken-link fixes + Wi-Fi-concepts card anchor on the landing
 
 - **Source:** lint pass over `_wiki/` (broken `(/wiki/...)` links, orphans, stale labels, duplicate H1, self-loop redirects, tag inconsistencies, inbound-link counts on the new Wi-Fi pages); landing-page review.

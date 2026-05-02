@@ -14,7 +14,7 @@ redirect_from:
 - /wiki/airsnitch/tools/setup-scripts/
 ---
 
-How to reproduce the attacks **without buying a vulnerable router**. The repo includes scripts under [`setup/`](../../airsnitch/setup/) and the artifact appendix (NDSS'26 Appendix A) walks through three end-to-end reproductions — one per primary attack — using Linux's `mac80211_hwsim` driver to fake several Wi-Fi NICs on a single host.
+How to reproduce the attacks **without buying a vulnerable router**. The repo includes scripts under [`setup/`](https://github.com/vanhoefm/airsnitch/tree/main/setup) and the artifact appendix (NDSS'26 Appendix A) walks through three end-to-end reproductions — one per primary attack — using Linux's `mac80211_hwsim` driver to fake several Wi-Fi NICs on a single host.
 
 ## The pieces
 
@@ -119,7 +119,7 @@ The remaining attacks ([Broadcast Reflection](/wiki/attacks/broadcast-reflection
 
 ## Recon helper
 
-`recon/recon_bssid_clients.sh` is a small `airodump-ng`-based scanner — list BSSIDs, MACs of associated clients, and channels in a target environment. Useful before pointing AirSnitch at a network you don't fully know. See [`recon/`](../../airsnitch/recon/).
+`recon/recon_bssid_clients.sh` is a small `airodump-ng`-based scanner — list BSSIDs, MACs of associated clients, and channels in a target environment. Useful before pointing AirSnitch at a network you don't fully know. See [`recon/`](https://github.com/vanhoefm/airsnitch/tree/main/recon).
 
 ## Server-triggered port restoration helpers
 

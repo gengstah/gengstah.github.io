@@ -36,7 +36,7 @@ The attacker pre-arranges with an attacker-controlled server on the Internet a f
 
 The pre-arrangement is what gives this technique its name: the *server* triggers the port restoration on a known schedule, so the attacker doesn't have to wait for organic gateway-side traffic.
 
-The repo includes a minimal helper at [`server_triggered_port_restoration/server_pong.py`](../../airsnitch/server_triggered_port_restoration/server_pong.py) and [`client_ping.py`](../../airsnitch/server_triggered_port_restoration/client_ping.py).
+The repo includes a minimal helper at [`server_triggered_port_restoration/server_pong.py`](https://github.com/vanhoefm/airsnitch/blob/main/server_triggered_port_restoration/server_pong.py) and [`client_ping.py`](https://github.com/vanhoefm/airsnitch/blob/main/server_triggered_port_restoration/client_ping.py).
 
 ## Client-Triggered Port Restoration {#client-triggered}
 
@@ -91,4 +91,4 @@ The auxiliary techniques themselves don't have direct mitigations — they just 
 
 - [Port stealing](/wiki/attacks/port-stealing/)
 - [Gateway bouncing](/wiki/attacks/gateway-bouncing/), [GTK abuse](/wiki/attacks/abusing-gtk/), [Broadcast reflection](/wiki/attacks/broadcast-reflection/)
-- [`server_triggered_port_restoration/`](../../airsnitch/server_triggered_port_restoration/) helper scripts in the repo
+- [`server_triggered_port_restoration/`](https://github.com/vanhoefm/airsnitch/tree/main/server_triggered_port_restoration) helper scripts in the upstream repo
