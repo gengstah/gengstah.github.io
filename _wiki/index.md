@@ -88,7 +88,7 @@ redirect_from:
   <div class="wiki-grid">
     <div class="wiki-card">
       <h3><a href="/wiki/concepts/">Concepts</a></h3>
-      <div class="count">60 pages — foundations + AD / cloud / web / mobile / Wi-Fi attack concepts</div>
+      <div class="count">99 pages — foundations + AD / cloud / web / mobile / Wi-Fi / networking</div>
       <p class="examples">
         <a href="/wiki/concepts/cyber-kill-chain/">kill chain</a> ·
         <a href="/wiki/concepts/mitre-attack/">ATT&amp;CK</a> ·
@@ -124,7 +124,7 @@ redirect_from:
     </div>
     <div class="wiki-card">
       <h3><a href="/wiki/tools/">Tools</a></h3>
-      <div class="count">23 pages — frameworks, debuggers, scanners, C2</div>
+      <div class="count">28 pages — frameworks, debuggers, scanners, C2</div>
       <p class="examples">
         <a href="/wiki/tools/nmap/">nmap</a> ·
         <a href="/wiki/tools/burpsuite/">Burp</a> ·
@@ -191,11 +191,11 @@ redirect_from:
 
 <div class="wiki-section" markdown="0">
   <h2>Wi-Fi protocol research</h2>
-  <p class="lead">The Wi-Fi research canon — from <a href="/wiki/attacks/pixie-dust-wps/">Pixie Dust WPS</a> (2014) and <a href="/wiki/attacks/krack/">KRACK</a> (2017) through <a href="/wiki/attacks/dragonblood/">Dragonblood</a>, <a href="/wiki/attacks/fragattacks/">FragAttacks</a>, <a href="/wiki/attacks/framing-frames/">Framing Frames / MacStealer</a>, <a href="/wiki/attacks/tunnelcrack/">TunnelCrack</a>, <a href="/wiki/attacks/ssid-confusion/">SSID Confusion</a>, <a href="/wiki/attacks/peap-bypass/">PEAP/IWD bypass</a>, <a href="/wiki/attacks/mfp-deauthentication/">MFP deauthentication</a>, and into the 2026 <a href="/wiki/concepts/airsnitch-overview/">AirSnitch</a> client-isolation work. The recurring theme: security-relevant decisions placed in unauthenticated framing fields.</p>
+  <p class="lead">The Wi-Fi research canon — from <a href="/wiki/attacks/pixie-dust-wps/">Pixie Dust WPS</a> (2014) and <a href="/wiki/attacks/krack/">KRACK</a> (2017) through <a href="/wiki/attacks/dragonblood/">Dragonblood</a>, <a href="/wiki/attacks/fragattacks/">FragAttacks</a>, <a href="/wiki/attacks/framing-frames/">Framing Frames / MacStealer</a>, <a href="/wiki/attacks/tunnelcrack/">TunnelCrack</a>, <a href="/wiki/attacks/ssid-confusion/">SSID Confusion</a>, <a href="/wiki/attacks/peap-bypass/">PEAP/IWD bypass</a>, <a href="/wiki/attacks/mfp-deauthentication/">MFP deauthentication</a>, into the 2026 <a href="/wiki/concepts/airsnitch-overview/">AirSnitch</a> client-isolation work, and out into the <a href="/wiki/attacks/arp-over-gtk/">ARP-over-GTK</a> bridge-bypass primitive. The recurring theme: security-relevant decisions placed in unauthenticated framing fields, and defences placed at the wrong architectural layer.</p>
   <div class="wiki-grid">
     <div class="wiki-card">
       <h3><a href="/wiki/attacks/">Attacks</a></h3>
-      <div class="count">17 pages — protocol breaks across WEP / WPA / WPA2 / WPA3 / 802.1X / WPS</div>
+      <div class="count">19 pages — protocol breaks across WEP / WPA / WPA2 / WPA3 / 802.1X / WPS</div>
       <p class="examples">
         <a href="/wiki/attacks/krack/">KRACK</a> ·
         <a href="/wiki/attacks/dragonblood/">Dragonblood</a> ·
@@ -207,6 +207,8 @@ redirect_from:
         <a href="/wiki/attacks/mfp-deauthentication/">MFP deauth</a> ·
         <a href="/wiki/attacks/pixie-dust-wps/">Pixie Dust</a> ·
         <a href="/wiki/attacks/abusing-gtk/">abusing GTK</a> ·
+        <a href="/wiki/attacks/arp-over-gtk/">ARP over GTK</a> ·
+        <a href="/wiki/attacks/arp-spoofing/">ARP spoofing</a> ·
         <a href="/wiki/attacks/port-stealing/">port stealing</a> ·
         <a href="/wiki/attacks/gateway-bouncing/">gateway bouncing</a> ·
         <a href="/wiki/attacks/broadcast-reflection/">broadcast reflection</a> ·
@@ -215,12 +217,14 @@ redirect_from:
     </div>
     <div class="wiki-card">
       <h3><a href="/wiki/defenses/">Defenses</a></h3>
-      <div class="count">8 pages — controls that actually stop the attacks (AirSnitch corpus)</div>
+      <div class="count">10 pages — controls that actually stop the attacks (AirSnitch + ARP-over-GTK)</div>
       <p class="examples">
         <a href="/wiki/defenses/group-key-randomization/">group-key randomization</a> ·
         <a href="/wiki/defenses/macsec/">MACsec</a> ·
         <a href="/wiki/defenses/vlans/">VLANs</a> ·
-        <a href="/wiki/defenses/spoofing-prevention/">spoofing prevention</a>
+        <a href="/wiki/defenses/spoofing-prevention/">spoofing prevention</a> ·
+        <a href="/wiki/defenses/dynamic-arp-inspection/">DAI</a> ·
+        <a href="/wiki/defenses/endpoint-arp-hardening/">endpoint ARP hardening</a>
       </p>
     </div>
     <div class="wiki-card">
@@ -232,8 +236,9 @@ redirect_from:
     </div>
     <div class="wiki-card">
       <h3><a href="/wiki/concepts/">Wi-Fi concepts</a></h3>
-      <div class="count">background needed to read the attacks — PHY, MAC, security, roaming, provisioning</div>
+      <div class="count">background needed to read the attacks — PHY, MAC, security, roaming, provisioning, networking</div>
       <p class="examples">
+        <a href="/wiki/concepts/arp/">ARP</a> ·
         <a href="/wiki/concepts/802-11-standards/">802.11 standards</a> ·
         <a href="/wiki/concepts/wifi-frequency-bands/">frequency bands</a> ·
         <a href="/wiki/concepts/80211-frame-types/">frame types</a> ·
@@ -273,11 +278,12 @@ redirect_from:
   <div class="wiki-grid">
     <div class="wiki-card">
       <h3><a href="/wiki/sources/">All sources</a></h3>
-      <div class="count">146 provenance pages, grouped by origin</div>
+      <div class="count">147 provenance pages, grouped by origin</div>
       <p class="examples">
         <a href="/wiki/sources/airsnitch/">airsnitch</a> ·
         <a href="/wiki/sources/windows-exploit-research/">windows-exploit-research</a> ·
-        <a href="/wiki/sources/offsec/">offsec</a>
+        <a href="/wiki/sources/offsec/">offsec</a> ·
+        <a href="/wiki/sources/blog/">blog</a>
       </p>
     </div>
   </div>

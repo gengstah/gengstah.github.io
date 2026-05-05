@@ -7,12 +7,13 @@ author_profile: true
 
 Frameworks, debuggers, scanners, C2, post-ex utilities.
 
-**27 pages** in this category.
+**28 pages** in this category.
 
 ---
 
 - [airsnitch.py — CLI Reference](/wiki/tools/airsnitch-cli/)
 - [AirSnitch (macstealer)](/wiki/tools/airsnitch/)
+- [arpgtk — ARP-over-GTK Auditor](/wiki/tools/arpgtk/) — Diagnostic that checks whether an SSID is exposed to ARP-over-GTK without poisoning anything.
 - [BloodHound](/wiki/tools/bloodhound/)
 - [Burp Suite](/wiki/tools/burp-suite/)
 - [Burp Suite](/wiki/tools/burpsuite/) — The dominant web-app testing proxy. Repeater, Intruder, Scanner, BApp Store, Collaborator.

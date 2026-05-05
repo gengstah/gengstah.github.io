@@ -11,6 +11,36 @@ author_profile: true
 
 ---
 
+## [2026-05-04] INGEST | "Router-side ARP defenses don't catch what they don't see" (own blog post → ARP-over-GTK canon)
+
+- **Source:** `_posts/2026-05-02-blog.md` — original post by gengstah at `/posts/2026/05/arp-over-gtk/`. Combines AirSnitch's `--check-gtk-shared` and `--c2c-gtk-inject` primitives into a single ARP-payload-inside-GTK-encrypted-broadcast frame and shows that this primitive bypasses every router-side ARP defence (DAI, DHCP-snooping ARP filtering, IP-MAC binding, ebtables on `br-lan`, MikroTik `arp=reply-only`, UniFi "ARP cache poisoning protection") because the malicious frame never crosses the bridge.
+- **Pages created (8):**
+  - `concepts/arp.md` — ARP primer (RFC 826, frame layout, cache states, Linux `arp_*` sysctls, Wi-Fi-specific notes, Proxy ARP, role in poisoning).
+  - `attacks/arp-spoofing.md` — classical LAN MITM primitive; tooling (arpspoof / ettercap / bettercap / Scapy); where it runs (wired, Wi-Fi-via-bridge, Wi-Fi-over-the-air); defence overview.
+  - `attacks/arp-over-gtk.md` — central technique. Frame layout, path the frame takes, why router-side defences don't fire, what does fire, comparison to AirSnitch tests, auto-discovery and return-path discussion, detection difficulty, auditing flow.
+  - `defenses/dynamic-arp-inspection.md` — the bridge-side ARP defence family with canonical Cisco DAI config and OpenWrt sketch; the structural reason every entry in the family is architecturally a no-op against ARP-over-GTK.
+  - `defenses/endpoint-arp-hardening.md` — `arp_accept`, `arp_ignore`, `arp_announce`, static `nud permanent` entries on Linux; persistent ARP via `netsh` on Windows; macOS / iOS / Android limits.
+  - `tools/arpgtk.md` — the user's own diagnostic. `--check-gtk-shared` and `--verify --target-ip` subcommands, decision-loop matrix; explicitly scoped to audit, not poison.
+  - `sources/blog/2026-05-02-arp-over-gtk.md` — provenance page for the post.
+  - `sources/blog/index.md` — new sub-catalogue for original blog posts (this is the first entry).
+- **Pages modified (8):**
+  - `concepts/index.md` — count 98 → 99; ARP entry added.
+  - `attacks/index.md` — count 17 → 19; ARP-over-GTK and ARP spoofing added.
+  - `defenses/index.md` — added two per-defence pages and three new rows in the matrix (DAI, endpoint hardening, AP Proxy ARP), plus an "ARP over GTK" column across all rows.
+  - `tools/index.md` — count 27 → 28; `arpgtk` added.
+  - `sources/index.md` — count 146 → 147; `blog` sub-catalogue row added.
+  - `index.md` — landing-page counts updated; Wi-Fi-research lead extended to mention ARP-over-GTK; Wi-Fi-concepts examples gain ARP; attack examples gain ARP-over-GTK and ARP spoofing.
+  - `attacks/abusing-gtk.md` — added cross-ref to ARP over GTK in "Combined with other attacks".
+  - `attacks/broadcast-reflection.md` — added cross-ref to ARP over GTK in "See also".
+  - `defenses/spoofing-prevention.md` — added cross-ref to DAI and endpoint ARP hardening as partner defences on the ARP axis.
+- **Key additions:**
+  - The structural observation: every router-side ARP defence operates on the bridge; ARP-over-GTK travels station-to-station over the air; therefore the entire family is architecturally a no-op against this attack class.
+  - Defence-vs-attack matrix in `defenses/index.md` now has an ARP-over-GTK column. Group key randomisation = ✓; AP Proxy ARP = ✓; endpoint hardening = ◐ (only when the cache is already populated); MACsec = ◐ (impact only); everything else = ✗.
+  - Auto-discovery side-effect: the attacker's `who-has` request goes over the air under the GTK; the victim's reply takes the conventional bridge path, so any IDS watching the wire sees a normal request / reply pair (the *request* it never heard).
+  - First-class home for the user's own arpgtk tool, with the decision loop and explicit non-weaponisation framing.
+
+---
+
 ## [2026-05-02] LINT | Comprehensive link audit — relative paths, anchors, Obsidian image embeds
 
 - **Source:** full-coverage lint of every Markdown link across `_wiki/` after the previous lint missed link classes other than absolute `/wiki/...`. The flagged page was `https://gengstah.github.io/wiki/sources/airsnitch/airsnitch-readme/`, which had relative `../../airsnitch/README.md` and `../concepts/`-style links that resolved to non-existent paths under Jekyll.

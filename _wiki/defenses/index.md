@@ -23,18 +23,21 @@ No single mitigation stops every AirSnitch attack. The paper is explicit about t
 
 ✓ = stops the attack. ◐ = partial / configuration-dependent. ✗ = does not stop.
 
-| Defence | [Abusing GTK](/wiki/attacks/abusing-gtk/) | [Gateway Bouncing](/wiki/attacks/gateway-bouncing/) | [Port Stealing](/wiki/attacks/port-stealing/) | [Broadcast Reflection](/wiki/attacks/broadcast-reflection/) | [Machine-on-the-side](/wiki/attacks/machine-on-the-side/) | [Rogue AP](/wiki/attacks/rogue-ap/) | [Passpoint flaws](/wiki/attacks/passpoint-flaws/) |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| [Group key randomization](/wiki/defenses/group-key-randomization/) (every handshake + IGTK) | ✓ | ✗ | ✗ | ✓ | ✗ | ✗ | ✓ |
-| [VLANs / firewall](/wiki/defenses/vlans/) | ◐ (cross-VLAN only) | ✓ | ✓ | ✓ | ✗ | ✗ | ◐ |
-| [MAC spoofing prevention](/wiki/defenses/spoofing-prevention/#mac-spoofing) | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ | ✗ |
-| [IP spoofing prevention](/wiki/defenses/spoofing-prevention/#ip-spoofing) | ✗ | ◐ (return path) | ✗ | ✗ | ✗ | ✗ | ✗ |
-| [Filter unicast IP in L2 broadcast](/wiki/defenses/filter-unicast-in-broadcast/) | ◐ (IPv4 only) | ✗ | ✗ | ◐ (IPv4 only) | ✗ | ✗ | ◐ |
-| [MACsec](/wiki/defenses/macsec/) | ✓ | ✓ | ✓ | ✓ | ✓ | ◐ | ✓ |
-| [Centralised decryption](/wiki/defenses/centralized-decryption/) | ◐ | ✓ | ◐ | ✓ | ✗ | ✗ | ◐ |
-| [Move off shared passphrase](/wiki/concepts/wpa-versions/) (PPSK / Enterprise / WPA3-PK) | ✗ | ✗ | ✗ | ✗ | ✓ | ◐ | ✗ |
-| [Reject duplicate MAC across BSSIDs](/wiki/defenses/spoofing-prevention/#duplicate-mac) | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ | ✗ |
-| [Documentation / warnings](/wiki/defenses/documentation/) | indirect | indirect | indirect | indirect | indirect | indirect | indirect |
+| Defence | [Abusing GTK](/wiki/attacks/abusing-gtk/) | [Gateway Bouncing](/wiki/attacks/gateway-bouncing/) | [Port Stealing](/wiki/attacks/port-stealing/) | [Broadcast Reflection](/wiki/attacks/broadcast-reflection/) | [Machine-on-the-side](/wiki/attacks/machine-on-the-side/) | [Rogue AP](/wiki/attacks/rogue-ap/) | [Passpoint flaws](/wiki/attacks/passpoint-flaws/) | [ARP over GTK](/wiki/attacks/arp-over-gtk/) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| [Group key randomization](/wiki/defenses/group-key-randomization/) (every handshake + IGTK) | ✓ | ✗ | ✗ | ✓ | ✗ | ✗ | ✓ | ✓ |
+| [VLANs / firewall](/wiki/defenses/vlans/) | ◐ (cross-VLAN only) | ✓ | ✓ | ✓ | ✗ | ✗ | ◐ | ◐ (cross-VLAN only) |
+| [MAC spoofing prevention](/wiki/defenses/spoofing-prevention/#mac-spoofing) | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| [IP spoofing prevention](/wiki/defenses/spoofing-prevention/#ip-spoofing) | ✗ | ◐ (return path) | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| [Filter unicast IP in L2 broadcast](/wiki/defenses/filter-unicast-in-broadcast/) | ◐ (IPv4 only) | ✗ | ✗ | ◐ (IPv4 only) | ✗ | ✗ | ◐ | ✗ (ARP, not IP) |
+| [MACsec](/wiki/defenses/macsec/) | ✓ | ✓ | ✓ | ✓ | ✓ | ◐ | ✓ | ◐ (impact only) |
+| [Centralised decryption](/wiki/defenses/centralized-decryption/) | ◐ | ✓ | ◐ | ✓ | ✗ | ✗ | ◐ | ◐ |
+| [Move off shared passphrase](/wiki/concepts/wpa-versions/) (PPSK / Enterprise / WPA3-PK) | ✗ | ✗ | ✗ | ✗ | ✓ | ◐ | ✗ | ✗ |
+| [Reject duplicate MAC across BSSIDs](/wiki/defenses/spoofing-prevention/#duplicate-mac) | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| [Dynamic ARP Inspection / bridge-side ARP filter](/wiki/defenses/dynamic-arp-inspection/) | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ (frame off the bridge) |
+| [Endpoint ARP hardening](/wiki/defenses/endpoint-arp-hardening/) (`arp_accept=0` + populated cache, static entries) | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ◐ (only if cache populated) |
+| AP Proxy ARP / Hotspot 2.0 DGAF Disable | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ |
+| [Documentation / warnings](/wiki/defenses/documentation/) | indirect | indirect | indirect | indirect | indirect | indirect | indirect | indirect |
 
 ## Recommended baseline
 
@@ -64,6 +67,8 @@ If you operate a Wi-Fi network and you actually care about isolation between cli
 - [MACsec](/wiki/defenses/macsec/)
 - [Centralised Wi-Fi decryption](/wiki/defenses/centralized-decryption/)
 - [Documentation and warnings](/wiki/defenses/documentation/)
+- [Dynamic ARP Inspection and bridge-side ARP defences](/wiki/defenses/dynamic-arp-inspection/) — DAI, DHCP-snooping ARP filter, ebtables on `br-lan`. Catches wired and bridge-side wireless ARP poisoners; **does not** stop [ARP over GTK](/wiki/attacks/arp-over-gtk/).
+- [Endpoint ARP hardening](/wiki/defenses/endpoint-arp-hardening/) — `arp_accept`, static ARP entries, per-host hygiene against ARP spoofing.
 
 ## See also
 

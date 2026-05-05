@@ -85,6 +85,7 @@ For the OS-acceptance side of the picture, AirSnitch's `--c2c-gtk-inject` test s
 
 - + [Port stealing](/wiki/attacks/port-stealing/): the attacker first steals the victim's port to intercept downlink, then uses GTK abuse to *return* the intercepted traffic to the victim, completing a downlink MitM (NDSS'26 §VI-A).
 - + [Passpoint flaws](/wiki/attacks/passpoint-flaws/): when the AP correctly randomizes GTK in the 4-way handshake, an attacker forces the AP to deliver the *real* shared GTK during FT, FILS, group-key handshake, or via a forged WNM-Sleep Response. Then GTK abuse becomes possible again.
+- = [ARP over GTK](/wiki/attacks/arp-over-gtk/): same envelope, ARP payload instead of IP. Bypasses the entire family of router-side ARP defences (DAI, DHCP-snooping ARP filtering, IP-MAC binding, `ebtables` on `br-lan`) because the malicious frame never crosses the bridge.
 
 ## What stops it
 

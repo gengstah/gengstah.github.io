@@ -76,5 +76,6 @@ Both defences are cheap. Both should be on by default. Neither is in any of the 
 ## See also
 
 - [Port Stealing](/wiki/attacks/port-stealing/), [Gateway Bouncing](/wiki/attacks/gateway-bouncing/) — what these defences mitigate.
+- [Dynamic ARP Inspection](/wiki/defenses/dynamic-arp-inspection/), [Endpoint ARP hardening](/wiki/defenses/endpoint-arp-hardening/) — partner defences for the ARP-spoofing axis (bridge-side and endpoint-side respectively).
 - [VLANs and firewall](/wiki/defenses/vlans/) — partner defence; SAVI is most useful when paired with VLAN-level routing rules.
 - [Documentation](/wiki/defenses/documentation/) — vendors should document whether these are on.

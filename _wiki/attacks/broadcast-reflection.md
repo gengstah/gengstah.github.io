@@ -92,5 +92,6 @@ NDSS'26 Table II shows Broadcast Reflection works against every tested device, i
 ## See also
 
 - [Abusing GTK](/wiki/attacks/abusing-gtk/) — the "direct" version of the same delivery pattern.
+- [ARP over GTK](/wiki/attacks/arp-over-gtk/) — the same envelope with an ARP payload, bypassing router-side ARP defences.
 - [Auxiliary techniques](/wiki/attacks/auxiliary-techniques/) — how Broadcast Reflection is used to return intercepted packets.
 - [Group key randomization](/wiki/defenses/group-key-randomization/)

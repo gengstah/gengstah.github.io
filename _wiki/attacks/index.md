@@ -7,11 +7,13 @@ author_profile: true
 
 Wi-Fi protocol attacks — design flaws and implementation bugs in WEP / WPA / WPA2 / WPA3 / 802.1X. Two clusters: the AirSnitch (NDSS'26) corpus on client-isolation bypass, plus the broader Wi-Fi research line — KRACK, Dragonblood, FragAttacks, Framing Frames / MacStealer, TunnelCrack, SSID Confusion, PEAP / IWD bypass, MFP deauthentication, and Pixie Dust WPS.
 
-**17 pages** in this category.
+**19 pages** in this category.
 
 ---
 
 - [Abusing GTK](/wiki/attacks/abusing-gtk/)
+- [ARP over GTK — Bypassing Router-Side ARP Defences on Wi-Fi](/wiki/attacks/arp-over-gtk/) — Combines AirSnitch's GTK-broadcast injection with an ARP payload; bypasses every bridge-side ARP defence (DAI, IP-MAC binding, ebtables) because the frame never crosses the bridge.
+- [ARP Spoofing](/wiki/attacks/arp-spoofing/) — The classic LAN MITM primitive — forge ARP frames, poison the victim's cache, redirect traffic.
 - [Auxiliary Techniques (Port Restoration, Inter-NIC Relaying)](/wiki/attacks/auxiliary-techniques/)
 - [Broadcast Reflection](/wiki/attacks/broadcast-reflection/)
 - [Dragonblood — Attacking WPA3's SAE / Dragonfly Handshake](/wiki/attacks/dragonblood/) — Side-channel, downgrade, and DoS attacks against WPA3's SAE handshake — and against EAP-pwd. The first big break of WPA3, two years after the spec.

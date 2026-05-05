@@ -7,11 +7,12 @@ author_profile: true
 
 Foundational ideas, attack concepts, and reference material across the wiki.
 
-**98 pages** in this category.
+**99 pages** in this category.
 
 ---
 
 - [802.11 Frame Types](/wiki/concepts/80211-frame-types/)
+- [ARP — Address Resolution Protocol](/wiki/concepts/arp/)
 - [802.11 Standards Family (Wi-Fi 1 → Wi-Fi 7)](/wiki/concepts/802-11-standards/)
 - [802.1X Port-Based Network Access Control](/wiki/concepts/8021x/)
 - [Action Frames](/wiki/concepts/action-frames/)
