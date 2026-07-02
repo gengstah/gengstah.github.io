@@ -11,6 +11,24 @@ author_profile: true
 
 ---
 
+## [2026-07-02] INGEST | v-v.space (VictorV) — Chinese Windows-VR blog, translated (20 posts)
+
+- **Source:** VictorV's blog <https://v-v.space> (pages 1 & 2, 20 posts total). Chinese-language Windows vulnerability-research / CVE-analysis blog; translated to English on ingest. 16 posts in-scope, 4 skipped as out-of-scope (Stable Diffusion install, system-reinstall tips, SELinux primer, QEMU build guide).
+- **Pages created (14):**
+  - CVEs (5): `cves/CVE-2025-21297.md` (RD Gateway `aaedge.dll` singleton race → UAF RCE), `cves/CVE-2024-29050.md` (CryptoAPI `CRYPT32` `CryptDecodeObject` ASN.1 integer truncation → heap overflow; also covers CVE-2024-30020), `cves/CVE-2024-38148.md` (schannel `CTlsMessageFragment` UAF — MS rated DoS, write-up argues RCE), `cves/CVE-2023-36728.md` (SQL Server `sqllang.dll` `ReadIDCRLToken` pre-auth underflow → OOB read), `cves/CVE-2023-38148.md` (ICS `ipnathlp.dll` DHCP hardware-address stack overflow).
+  - Concepts (6): `concepts/windows-rpc.md` (RPC internals + reversing, with the RD Licensing `HashChallengeData` over-read as worked example), `concepts/cpp-exception-reversing.md` (MSVC EH4 metadata), `concepts/compiler-introduced-bugs.md` (UB/signedness pitfalls + "strange knowledge" C trivia), `concepts/pci-configuration-space.md`, `concepts/qemu-device-emulation.md` (VM-escape / device-fuzzing surface), `concepts/rdp-virtual-channels.md` (pre-auth channel surface, with the `rdplic` memory-leak bug as example).
+  - Tools (1): `tools/ida-pro-mcp.md` (LLM-assisted VR via IDA MCP + OpenCode).
+  - Resources (1): `resources/azure-bounty-program.md` (Azure RTOS bounty scope + source-audit methodology).
+  - Sources (1): `sources/v-v-space/index.md` (provenance catalogue for all 20 posts).
+- **Pages modified:** `cves/index.md` (39→44), `concepts/index.md` (99→105), `tools/index.md` (28→29; also added VMware named-pipe kernel-debug method to `tools/debugging.md`), `resources/index.md` (6→7), `sources/index.md` (147→167, new `v-v-space` origin), `index.md` (card counts), and cross-refs in `techniques/integer_overflows.md`, `techniques/use_after_free.md`, `techniques/race_conditions.md`.
+- **Key additions:**
+  - Five new Windows CVE deep-dives, expanding coverage into user-mode network services (RD Gateway, schannel, SQL Server, ICS) and CryptoAPI ASN.1 — a different surface from the wiki's existing kernel/CLFS-heavy corpus.
+  - First dedicated **Windows RPC** reversing page (NDR64 format strings, RpcView, SERVER_ROUTINE recovery) — previously referenced but page-less.
+  - First **virtualization** concept pages (PCI config space, QEMU device emulation) framing VM-escape/device-fuzzing attack surface.
+  - Recurring VictorV theme captured: size-math divergence (increment ≠ decrement, wrong unit/width) and unnullified-after-free pointers as systematic bug-hunting patterns; codified in the Azure-bounty methodology page.
+
+---
+
 ## [2026-05-04] INGEST | "Router-side ARP defenses don't catch what they don't see" (own blog post → ARP-over-GTK canon)
 
 - **Source:** `_posts/2026-05-02-blog.md` — original post by gengstah at `/posts/2026/05/arp-over-gtk/`. Combines AirSnitch's `--check-gtk-shared` and `--c2c-gtk-inject` primitives into a single ARP-payload-inside-GTK-encrypted-broadcast frame and shows that this primitive bypasses every router-side ARP defence (DAI, DHCP-snooping ARP filtering, IP-MAC binding, ebtables on `br-lan`, MikroTik `arp=reply-only`, UniFi "ARP cache poisoning protection") because the malicious frame never crosses the bridge.

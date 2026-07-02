@@ -7,7 +7,7 @@ author_profile: true
 
 Deep-dive write-ups for individual vulnerabilities — root cause, exploitation flow, primitives, references.
 
-**39 pages** in this category.
+**44 pages** in this category.
 
 ---
 
@@ -26,19 +26,24 @@ Deep-dive write-ups for individual vulnerabilities — root cause, exploitation 
 - [CVE-2023-28218 — afd.sys CMSGBuffer Integer Overflow Heap Corruption](/wiki/cves/CVE-2023-28218/)
 - [CVE-2023-28229 + CVE-2023-36906 — CNG Key Isolation UAF + OOB Read (AppContainer Escape)](/wiki/cves/CVE-2023-28229/)
 - [CVE-2023-28252 — CLFS OOB Write → Arbitrary Increment → LPE (Nokoyawa)](/wiki/cves/CVE-2023-28252/)
+- [CVE-2023-36728 — SQL Server (sqllang.dll) ReadIDCRLToken Pre-Auth Integer Underflow → OOB Read DoS](/wiki/cves/CVE-2023-36728/)
 - [CVE-2023-36802 — MSKSSRV Type Confusion: FsContextReg/FSStreamReg OOB → PreviousMode LPE](/wiki/cves/CVE-2023-36802/)
+- [CVE-2023-38148 — Windows ICS (ipnathlp.dll) DHCP Hardware-Address Stack Buffer Overflow](/wiki/cves/CVE-2023-38148/)
 - [CVE-2024-21338 — AppLocker Driver Untrusted Pointer Dereference (appid.sys)](/wiki/cves/CVE-2024-21338/)
 - [CVE-2024-26170 — CimFS OOB Read → Fake Object Chain → PreviousMode Null → LPE](/wiki/cves/CVE-2024-26170/)
 - [CVE-2024-26230 — Windows Telephony Service UAF (EoP)](/wiki/cves/CVE-2024-26230/)
+- [CVE-2024-29050 — CryptoAPI (CRYPT32.dll) CryptDecodeObject ASN.1 Integer Truncation → Heap Overflow](/wiki/cves/CVE-2024-29050/)
 - [CVE-2024-30084 — Kernel Streaming IOCTL_KS_PROPERTY Double Fetch](/wiki/cves/CVE-2024-30084/)
 - [CVE-2024-30085 — cldflt.sys Heap Overflow (EoP)](/wiki/cves/CVE-2024-30085/)
 - [CVE-2024-30088 — NT Kernel TokenAccessInformation TOCTOU](/wiki/cves/CVE-2024-30088/)
 - [CVE-2024-30090 — Kernel Streaming Event Double Fetch + Arbitrary Address Increment](/wiki/cves/CVE-2024-30090/)
 - [CVE-2024-35250 — Kernel Streaming KSPROPSETID_DrmAudioStream Arbitrary Call](/wiki/cves/CVE-2024-35250/)
 - [CVE-2024-38063 — Windows TCP/IP IPv6 Integer Underflow → Kernel Heap Overflow](/wiki/cves/CVE-2024-38063/)
+- [CVE-2024-38148 — Windows Secure Channel (schannel) CTlsMessageFragment Use-After-Free](/wiki/cves/CVE-2024-38148/)
 - [CVE-2024-38238 — Kernel Streaming Forgotten MDL Lock → Arbitrary Physical Memory Write](/wiki/cves/CVE-2024-38238/)
 - [CVE-2024-38245 — Kernel Streaming Frame Buffer Misalignment → LookasideList Corruption](/wiki/cves/CVE-2024-38245/)
 - [CVE-2024-49138 — CLFS Heap-Based Buffer Overflow via Shadow Block pbImage Sharing](/wiki/cves/CVE-2024-49138/)
+- [CVE-2025-21297 — RD Gateway (aaedge.dll) Singleton Race → Use-After-Free RCE](/wiki/cves/CVE-2025-21297/)
 - [CVE-2025-21333 — Hyper-V vkrnlintvsp.sys Heap Overflow (WNF + IORING)](/wiki/cves/CVE-2025-21333/)
 - [CVE-2025-29824 — CLFS CClfsLogCcb Use-After-Free (IRP Race)](/wiki/cves/CVE-2025-29824/)
 - [CVE-2025-30385 — CLFS Driver Use-After-Free](/wiki/cves/CVE-2025-30385/)

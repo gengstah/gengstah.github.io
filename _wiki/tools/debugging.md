@@ -122,6 +122,21 @@ windbg -k net:port=50000,key=1.2.3.4
 // Or via VirtualKD-Redux (VMware shared memory): much faster than serial
 ```
 
+### Setup: VMware Workstation via Named Pipe (serial/COM)
+
+The classic serial-over-named-pipe method when KDNET isn't an option:
+
+```
+// VMware VM: add a Serial Port → "Use named pipe" → \\.\pipe\com_1
+//   "This end is the server", "The other end is an application", enable polling.
+// Guest (msconfig → Boot → Advanced options): enable Debug, set Debug Port = COM1, Baud = 115200
+//   (equivalent to: bcdedit /debug on ; bcdedit /dbgsettings serial debugport:1 baudrate:115200)
+// Host: launch WinDbg with
+windbg -b -k com:port=\\.\pipe\com_1,baud=115200,pipe
+```
+
+Network (KDNET) is preferred where supported — reserve the named-pipe method for older/edge configs. For Hyper-V hypervisor debugging: `bcdedit /set hypervisordebug on`; for remote user-mode debugging use `dbgsrv` listening on a TCP port with a remote WinDbg client.
+
 ### Symbol Setup
 ```
 // Set symbol path to Microsoft symbol server:

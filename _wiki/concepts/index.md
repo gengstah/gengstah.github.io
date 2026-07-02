@@ -7,7 +7,7 @@ author_profile: true
 
 Foundational ideas, attack concepts, and reference material across the wiki.
 
-**99 pages** in this category.
+**105 pages** in this category.
 
 ---
 
@@ -34,6 +34,7 @@ Foundational ideas, attack concepts, and reference material across the wiki.
 - [Client Isolation](/wiki/concepts/client-isolation/)
 - [Cloud Penetration Testing](/wiki/concepts/cloud-penetration-testing/)
 - [Command and Control (C2)](/wiki/concepts/command-and-control/)
+- [Compiler & Undefined-Behaviour Pitfalls (C/C++)](/wiki/concepts/compiler-introduced-bugs/)
 - [Credential Guard Bypass](/wiki/concepts/credential-guard-bypass/)
 - [Cyber Kill Chain](/wiki/concepts/cyber-kill-chain/) — Lockheed Martin's seven-stage model of how a targeted intrusion unfolds.
 - [DLL Hijacking & Sideloading](/wiki/concepts/dll-hijacking/)
@@ -72,6 +73,7 @@ Foundational ideas, attack concepts, and reference material across the wiki.
 - [OWE — Opportunistic Wireless Encryption (Enhanced Open)](/wiki/concepts/owe/)
 - [Pass-the-Hash (PtH) / Pass-the-Ticket (PtT)](/wiki/concepts/pass-the-hash/)
 - [Passpoint](/wiki/concepts/passpoint/)
+- [PCI / PCIe Configuration Space](/wiki/concepts/pci-configuration-space/)
 - [PEAP and EAP-TTLS](/wiki/concepts/peap-ttls/)
 - [Phishing](/wiki/concepts/phishing/)
 - [Post-Exploitation](/wiki/concepts/post-exploitation/)
@@ -80,10 +82,13 @@ Foundational ideas, attack concepts, and reference material across the wiki.
 - [Privilege Escalation — Windows](/wiki/concepts/privilege-escalation-windows/)
 - [Probe Requests and the Preferred Network List](/wiki/concepts/probe-requests-pnl/)
 - [Purple Teaming](/wiki/concepts/purple-teaming/)
+- [QEMU Device Emulation — Attack Surface for VM Escape & Device Fuzzing](/wiki/concepts/qemu-device-emulation/)
 - [Radio Resource Management (802.11k) and BSS Transition Management (802.11v)](/wiki/concepts/radio-resource-mgmt/)
 - [RADIUS](/wiki/concepts/radius/)
+- [RDP Virtual Channels — Pre-Auth Attack Surface](/wiki/concepts/rdp-virtual-channels/)
 - [Reconnaissance](/wiki/concepts/reconnaissance/)
 - [Red Teaming](/wiki/concepts/red-teaming/)
+- [Reverse-Engineering MSVC C++ Exception Handling (x64/x86)](/wiki/concepts/cpp-exception-reversing/)
 - [RSN Information Element](/wiki/concepts/rsn-information-element/)
 - [SAE — Simultaneous Authentication of Equals (Dragonfly)](/wiki/concepts/sae-dragonfly/)
 - [Secure Enclaves for Offensive Operations (VBS / VTL1)](/wiki/concepts/secure-enclaves-offensive/)
@@ -103,6 +108,7 @@ Foundational ideas, attack concepts, and reference material across the wiki.
 - [Wi-Fi Key Hierarchy](/wiki/concepts/wifi-key-hierarchy/)
 - [Wi-Fi Mesh (802.11s) and Vendor Mesh](/wiki/concepts/wifi-mesh/)
 - [Windows Exploit Research — Overview](/wiki/concepts/windows-exploit-research-overview/)
+- [Windows RPC — Internals and Reverse Engineering for Vulnerability Research](/wiki/concepts/windows-rpc/)
 - [Windows Service Triggers](/wiki/concepts/windows-service-triggers/)
 - [Wireless Attacks](/wiki/concepts/wireless-attacks/)
 - [WNM, ANQP, and Hotspot 2.0](/wiki/concepts/wnm-anqp/)

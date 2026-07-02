@@ -7,10 +7,11 @@ author_profile: true
 
 Reading lists, researchers, templates, and curated references.
 
-**6 pages** in this category.
+**7 pages** in this category.
 
 ---
 
+- [Microsoft Azure Bounty Program — Scope Notes & Source-Audit Methodology](/wiki/resources/azure-bounty-program/)
 - [CVE Analysis Template](/wiki/resources/cve_template/)
 - [Essential Papers, Blog Series & Talks](/wiki/resources/papers_and_blogs/)
 - [Outflank Blog Catalogue](/wiki/resources/outflank/) — Running index of every Outflank post (Cobalt Strike tradecraft, Office maldocs, EDR evasion, BOFs, Outflank C2 / RedELK).

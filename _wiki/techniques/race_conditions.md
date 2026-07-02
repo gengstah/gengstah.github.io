@@ -12,7 +12,7 @@ redirect_from:
 ---
 
 > **Last updated:** 2026-04-10  
-> **Related:** [Use After Free](/wiki/techniques/use_after_free/), [Architecture](/wiki/kernel/architecture/)  
+> **Related:** [Use After Free](/wiki/techniques/use_after_free/), [Architecture](/wiki/kernel/architecture/), [CVE-2025-21297 (RD Gateway singleton race → UAF)](/wiki/cves/CVE-2025-21297/)  
 > **Tags:** `race-condition`, `user-mode`, `kernel-mode`
 
 ## Summary

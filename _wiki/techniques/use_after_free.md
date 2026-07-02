@@ -12,7 +12,7 @@ redirect_from:
 ---
 
 > **Last updated:** 2026-04-10  
-> **Related:** [Heap Grooming](/wiki/techniques/heap_grooming/), [Pool Internals](/wiki/kernel/pool_internals/), [Heap Internals](/wiki/usermode/heap_internals/), [Type Confusion](/wiki/techniques/type_confusion/), [Cve 2024 26230](/wiki/cves/CVE-2024-26230/), [Cve 2025 29824](/wiki/cves/CVE-2025-29824/)  
+> **Related:** [Heap Grooming](/wiki/techniques/heap_grooming/), [Pool Internals](/wiki/kernel/pool_internals/), [Heap Internals](/wiki/usermode/heap_internals/), [Type Confusion](/wiki/techniques/type_confusion/), [Cve 2024 26230](/wiki/cves/CVE-2024-26230/), [Cve 2025 29824](/wiki/cves/CVE-2025-29824/), [CVE-2025-21297 (RD Gateway race UAF)](/wiki/cves/CVE-2025-21297/), [CVE-2024-38148 (Schannel UAF)](/wiki/cves/CVE-2024-38148/)  
 > **Tags:** `uaf`, `user-mode`, `kernel-mode`, `rpc`
 
 ## Summary

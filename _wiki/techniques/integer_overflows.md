@@ -12,7 +12,7 @@ redirect_from:
 ---
 
 > **Last updated:** 2026-04-10  
-> **Related:** [Heap Grooming](/wiki/techniques/heap_grooming/), [Pool Internals](/wiki/kernel/pool_internals/), [Cve 2020 1350](/wiki/cves/CVE-2020-1350/), [Cve 2024 38063](/wiki/cves/CVE-2024-38063/), [Cve 2021 24086](/wiki/cves/CVE-2021-24086/), [Tcpip Stack](/wiki/kernel/tcpip_stack/)  
+> **Related:** [Heap Grooming](/wiki/techniques/heap_grooming/), [Pool Internals](/wiki/kernel/pool_internals/), [Cve 2020 1350](/wiki/cves/CVE-2020-1350/), [Cve 2024 38063](/wiki/cves/CVE-2024-38063/), [Cve 2021 24086](/wiki/cves/CVE-2021-24086/), [CVE-2024-29050 (CryptoAPI ASN.1)](/wiki/cves/CVE-2024-29050/), [CVE-2023-36728 (SQL Server underflow)](/wiki/cves/CVE-2023-36728/), [Compiler & UB Pitfalls](/wiki/concepts/compiler-introduced-bugs/), [Tcpip Stack](/wiki/kernel/tcpip_stack/)  
 > **Tags:** `integer-overflow`, `user-mode`, `kernel-mode`
 
 ## Summary

@@ -88,7 +88,7 @@ redirect_from:
   <div class="wiki-grid">
     <div class="wiki-card">
       <h3><a href="/wiki/concepts/">Concepts</a></h3>
-      <div class="count">99 pages — foundations + AD / cloud / web / mobile / Wi-Fi / networking</div>
+      <div class="count">105 pages — foundations + AD / cloud / web / mobile / Wi-Fi / networking</div>
       <p class="examples">
         <a href="/wiki/concepts/cyber-kill-chain/">kill chain</a> ·
         <a href="/wiki/concepts/mitre-attack/">ATT&amp;CK</a> ·
@@ -124,7 +124,7 @@ redirect_from:
     </div>
     <div class="wiki-card">
       <h3><a href="/wiki/tools/">Tools</a></h3>
-      <div class="count">28 pages — frameworks, debuggers, scanners, C2</div>
+      <div class="count">29 pages — frameworks, debuggers, scanners, C2</div>
       <p class="examples">
         <a href="/wiki/tools/nmap/">nmap</a> ·
         <a href="/wiki/tools/burpsuite/">Burp</a> ·
@@ -154,7 +154,7 @@ redirect_from:
   <div class="wiki-grid">
     <div class="wiki-card">
       <h3><a href="/wiki/cves/">CVEs</a></h3>
-      <div class="count">29 deep-dive write-ups</div>
+      <div class="count">44 deep-dive write-ups</div>
       <p class="examples">
         <a href="/wiki/cves/CVE-2025-29824/">CVE-2025-29824</a> (CLFS UAF) ·
         <a href="/wiki/cves/CVE-2024-38063/">CVE-2024-38063</a> (TCP/IP) ·
