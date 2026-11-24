@@ -3,7 +3,7 @@
 (() => {
   "use strict";
   const error=message=>({ok:false,kind:"error",message});
-  const arity={useSkill:[1,1],swap:[1,1],replaceFainted:[1,1],useDuet:[1,1],useFamilyTechnique:[1,1],
+  const arity={useSkill:[1,1],swap:[1,1],replaceFainted:[1,1],useDuet:[1,1],useTrio:[2,2],useFamilyTechnique:[1,1],
     useEmberTechnique:[0,1],useItem:[1,2],flee:[0,0]};
   const medicines=new Set(["balm","tonic","sparkseed"]);
 
@@ -78,6 +78,7 @@
         case "swap":return "Switch to "+kin(first);
         case "replaceFainted":return "Send in "+kin(first);
         case "useDuet":return scope.duetPair(front.id,first)?.name;
+        case "useTrio":return kin(first)+" · "+(scope.kin(first,{owned:true})?.skills.find(s=>s.id===second)?.name||"Trio");
         case "useFamilyTechnique":return (scope.familyTechnique()?.name||"Pass")+" to "+kin(first);
         case "useEmberTechnique":return scope.emberTechnique()?.name;
         case "flee":return "Call your team back";

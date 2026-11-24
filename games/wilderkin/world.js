@@ -623,6 +623,7 @@
         ][index] || {h:p.tree[1],H:p.tree[4],r:p.roofs[0][1],R:p.roofs[0][3],c:p.roofs[1][1],C:p.roofs[1][3]});
       }
       if(kind==='camper')Object.assign(colors,{h:'#816951',H:'#d8b68a',r:'#4d6e77',R:'#8aa9a6',k:'#735139',c:'#b8966e',C:'#cbae85',p:'#66716a'});
+      if(kind==='iona')Object.assign(colors,{h:'#3a332f',H:'#554039',r:'#9d483c',R:'#d87a53',k:'#372d29',f:'#965e41',F:'#bd865e',c:'#454e72',C:'#7183a0',p:'#464b54'});
       if(kind==='neri')Object.assign(colors,{h:'#335c4c',H:'#83a584',r:'#8e4235',R:'#d87b50',
         k:'#403b37',f:'#8c583e',F:'#bb835a',c:'#a85239',C:'#d88a55',p:'#454d4c'});
       oval(c,p.turf[4],9,21,6,1);
@@ -794,6 +795,7 @@
     regions[0].sites.push(site('lantern-cup',13,8,'Lantern Gate'));
     regions[0].sites.push(site('guard-school',16,6,'Neri Pike'));
     regions[0].sites.push(site('twinbell',9,8,'Twinbell Grounds'));
+    regions[0].sites.push(site('third-beat',17,8,'Three-Bell Landing'));
     regions[1].sites.push(site('switchyard',10,6,'Switchyard tram'));
     regions[1].sites.push(site('guard-school',4,8,'Neri Pike'));
     window.WilderAtlas.regions.slice(3).forEach((meta,j)=>regions.push(expeditionRegion(meta,j+3)));
@@ -1270,6 +1272,20 @@
     if(gate) {
       const x=gate.x*TILE+8,y=gate.y*TILE+8;
       place(map,lanternGate(),x,y);hot(gate,x-14,y-26,x+15,y+1);
+    }
+    const ferry=at('third-beat');
+    if(ferry){
+      const x=ferry.x*TILE+8,y=ferry.y*TILE+8;
+      const bells=sprite('ferry-bells',23,18,c=>{
+        rect(c,'#655038',1,1,2,16);rect(c,'#80623d',20,1,2,16);rect(c,'#967342',1,1,21,2);
+        for(let i=0;i<3;i++){
+          const bx=5+i*6,by=4+i;
+          rect(c,'#624737',bx+1,2,1,by);rect(c,'#ca9345',bx,by+1,3,4);rect(c,'#e5b664',bx-1,by+4,5,2);
+          rect(c,'#725437',bx+1,by+6,1,2);
+        }
+      });
+      place(map,bells,x+7,y-2);place(map,explorer(index,'iona','right'),x-5,y);
+      hot(ferry,x-13,y-21,x+19,y+1);
     }
     const medic=at('guard-school');
     const twinbell=at('twinbell');

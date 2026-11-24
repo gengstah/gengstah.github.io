@@ -227,3 +227,44 @@ test("a field card at Fern's real lodge presents her ordinary campaign gate befo
   assert.ok(a.model().sections.flatMap(s=>s.rows||[]).find(r=>r.id==="accept-trial").disabled);
   assert.equal(a.g.startBattle("warden").ok,false);assert.equal(a.g.state.battle,null);assert.equal(a.g.state.crests.length,0);
 });
+
+test("walk from Mossbrook to Iona, rehearse an opener and take Dewfin’s guard into a campaign battle",async()=>{
+  const a=boot(""),g=a.g,all=()=>a.model().sections.flatMap(s=>s.rows||[]);
+  a.click("walk-kind","third-beat|third-beat");a.walk();
+  assert.equal(a.model().title,"Three-Bell Landing");assert.deepEqual(clone(g.state.positions[0]),{x:17,y:8});
+  const before=a.save();a.click("open-trios");a.click("trio-line","slick-slide");
+  assert.match(a.model().title,/Firebreak.*Slick Slide/);
+  a.click("trio-play","slick-slide");
+  for(const cmd of ["useSkill|leaf-flurry","useDuet|cindlet","useTrio|dewfin|slick-slide"]){
+    assert.equal(a.model().sections[0].rows[0].value,cmd);a.click("rehearse-move",cmd);await tick();
+  }
+  assert.equal(a.model().sections[0].title,"Trio completed");assert.equal(a.save(),before);
+  for(let n=0;a.model().title!=="Practice won"&&n<6;n++){a.click("rehearse-move","useSkill|slick-slide");await tick();}
+  a.click("rehearse-trail");a.click("roster-field");a.click("card-walk");a.walk();
+  a.click("card-battle");a.click("skill","leaf-flurry");await tick();
+  a.click("nav","duets");a.click("duet","cindlet");await tick();
+  const guide=a.model().sections.find(s=>s.title==="Chalkyard · turn 3");
+  assert.equal(guide.rows[0].id,"trio");assert.match(guide.rows[0].detail,/24\/30 HP/);
+  a.click("trio","dewfin|slick-slide");await tick();
+  assert.equal(g.state.battle.activeId,"dewfin");assert.equal(g.team().find(k=>k.id==="dewfin").hp,24);
+  assert.deepEqual(Object.keys(g.state.thirdBeat).sort(),["first","guard"]);
+  a.click("skill","slick-slide");await tick();
+  assert.match(a.model().title,/won/);assert.ok(g.state.wins);
+  assert.ok(all().some(r=>r.id==="nav"&&r.value==="third-beat"));
+  const rec=a.model().sections.find(s=>s.title==="Field card · Opalclasp").rows;
+  assert.match(rec[2].detail,/Dewfin 30 → 24 HP/);assert.match(rec[2].detail,/Practice/);
+  const b=boot("#third-beat",a.save());
+  assert.match(b.model().kicker,/2 OF 3 BELLS/);
+  assert.match(b.model().sections.find(s=>s.title==="The storm bell").rows[0].detail,/6 damage.*24 HP/);
+  assert.equal(b.g.state.thirdBeat.warden,undefined);
+});
+
+test("a saved trio URL reopens its opponent, team and final move without equipping a traveling party",()=>{
+  const url="#chalkyard/trios/0/wild/opalclasp/sprigkit/dewfin+sprigkit+cindlet/cindlet/dewfin/bubble-jet";
+  const a=boot(url);assert.match(a.model().title,/Firebreak.*Bubble Jet/);
+  assert.deepEqual(clone(a.g.state.team),["sprigkit","cindlet","dewfin"]);assert.equal(a.g.state.battle,null);
+  const b=boot(url.replace("opalclasp","unknown"));
+  assert.equal(b.model().title,"Build a Trio");assert.equal(b.g.state.battle,null);
+  const c=boot("#chalkyard/trios/cindlet");
+  assert.equal(c.model().formationStrip.slots[0].name,"Cindlet");assert.equal(c.g.state.lead,"sprigkit");
+});

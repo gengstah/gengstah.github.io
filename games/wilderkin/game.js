@@ -35,15 +35,18 @@
   const score=window.WilderScore.create({context:audioContext});
   const fair=window.WilderCanvasGames.create({game,row,notify,go,render});
   const rentalControls={game,row,image:id=>image(id,false),go,render,notify,playTone,
-    animate:fx=>{if(fx.kind==="duet")score.answer();return ui.animate(fx);}};
+    animate:fx=>{if(fx.kind==="duet"||fx.kind==="trio")score.answer();return ui.animate(fx);}};
   const kitBench=window.WilderKitBench?.create({...rentalControls,image});
   const kitNotes=window.WilderFittingNotes?.create({game,row,image});
   const practice=window.WilderRehearsal?.create({game});
   const duetPlans=practice&&window.WilderChalkyardDuets.create({...rentalControls,image,practice,start:startPractice,openMatchups});
-  const fieldCard=practice&&window.WilderFieldCard.create({...rentalControls,image,locate,travel,fight,review:openTrail});
+  const trios=practice&&window.WilderTrioPlanner?.create({...rentalControls,image,practice,start:startPractice,openMatchups});
+  const trioUI=window.WilderTrioBattle?.create({row,image});
+  const openTrios=trios?options=>trios.open(options):null;
+  const fieldCard=practice&&window.WilderFieldCard.create({...rentalControls,image,locate,travel,fight,review:openTrail,trioUI});
   const roster=practice&&window.WilderTrailRosterDesk.create({...rentalControls,image,locate,onDraft:openMatchups,onField:s=>fieldCard.open(s)});
-  const matchups=practice&&window.WilderTrailMatchups.create({...rentalControls,image,practice,play:startPractice,openTrail,openDuets:options=>duetPlans.open(options)});
-  const yard=practice&&window.WilderPracticeYard.create({...rentalControls,image,practice,start:startPractice,openMatchups,openDuets:options=>duetPlans.open(options)});
+  const matchups=practice&&window.WilderTrailMatchups.create({...rentalControls,image,practice,play:startPractice,openTrail,openTrios,openDuets:options=>duetPlans.open(options)});
+  const yard=practice&&window.WilderPracticeYard.create({...rentalControls,image,practice,start:startPractice,openMatchups,openTrios,openDuets:options=>duetPlans.open(options)});
   const rehearsal=practice&&window.WilderRehearsalRing.create({...rentalControls,image,practice,active:()=>screen.name==="rehearsal-ring",
     onExit:()=>go("practice-yard",lastPractice,"root"),onCompare:openMatchups,onTrail:openTrail});
   let lastPractice=null;
@@ -58,7 +61,8 @@
     if(game.state.battle)return notify("Finish your trail encounter before starting a practice bout.");
     const result=practice.start(options);
     if(!result.ok)return notify(result.message);
-    duetPlans.setGuide(line);lastPractice=yard.tag(practice.read().target);
+    trios?.setGuide(line?.kind==="trio"?line:null);
+    duetPlans.setGuide(line?.kind==="trio"?null:line);lastPractice=yard.tag(practice.read().target);
     playTone("battle");go("rehearsal-ring",null,"root");
   }
   function openTrail(s){
@@ -139,24 +143,45 @@
   const replay=window.WilderSparringReview.create({...rentalControls,read:()=>hall.reviewRecord()});
   const pages=window.WilderPages.create({game,world,dex,row,member,image,go,back,render,notify,locate,root,openFinder,
     fight,playTone,resolveBattle,fieldRecruited,travel,reset,atSite:nearestSite});
-  function playTone(kind="click") {
+  function playTone(kind="click",melody=null) {
     if (!game.state.sound) return;
     try {
       if (!audioContext()) return;
       if (soundCtx.state==="suspended") soundCtx.resume().catch(()=>{});
       const notes={click:[523],battle:[349,466,587],strike:[220,165],care:[440,554,659],reward:[392,494,587,784],step:[330]};
-      (notes[kind]||notes.click).forEach((f,i)=>{
-        const osc=soundCtx.createOscillator(),gain=soundCtx.createGain(),start=soundCtx.currentTime+i*.075;
+      const spacing=melody ? .24 : .075, duration=melody ? .46 : .13;
+      (melody||notes[kind]||notes.click).forEach((f,i)=>{
+        const osc=soundCtx.createOscillator(),gain=soundCtx.createGain(),start=soundCtx.currentTime+i*spacing;
         osc.type="triangle";osc.frequency.value=f;gain.gain.setValueAtTime(.001,start);gain.gain.linearRampToValueAtTime(.065,start+.009);
-        gain.gain.exponentialRampToValueAtTime(.001,start+.13);osc.connect(gain).connect(soundCtx.destination);osc.start(start);osc.stop(start+.14);
+        gain.gain.exponentialRampToValueAtTime(.001,start+duration);osc.connect(gain).connect(soundCtx.destination);osc.start(start);osc.stop(start+duration+.01);
       });
     } catch { /* Audio output is optional. */ }
   }
   function stopWalk(){route=[];arrival=null;}
+  function trioAddress(view){
+    const d=trios.current(),prefix="#chalkyard/trios";
+    if(!d)return prefix;
+    const favorite=d.requestedLead||d.lead;
+    if(d.requestedLead||!d.partner||!d.finisher||!fieldCard.tag(d))return member(favorite)?prefix+"/"+favorite:prefix;
+    const line=typeof view==="string"&&view.startsWith("line:")?view.slice(5):null;
+    return [prefix,fieldCard.tag(d),d.partner,d.finisher,...(line&&game.species[d.finisher].skills.some(s=>s.id===line)?[line]:[])].join("/");
+  }
+  function restoreTrioDraft(parts){
+    if(parts.length===1&&member(parts[0])){trios.reset({lead:parts[0]});return null;}
+    if(parts.length===7||parts.length===8){
+      const draft=fieldCard.decode(parts.slice(0,5)),[partner,finisher,skill]=parts.slice(5);
+      if(draft&&[partner,finisher].every(id=>draft.team.includes(id))&&new Set([draft.lead,partner,finisher]).size===3){
+        trios.reset({...draft,partner,finisher});
+        return game.species[finisher].skills.some(s=>s.id===skill)?"line:"+skill:null;
+      }
+    }
+    trios.reset();return null;
+  }
   function addressRoom(next){
     const loc=window.location;
     const address=next.name==="trail-roster"?fieldCard.hash("roster",roster.current()):next.name==="field-card"?fieldCard.hash("field",fieldCard.current()):
       next.name==="practice-yard"?yard.address(next.value):next.name==="rehearsal-ring"?yard.address(lastPractice):
+      next.name==="third-beat"?"#third-beat":next.name==="trio-planner"?trioAddress(next.value):
       next.name==="yard-duets"?"#chalkyard/duets":next.name==="trail-matchups"?(next.value==="lineup"?"#chalkyard/lineup":"#chalkyard/matchups"):next.name==="partner-finder"?finderAddress:next.name==="duet-practice"?"#duet-practice":
       next.name==="twinbell"?twin.hashFor(next.value):
       next.name==="kit-bench"||next.name==="kit-notes"?fittingAddress(next):
@@ -166,8 +191,8 @@
       screen.name==="rental-counter"&&next.name==="sparring"&&String(next.value).startsWith("scout-practice")?"#scout-practice":
       next.name==="film-room"?"#film-room":next.name==="hall-film"?hallViewer.hash():null;
     if(address!=null){if(loc.hash!==address)window.history.replaceState(null,"",address||loc.pathname+loc.search);}
-    else if(["film-room","hall-film","partner-finder","duet-practice","rental-counter","twinbell","switchyard","switchyard-ring","signal-box","kit-bench","kit-notes","practice-yard","rehearsal-ring","trail-matchups","yard-duets","trail-roster","field-card"].includes(screen.name)&&
-      (loc.hash.startsWith("#chalkyard")||loc.hash.startsWith("#field-fittings")||loc.hash.startsWith("#fitting-notebook")||["#film-room","#partner-finder","#duet-practice","#rental-counter","#twinbell","#twinbell-ring","#switchyard","#switchyard-ring","#signal-box"].includes(loc.hash)||loc.hash.startsWith("#hall-film1=")||loc.hash.startsWith("#rental-v1="))){
+    else if(["film-room","hall-film","partner-finder","duet-practice","rental-counter","twinbell","switchyard","switchyard-ring","signal-box","kit-bench","kit-notes","practice-yard","rehearsal-ring","trail-matchups","yard-duets","trail-roster","field-card","third-beat","trio-planner"].includes(screen.name)&&
+      (loc.hash.startsWith("#chalkyard")||loc.hash==="#third-beat"||loc.hash.startsWith("#field-fittings")||loc.hash.startsWith("#fitting-notebook")||["#film-room","#partner-finder","#duet-practice","#rental-counter","#twinbell","#twinbell-ring","#switchyard","#switchyard-ring","#signal-box"].includes(loc.hash)||loc.hash.startsWith("#hall-film1=")||loc.hash.startsWith("#rental-v1="))){
       if(next.name==="bellpost")post.restoreAddress(next.value);
       else window.history.replaceState(null,"",loc.pathname+loc.search);
     }
@@ -217,6 +242,8 @@
       case "world":model=worldModel();break;
       case "battle":model=battleModel();break;
       case "ember-targets":model=emberTargets();break;
+      case "trios":model=game.state.battle?trioUI.model(game):thirdBeatModel();break;
+      case "third-beat":model=thirdBeatModel();break;
       case "wild-offer":model=wildOffer();break;
       case "replacement":model=replacementModel(replacement);break;
       case "outcome":model=outcomeModel();break;
@@ -242,14 +269,14 @@
         if(fieldCard?.current()&&fieldCard.tag(fieldCard.current()))model.sections.push({title:"On the trail",rows:[row("nav","Open your field card","field-card","Return to the opponent and opening you last reviewed.")]});
         break;
       }
-      case "trail-matchups":case "yard-duets":
+      case "trail-matchups":case "trio-planner":case "yard-duets":
         model=game.state.battle?{title:"The Chalkyard",kicker:"CAMP PRACTICE",subtitle:"Finish your trail encounter to compare openings with this party.",
           sections:[{rows:[row("root","Return to the trail battle",null,"",{tone:"primary"})]}]}:
-          screen.name==="trail-matchups"?matchups.model(screen.value):duetPlans.model(screen.value);
+          screen.name==="trail-matchups"?matchups.model(screen.value):screen.name==="trio-planner"?trios.model(screen.value):duetPlans.model(screen.value);
         break;
       case "rehearsal-ring":{
         model=rehearsal.model(screen.value);
-        const guide=(!screen.value||screen.value==="battle")&&duetPlans.guidance(practice.read());
+        const guide=(!screen.value||screen.value==="battle")&&(trios?.guidance(practice.read())||duetPlans.guidance(practice.read()));
         if(guide)model.sections.unshift(guide);
         break;
       }
@@ -312,6 +339,7 @@
         row("nav","Expedition","expedition","Regional commission",{key:"X"}),
         row("nav","The Missing Beat","chronicle","Finch’s journal",{key:"C"}),
         row("nav","Wildlife nearby","notebook","Follow a Wilderkin’s behavior",{key:"N"}),
+        ...(state.region===0&&trios?[row("walk-kind","Visit Three-Bell Landing","third-beat|third-beat","Meet Iona Rill by the river.")]:[]),
         ...(mentor>=0?[row("walk-site","Meet Neri Pike",mentor,"Learn a field guard with a local kin.")]:[]),
         ...(r.warden?[row("nav","Second Bell exhibition","second-bell","Scout Warden "+r.warden+"’s exhibition team at "+r.lodge+".")]:[]),
         row("nav","Sparring Hall","sparring","Build a trio and battle",{key:"V"}),
@@ -363,6 +391,8 @@
     }
     const actions=[row("nav","Trail duets","duets",duet.beats+" / "+duet.max+" beats",{key:"R",tone:duet.options.some(o=>o.available)?"primary":undefined}),row("nav","Switch kin","switch",escort?"Shell Escort ready · preview protected entries":"Preview each incoming kin’s HP"),
       ...(!b.secondBell?[row("nav","Satchel","bag")]:[]),row("retreat",b.secondBell?"Withdraw from exhibition":"Retreat")];
+    const handoff=trioUI?.entry(game);
+    if(handoff&&handoff.tone!=="primary")actions.push(handoff);
     const pass=game.familyTechnique();
     if(deferredLetter)actions.unshift(deferredButton());
     if(pass)actions.unshift(row("nav",pass.name,"family-pass",pass.reason||"Choose a reserve · 1 beat",{disabled:!pass.available,tone:pass.available?"primary":undefined}));
@@ -391,10 +421,13 @@
     return {kind:"battle",title,kicker:scene().name+"   /   TURN "+b.turn,theme:scene().theme,ally:partyDisplay(p),foe:health,
       subtitle: b.remaining?.length ? (b.remaining.length+1)+" opponents remain" : scene().name,
       log:b.log.slice(b.turn>1?-2:-1).concat(warnings),
-      sections:[...(cardNote?[cardNote]:[]),...(call?[wildCommands(call)]:[]),{title:"Choose a skill",columns:2,rows:skills},{title:"Field commands",columns:3,rows:actions},
+      sections:[...(cardNote?[cardNote]:[]),...(handoff?.tone==="primary"?[{rows:[handoff]}]:[]),...(call?[wildCommands(call)]:[]),{title:"Choose a skill",columns:2,rows:skills},{title:"Field commands",columns:3,rows:actions},
         ...(b.secondBell?[{title:"Published formation · Lv. "+b.secondBell.level,text:b.secondBell.roster.map(id=>spec(id,false).name).join(" → ")}]:[]),
         ...(conditions?[{title:conditions.name,text:conditions.description+(b.weather?" "+b.weather+" skills gain 20% damage.":"")}]:[]),
         ...(tactic?[{title:tactic.title,text:tactic.description+" "+tactic.counter}]:[])]};
+  }
+  function thirdBeatModel(){
+    return window.WilderThirdBeat.model({game,row,image},screen.value);
   }
   function emberTargets() {
     const b=game.state.battle,art=game.emberTechnique?.();
@@ -456,7 +489,7 @@
       sections:[{title:"At the lodge",rows:[row("view","Return to the Second Bell desk","second-bell|"+game.state.region,"See your record at "+scene().lodge+".",{tone:"primary"}),
         row("root","Back to the trail")]}]};
     return {title:outcome.title,kicker:scene().name,subtitle:outcome.message,art:outcome.src?{src:outcome.src,caption:outcome.caption}:undefined,
-      sections:[...(outcome.fieldCard?[outcome.fieldCard]:[]),{rows:[...(outcome.recruited?recruitRows(outcome.recruited):[]),...(deferredLetter?[deferredButton()]:[]),row("root","Back to the trail",null,"",{tone:"primary"}),
+      sections:[...(outcome.fieldCard?[outcome.fieldCard]:[]),...(outcome.thirdBeat?[outcome.thirdBeat]:[]),{rows:[...(outcome.recruited?recruitRows(outcome.recruited):[]),...(deferredLetter?[deferredButton()]:[]),row("root","Back to the trail",null,"",{tone:"primary"}),
         ...(outcome.guardPupil?[row("view","Train with Neri Pike","guard-school|"+outcome.guardPupil,"Read the charged-hit lesson for "+spec(outcome.guardPupil).name+".")]:[]),
         ...(game.team().some(p=>p.hp<p.maxHp)?[row("walk-kind","Walk to camp","camp|camp","Rest the traveling party.")]:[]),
         ...(game.state.bag.broth&&game.team().some(p=>p.hp>0&&p.hp<p.maxHp)?[row("share-broth","Share Trailpot broth",null,game.state.bag.broth+" packed")]:[]),
@@ -497,7 +530,7 @@
       }
       fieldCard?.after(cardTurn,res);
       if (fx) {
-        if (fx.kind==="duet")score.answer();
+        if(fx.kind==="duet"||fx.kind==="trio")score.answer();
         playTone(["heal","item","wild-call"].includes(fx.kind)?"care":"strike");
         await ui.animate({...fx,side:"ally"});
       }
@@ -531,7 +564,7 @@
       const exhibition={victory:"Exhibition won",defeat:"Exhibition lost",escaped:"Exhibition withdrawn"};
       outcome={title:secondBell?(exhibition[res.kind]||"Exhibition complete"):crest?scene().crest+" earned":titles[res.kind]||"Encounter complete",message:res.message,secondBell,crest,expedition:kind==="expedition",
         recruited:res.kind==="recruited"?oldEnemy:null,guardPupil:res.kind==="recruited"&&["opalclasp","cragroll"].includes(oldEnemy)?oldEnemy:null,
-        fieldCard:cardTurn?fieldCard.resultSection():null,fittingEvents:res.fittingEvents,src:crest?world.crestArt(game.state.region,true):res.kind==="recruited"?image(oldEnemy):null,
+        fieldCard:cardTurn?fieldCard.resultSection():null,thirdBeat:b.trioPlayed&&window.WilderThirdBeat?.receipt(game,b.trioPlayed,row),fittingEvents:res.fittingEvents,src:crest?world.crestArt(game.state.region,true):res.kind==="recruited"?image(oldEnemy):null,
         caption:crest?scene().lodge:spec(oldEnemy,false).name};
       playTone(res.kind==="escaped"?"click":"reward");restorePlayer();
       screen={name:"outcome",value:null};history=[];render();
@@ -590,6 +623,7 @@
     if(kind==="sighting") return go("study",site.species);
     if(kind==="lantern-cup")return go("sparring","cup");
     if(kind==="guard-school")return go("guard-school");
+    if(kind==="third-beat")return go("third-beat");
     if(kind==="twinbell")return go("twinbell");
     if(kind==="switchyard")return go("switchyard",switchyard.entry());
     if(game.visitSite(kind)===false&&trailUpdatePending)return;
@@ -672,6 +706,7 @@
       return true;
     }
     if (screen.name==="world" && key==="e") {if (!e.repeat) action("interact");return true;}
+    if (screen.name==="battle"&&key==="t"&&trioUI?.entry(game)){if(!e.repeat)go("trios");return true;}
     if (screen.name==="battle" && key==="r") {if(!e.repeat) go("duets");return true;}
     if(screen.name==="battle" && key==="5"){
       const art=game.emberTechnique?.();
@@ -701,6 +736,12 @@
       return;
     }
     switch (id) {
+      case "ring-trio":{
+        const call=screen.name==="third-beat"&&window.WilderThirdBeat.song(game);
+        if(call){playTone("reward",call.map(p=>p.hz));go("third-beat","song","replace");}return;
+      }
+      case "kin-trio":if(trios&&member(value))trios.open({lead:value});return;
+      case "open-trios":if(trios)trios.open();return;
       case "yard-edit":if(matchups){matchups.reset();go("trail-matchups","lineup");}return;
       case "yard-invite":if(screen.name==="warden"||screen.name==="practice-yard")yard?.invite();return;
       case "yard-kin":if(member(value))openMatchups({anchor:value});return;
@@ -745,6 +786,11 @@
         return resolveBattle(()=>game.useFamilyTechnique(value),{type:spec(value).type,kind:"swap",name:pass.name,
           pass:pass.id,incoming:incomingKin.src,incomingKin});
       }
+      case "trio":{
+        const choice=trioUI?.choice(game,value);
+        if(!choice)return notify("Choose a ready third kin and its move.");
+        return resolveBattle(()=>game.useTrio(choice.id,choice.skillId),trioUI.effect(game,choice));
+      }
       case "duet":{
         const option=game.duets().options.find(o=>o.partnerId===value);
         if(!option?.available)return notify(option?.reason);
@@ -767,6 +813,7 @@
         if(screen.name==="signal-box"&&signals.act(id,value,screen.value))return;
         if(screen.name==="field-card"&&fieldCard.act(id,value))return;
         if(screen.name==="trail-roster"&&roster.act(id,value,screen.value))return;
+        if(screen.name==="trio-planner"&&trios.act(id,value,screen.value))return;
         if(screen.name==="yard-duets"&&duetPlans.act(id,value))return;
         if(screen.name==="practice-yard"&&yard.act(id,value))return;
         if(screen.name==="rehearsal-ring"&&rehearsal.act(id,value,screen.value))return;
@@ -786,7 +833,7 @@
   }
   function deferredButton(){
     const label={"scout-table":"Read your Scout Table letter","film-room":"Open the Film Room","hall-film":"Watch your Hall film",
-      "partner-finder":"Open Partner Finder","duet-practice":"Return to duet practice","rental-counter":"Open the rental team","twinbell":"Visit Twinbell Grounds","switchyard":"Visit the Switchyard Cup","switchyard-ring":"Resume your Cup game","signal-box":"Visit the Signal Box","kit-bench":"Open the field fittings bench","kit-notes":"Read Pella’s notebook","practice-yard":"Enter the Chalkyard","trail-matchups":"Compare team openings","yard-duets":"Plan a duet at the Chalkyard","trail-roster":"Review your Chalkyard lineup","field-card":"Open your field card"};
+      "partner-finder":"Open Partner Finder","duet-practice":"Return to duet practice","rental-counter":"Open the rental team","twinbell":"Visit Twinbell Grounds","switchyard":"Visit the Switchyard Cup","switchyard-ring":"Resume your Cup game","signal-box":"Visit the Signal Box","kit-bench":"Open the field fittings bench","kit-notes":"Read Pella’s notebook","practice-yard":"Enter the Chalkyard","trail-matchups":"Compare team openings","yard-duets":"Plan a duet at the Chalkyard","trail-roster":"Review your Chalkyard lineup","field-card":"Open your field card","third-beat":"Meet Iona Rill","trio-planner":"Build a trio"};
     return row("nav",label[deferredLetter.name]||"Read your Bellpost letter",deferredLetter.name,"This encounter will remain here.");
   }
   function deliverScreen(dest){
@@ -799,7 +846,11 @@
   }
   function sharedScreen(hash) {
     const fields=hash.split("/");
+    if(fields[0]==="#third-beat"&&fields.length===1&&trios)return deliverScreen({name:"third-beat",value:null});
     if(yard&&fields[0]==="#chalkyard"){
+      if(fields[1]==="trios"&&trios){
+        return deliverScreen({name:"trio-planner",value:restoreTrioDraft(fields.slice(2))});
+      }
       if(fields[1]==="roster"||fields[1]==="field"){
         const s=fieldCard.decode(fields.slice(2));
         if(!s){
@@ -966,6 +1017,11 @@
     const place=screen.name;
     restorePlayer(false);outcome=null;fieldCard?.restore();
     if(game.state.battle)go("battle",null,"root");
+    else if(place==="trio-planner"){
+      const draft=trios.current();trios.reset(draft&&fieldCard.tag(draft)?draft:{});
+      go("trio-planner",null,"root");
+    }
+    else if(place==="third-beat")go("third-beat",null,"root");
     else if(place==="trail-roster"){
       const draft=roster.current();
       go(fieldCard.tag(draft)&&roster.restore(draft)?"trail-roster":"practice-yard",null,"root");

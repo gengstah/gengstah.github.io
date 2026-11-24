@@ -720,6 +720,16 @@
         const p=leads[side],sign=side==="ally"?1:-1,point=points[side];
         ellipse(c,point.x,point.y+tile*.46,tile*.32,Math.max(2,tile*.047),"#324d3438");
         if(handoff&&active.side===side){
+          if(active.kind==="trio"){
+            const beat=reduced.matches?.56:elapsed;
+            const along=clamp(beat/.55,0,1),fade=clamp((1-beat)/.25,0,1);
+            // The two callers leave room for the third kin to come through.
+            // Keep all three silhouettes legible in the reduced-motion pose.
+            fighterImage({src:active.source},side,point.x-sign*tile*.59,point.y-tile*.13,tile*.56,fade);
+            fighterImage({src:active.partner},side,point.x+sign*tile*.04,point.y-tile*.20,tile*.52,fade);
+            fighterImage(handoff,side,point.x+sign*tile*(.57*along-.19),point.y+tile*.15,tile*.76,Math.min(1,.22+along));
+            continue;
+          }
           const leave=reduced.matches?1:clamp((elapsed-.08)/.43,0,1);
           const enter=reduced.matches?1:clamp((elapsed-.29)/.40,0,1);
           if(leave<1)fighterImage(p,side,point.x-sign*tile*.32*leave,point.y,tile*(1-.12*leave),1-leave);
@@ -755,7 +765,20 @@
         impact({...active,type:active.partnerType,kind:"attack"},elapsed,{...points,[side]:{x:xx,y:yy}},tile*.77);
       }
       if(active){
-        impact(active,elapsed,points,tile);
+        if(active.kind==="trio"){
+          const pos=points[active.side],sign=active.side==="ally"?1:-1;
+          const trail=[[-.59,-.13],[.04,-.20],[.38,.15]].map(([x,y])=>({x:pos.x+sign*tile*x,y:pos.y+tile*y}));
+          const beat=reduced.matches?.65:elapsed;
+          for(let i=0;i<2;i++){
+            const from=trail[i],to=trail[i+1],f=clamp(beat*6-i,0,1);
+            if(f>0&&beat<.74){
+              const xx=from.x+(to.x-from.x)*f,yy=from.y+(to.y-from.y)*f-tile*.17;
+              star(c,xx,yy,4,C.gold);
+            }
+          }
+          if(beat>=.43)impact({...active,handoff:null,kind:active.role==="heal"?"heal":active.role==="guard"?"guard":"attack"},
+            clamp((beat-.43)/.57,0,1),{...points,[active.side]:trail[2]},tile*.85);
+        }else impact(active,elapsed,points,tile);
         if(active.name){
           c.font=getFont(12,"body",650);
           const caption=active.kind==="wild-call" && active.target?active.name+" → "+active.target:active.name;
@@ -949,13 +972,15 @@
       if(fx)return fx.promise;
       const kind=effect.kind||"attack",speed=window.WilderGame?.state.animationSpeed||1;
       const side=effect.side==="foe"?"foe":"ally",view=model,portrait=effect.incoming||effect.incomingKin?.src;
-      const passing=(kind==="swap"||kind==="wild-call")&&(effect.pass==="beacon"||effect.pass==="slipstream"||effect.pass==="field-swap")&&portrait&&model.kind==="battle";
-      const duration=reduced.matches?(passing||kind==="learn"||kind==="fitting"?190:95):(passing?640:({heal:610,capture:820,defeat:460,swap:350,item:600,fitting:540,duet:850,learn:760}[kind]||550))/speed;
+      const trio=kind==="trio"&&effect.source&&effect.partner;
+      const passing=(trio||(kind==="swap"||kind==="wild-call")&&["beacon","slipstream","field-swap"].includes(effect.pass))&&portrait&&model.kind==="battle";
+      const duration=reduced.matches?(passing||kind==="learn"||kind==="fitting"?190:95):(trio?900:passing?640:({heal:610,capture:820,defeat:460,swap:350,item:600,fitting:540,duet:850,learn:760}[kind]||550))/speed;
       let resolve;
       const promise=new Promise(done=>{resolve=done;});
       const token={...effect,kind,side,duration,started:performance.now(),promise};
       if(passing){
         source(portrait);
+        if(trio){source(effect.source);source(effect.partner);}
         token.handoffView=view;
         token.handoff={...(effect.incomingKin||passedLeads[side]||model[side]),flip:effect.incomingKin?.flip,src:portrait};
       }

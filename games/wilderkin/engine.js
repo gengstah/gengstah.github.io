@@ -126,7 +126,7 @@
       team: starters.slice(), visited: [0], quests: {}, clears: {}, rests: 0,
       sound: true, wins: 0, bag:{reed:5,sap:5,ore:2,kinweave:4,balm:3,tonic:1,sparkseed:1,broth:0},reports:[],
       surveys:{},localWins:{},licenses:[],passes:[],crafted:{},landmark:null,forageReady:true,wardenLessons:[],relayClears:[],trainedGuards:[],bellMarks:{},
-      trailFittings:fittings?.empty()||{claimed:[],gear:{}},fittingNotes:{},
+      trailFittings:fittings?.empty()||{claimed:[],gear:{}},fittingNotes:{},thirdBeat:{},
       stillwake:window.WilderStillwake?.restore(null)||{},
       story:story.restore(null),refit:0,animationSpeed:1,music:1,growth:growth?.restore(null)||{},
       fieldwork:field?.restore(null)||{},caravan:window.WilderCaravans?.restore(null,[])||{},
@@ -226,6 +226,7 @@
       || !saved.party.every(p => validFighter(p) && integer(p.xp, 0, xpNeeded(p.level) - 1))
       || unique(saved.party.map(p => p.id)).length !== saved.party.length) return null;
     fresh.party = saved.party;
+    fresh.thirdBeat=window.WilderThirdBeat?.restore(saved.thirdBeat,{species,regions,party:fresh.party})||{};
     if (Array.isArray(saved.trainedGuards)) {
       fresh.trainedGuards=[...new Set(saved.trainedGuards)].filter(id=>enrolled(id,fresh.party)&&guardSchool?.forKin(id));
     }
@@ -360,6 +361,7 @@
       if(Array.isArray(battle.reserveHp)&&battle.reserveHp.length===rest.length){
         fresh.battle.reserveHp=rest.map((id,i)=>integer(battle.reserveHp[i],1,hpAt(id,battle.enemy.level))?battle.reserveHp[i]:hpAt(id,battle.enemy.level));
       }
+      if(resumed&&!exhibition)restoreTrio(fresh,battle,opponentPool);
     }
     if (exhibition && !fresh.battle) restoreBellHp(fresh,battle.secondBell?.entryHp);
     // A resting team can return to the lodge with exactly the zero HP it brought to an exhibition.
@@ -728,6 +730,8 @@
 
   function winBattle(message) {
     delete state.battle.pendingFallen;
+    delete state.battle.trioWindow;
+    settleTrio(state.battle);
     const response=applyCoaching(true);
     if(response?.message)message+=" "+response.message;
     const {kind,activeId,enemy,remaining,commissioned,bonus}=state.battle;
@@ -754,6 +758,7 @@
       state.battle=null;
       return result("victory",message+" The bout is yours.");
     }
+    if(kind==="warden"&&state.battle.trioPlayed)window.WilderThirdBeat?.win(state,state.battle.trioPlayed);
     const fieldHp=Object.fromEntries(team().map(p=>[p.id,p.hp]));
     const xp = kind==="warden" ? Math.ceil(xpNeeded(enemy.level)*.85) : Math.ceil(xpNeeded(enemy.level)*(kind==="expedition" ? .18 : .12));
     const levels=[];
@@ -858,9 +863,10 @@
     battle.activeId=id;
   }
 
-  function counterattack(firstMessage, guardFactor=1, lesson=null) {
+  function counterattack(firstMessage, guardFactor=1, lesson=null, pair=null) {
     const battle = state.battle;
     delete battle.pendingFallen;
+    delete battle.trioWindow;
     const { enemy } = battle;
     const enemySpecies = species[enemy.id];
     const active = member(battle.activeId);
@@ -901,6 +907,7 @@
       }
     }
     const response=applyCoaching(false,lesson?.learned && lesson.id==="pincer");
+    settleTrio(battle,intent,dealt);
     if(battle.emberBrace && battle.emberBrace!==battle.activeId)delete battle.emberBrace;
     if(response?.message)reply+=(reply?" ":"")+response.message;
     if (active.hp === 0) {
@@ -927,6 +934,10 @@
       } else reply+=ownedKin(next.id).name+" stepped in.";
     }
     battle.turn++;
+    if(pair&&active.hp>0&&battle.activeId===active.id&&battle.enemy===enemy&&
+        trioBattle(battle)&&!battle.trioUsed&&team().some(p=>p.hp>0&&p.id!==pair.source&&p.id!==pair.partner)){
+      battle.trioWindow={...pair,foe:enemy.id,turn:battle.turn};
+    }
     battle.log = [...battle.log, firstMessage, reply].slice(-8);
     const outcome=commit("turn", firstMessage + " " + reply);
     if (learnedGuard) outcome.learnedGuard=learnedGuard;
@@ -968,10 +979,10 @@
     if(!state.battle?.coach)return null;
     return coaches.respond({state,region:regions[state.region],dex,species,member,team,rotate:rotateFoe,knockedOut,pincer});
   }
-  function earnBeat(part) {
+  function earnBeat(part,award=true) {
     const b=state.battle;
     if(b.coach)b.coach.action=part;
-    if (part!==b.lastPart) b.beats=Math.min(3,b.beats+1);
+    if (award&&part!==b.lastPart) b.beats=Math.min(3,b.beats+1);
     b.lastPart=part;
   }
 
@@ -1053,7 +1064,96 @@
     if (option.healLead||option.healPartner) message+=" Restored "+option.healLead+" / "+option.healPartner+" HP.";
     if (option.opens) message+=" The foe is exposed!";
     if (option.switchLead) message+=" "+ownedKin(partnerId).name+" takes the lead.";
-    return b.enemy.hp===0?winBattle(message):counterattack(message,option.counter);
+    return b.enemy.hp===0?winBattle(message):counterattack(message,option.counter,null,{source:lead.id,partner:partnerId});
+  }
+
+  function trioBattle(b) {
+    return b&&!usingLoaners&&!b.secondBell&&["wild","expedition","warden"].includes(b.kind);
+  }
+  function restoreTrio(s,raw,foes) {
+    const b=s.battle,played=raw.trioPlayed,w=raw.trioWindow;
+    const owned=id=>typeof id==="string"&&s.team.includes(id);
+    const fighter=id=>s.party.find(p=>p.id===id);
+    if(raw.trioUsed===true&&b.turn>=3){
+      b.trioUsed=true;
+      if(!played)return;
+      const {source,partner,third,skill,role,foe,region,kind,turn,charged,damageTaken,hpAfter}=played;
+      const validFoe=kind==="wild"?foe===b.enemy.id:kind==="warden"?wardenRoster(s.region).includes(foe):foes.includes(foe);
+      if(![source,partner,third].every(owned)||new Set([source,partner,third]).size!==3||kind!==b.kind||region!==s.region||
+        !validFoe||!integer(turn,2,b.turn-1)||typeof charged!=="boolean")return;
+      const max=fighter(third).maxHp;
+      if(!species[third].skills.some(k=>k.id===skill&&k.kind===role)||!integer(damageTaken,0,max)||!integer(hpAfter,0,max)||
+          damageTaken+hpAfter>max||(charged&&(!damageTaken||!hpAfter)))return;
+      b.trioPlayed={source,partner,third,skill,role,foe,region,kind,turn,charged,damageTaken,hpAfter};
+      return;
+    }
+    if(!w||raw.trioUsed||b.turn<2||w.turn!==b.turn||w.foe!==b.enemy.id||b.pendingFallen||b.wildCall?.answered||
+        b.lastAttack!==null||b.lastPart!==null||w.source===w.partner||![w.source,w.partner].every(id=>owned(id)&&fighter(id).hp>0))return;
+    const score=window.WilderDuets&&duetPair(w.source,w.partner);
+    if(!score||b.activeId!==(score.role==="relay"?w.partner:w.source)||b.beats>3-score.cost||
+        !s.team.some(id=>id!==w.source&&id!==w.partner&&fighter(id).hp>0))return;
+    b.trioWindow={source:w.source,partner:w.partner,foe:w.foe,turn:b.turn};
+  }
+
+  function opportunity() {
+    const b=state.battle,w=b?.trioWindow;
+    if(!w||!trioBattle(b)||b.trioUsed||w.turn!==b.turn||w.foe!==b.enemy.id||b.pendingFallen||b.wildCall?.answered)return null;
+    return w;
+  }
+  function useTrio(id,skillId) {
+    const b=state.battle,w=opportunity();
+    if(!w)return error("A surviving duet can hand its next turn to a third companion.");
+    if(!state.team.includes(id)||id===w.source||id===w.partner||!member(id)?.hp)return error("Choose a conscious teammate outside the duet.");
+    const active=member(id),k=ownedKin(id),skill=k.skills.find(s=>!s.trained&&s.id===skillId);
+    if(!skill)return error("Choose the incoming companion’s own strike, guard or healing skill.");
+    const plan=forecastOrdinaryFor(active,skillId);
+    if(!plan.available)return error(plan.reason);
+    changeFront(b,id);
+    b.trioUsed=true;
+    b.trioPlayed={source:w.source,partner:w.partner,third:id,skill:skillId,role:skill.kind,foe:b.enemy.id,region:state.region,kind:b.kind,
+      turn:b.turn,charged:false,damageTaken:0,hpAfter:active.hp};
+    delete b.trioWindow;
+    return ordinaryTurn(active,plan,k.name+" took the trio handoff. ");
+  }
+  function settleTrio(b,intent=null,damageTaken=0) {
+    const move=b.trioPlayed;
+    if(!move||move.turn!==b.turn)return;
+    move.damageTaken=damageTaken;move.hpAfter=member(move.third).hp;
+    move.charged=!!intent?.charged&&damageTaken>0&&move.hpAfter>0;
+    if(!rehearsal&&trioBattle(b))window.WilderThirdBeat?.record(state,{...move});
+  }
+  function trio() {
+    const w=opportunity();
+    if(!w)return null;
+    const b=state.battle,opponents=[b.enemy.id,...b.remaining];
+    const mirror=createInstance(JSON.parse(teamSnapshot(state.team,state.lead,opponents,state.region,b)));
+    const reset=mirror.checkpoint(),options=[];
+    for(const p of team()){
+      if(!p.hp||p.id===w.source||p.id===w.partner)continue;
+      const kin=ownedKin(p.id);
+      for(const s of kin.skills.filter(s=>!s.trained)){
+        const plan=forecastOrdinaryFor(p,s.id),foe=mirror.state.battle.enemy;
+        let hpAfter=p.hp,activeAfter=b.activeId,foeAfter=foe.id,beatsAfter=b.beats,fittingEvents=[],outcome=null;
+        if(plan.available){
+          const actual=mirror.useTrio(p.id,s.id),next=mirror.state.battle;
+          hpAfter=mirror.team().find(k=>k.id===p.id).hp;
+          activeAfter=next?.activeId||null;foeAfter=next?.enemy.id||null;beatsAfter=next?.beats??b.beats;
+          fittingEvents=actual.fittingEvents||[];outcome=actual.kind;
+        }
+        const detail=[s.kind==="heal"?"Recover "+plan.healing+" HP":"Deal "+plan.damage+" damage",
+          plan.finishes?"foe falls before its reply":"take "+plan.returnDamage+" in reply",
+          kin.name+" ends at "+hpAfter+"/"+p.maxHp+" HP"];
+        const foeHeal=foe.hp-(b.enemy.hp-plan.damage);
+        if(foeHeal>0)detail.push(species[foe.id].name+" recovers "+foeHeal+" HP");
+        if(activeAfter&&activeAfter!==p.id)detail.push(ownedKin(activeAfter).name+" takes the lead");
+        if(foeAfter&&foeAfter!==foe.id)detail.push(species[foeAfter].name+" takes the opposing lead");
+        options.push({id:p.id,kinName:kin.name,skill:s.id,name:s.name,role:s.kind,type:s.type,available:plan.available,reason:plan.reason,
+          detail:plan.reason||detail.join(" · "),damage:plan.damage,healing:plan.healing,returnDamage:plan.returnDamage,hpAfter,maxHp:p.maxHp,
+          foeHpAfter:foe.hp,finishes:plan.finishes,beatsAfter,fittingEvents,activeAfter,foeAfter,outcome});
+        reset();
+      }
+    }
+    return {source:w.source,partner:w.partner,duet:duetPair(w.source,w.partner).name,turn:b.turn,cost:0,options};
   }
 
   function skillPreview(id) {
@@ -1274,6 +1374,11 @@
       return special?trainedTurn(special,active):error("Choose a skill your active companion knows.");
     }
     if(!plan.available)return error(plan.reason);
+    return ordinaryTurn(active,plan);
+  }
+
+  function ordinaryTurn(active,plan,entry="") {
+    const battle=state.battle,enemy=battle.enemy,user=ownedKin(active.id),id=plan.skill.id;
     const {skill,damage:hit,healing}=plan;
     if (skill.kind==="feint") {
       earnBeat("strike");
@@ -1281,14 +1386,13 @@
       return counterattack(user.name + " held back, dealing " + hit + " damage.");
     }
     if (skill.kind === "heal") {
-      earnBeat("care");
+      earnBeat("care",!entry);
       active.hp += healing;
       if(!usingLoaners&&!battle.secondBell&&state.growth.dewfin&&active.id==="dewfin"&&id==="dew-bath")state.growth.dewfin.demonstrated=true;
-      return counterattack(user.name + " used " + skill.name + " and recovered " + healing + " HP.");
+      return counterattack(entry+user.name + " used " + skill.name + " and recovered " + healing + " HP.");
     }
-    const enemy = battle.enemy;
-    earnBeat(skill.kind==="guard"?"guard":"strike");
-    let message=strikeMessage(user.name,plan);
+    earnBeat(skill.kind==="guard"?"guard":"strike",!entry);
+    let message=entry+strikeMessage(user.name,plan);
     const lesson=skill.kind==="guard" ? guardTraining(active.id) : null;
     if (lesson?.learned && lesson.id==="shell" && !battle.shellGuard) {
       battle.shellGuard=active.id;
@@ -1471,6 +1575,7 @@
     }
     delete b.pendingFallen;
     b.wildCall.answered=answer;
+    delete b.trioWindow;
     b.turn++;
     const action=ownedKin(actor).name+" used "+option.name+" on "+call.target+".";
     b.log=[...b.log,action,call.response].slice(-8);
@@ -1853,24 +1958,27 @@
   function rehearsalTeam(ids,lead,opponents,region) {
     if(!Array.isArray(ids)||!integer(ids.length,1,6)||unique(ids).length!==ids.length||
         !ids.every(id=>member(id))||!ids.includes(lead)||!Array.isArray(opponents)||!validRegion(region))return null;
+    const snapshot=teamSnapshot(ids,lead,opponents,region);
+    return ()=>createInstance(JSON.parse(snapshot));
+  }
+  function teamSnapshot(ids,lead,opponents,region,battle=null) {
     const relevant=new Set([...ids,...opponents]);
-    const party=state.party.filter(p=>relevant.has(p.id)).map(p=>({...p,hp:ids.includes(p.id)?p.maxHp:p.hp}));
-    const snapshot=JSON.stringify({
-      version:state.version,region,party,team:ids,lead,battle:null,landmark:null,
+    const party=state.party.filter(p=>relevant.has(p.id)).map(p=>({...p,hp:!battle&&ids.includes(p.id)?p.maxHp:p.hp}));
+    return JSON.stringify({
+      version:state.version,region,party,team:ids,lead,battle,landmark:null,
       seen:state.seen.filter(id=>relevant.has(id)),growth:state.growth,trainedGuards:state.trainedGuards.filter(id=>relevant.has(id)),
       bag:state.bag,crests:state.crests,visited:state.visited,met:state.met,wardenLessons:state.wardenLessons,
       wins:state.wins,localWins:{},trailFittings:{claimed:state.trailFittings.claimed,
         gear:Object.fromEntries(Object.entries(state.trailFittings.gear).filter(([id])=>ids.includes(id)))},fittingNotes:{},
       sound:state.sound,music:state.music,animationSpeed:state.animationSpeed
     });
-    return ()=>createInstance(JSON.parse(snapshot));
   }
 
   if(rehearsal)return {
     get state(){return state;},
     species,regions,pools,items,kin,team,loaner:makeMember,duetPair,growthInfo,guardTraining,
     startBattle,foeIntent,wardenForecast,wardenLesson,skillPreview,ordinaryForecast,duets,switchForecast,
-    replacements,familyTechnique,emberTechnique,itemForecast,trailFittings,
+    replacements,familyTechnique,emberTechnique,itemForecast,trailFittings,trio,useTrio,
     useSkill,swap,replaceFainted,useDuet,useFamilyTechnique,useEmberTechnique,useItem,flee,
     incomingForecast(id=state.battle?.activeId){
       const p=member(id),intent=foeIntent();
@@ -1885,7 +1993,7 @@
     }
   };
   return {
-    rehearsalTeam,wardenRoster,
+    rehearsalTeam,wardenRoster,trio,useTrio,
     trailSaveIsCurrent,trailFittings,claimFittings,equipFitting,trailFittingPreview,
     firstOuting:window.WilderOpening?.create({state:()=>state,commit,setLead,sightings:()=>field?.sightings(state.region)||[]}),
     wardenLesson,wardenForecast,guardTraining,guardPractice,switchForecast,ordinaryForecast,emberTechnique,useEmberTechnique,replacements,replaceFainted,

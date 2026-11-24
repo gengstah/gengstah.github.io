@@ -10,6 +10,7 @@
     const desk=()=>onExit?onExit():go("practice-yard");
     const back=()=>link("Back to the ring","battle");
     const warn=msg=>{if(msg)notify(msg);};
+    const trios=window.WilderTrioBattle?.create({row,image});
     const suffix=(events,forecast=false)=>(events||[]).map(e=>forecast?(e.preview||e.text):e.text).filter(Boolean).join(" ");
     const missing=()=>({title:"The practice ring",kicker:"CAMPAIGN PRACTICE",sections:[group("At the gate",[
       btn("desk","Choose an opponent",null,"Take your traveling party into a friendly battle.",{tone:"primary"})])]});
@@ -51,7 +52,7 @@
       const team=g.team().map(p=>profile(p,true)),replacements=g.replacements();
       const ally=team.find(p=>p.id===(replacements?.fallen||b.activeId)),foe=profile(b.enemy,false);
       const intent=g.foeIntent(),tactic=g.wardenForecast(),duet=g.duets();
-      return {g,b,r,turn:b.turn,team,ally,foe,intent,tactic,duet,replacements,opponent:heading(r),theme:g.regions[r.setup.region].theme};
+      return {g,b,r,turn:b.turn,team,ally,foe,intent,tactic,duet,trio:trios?g.trio?.():null,replacements,opponent:heading(r),theme:g.regions[r.setup.region].theme};
     }
     const move=(method,args,label,kind,detail,f={},extra={})=>({id:[method,...args].join("|"),method,args,label,kind,
       available:f.available!==false,detail:f.reason||[detail,suffix(f.fittingEvents,true)].filter(Boolean).join(" "),...extra});
@@ -91,7 +92,9 @@
             "Restore "+f.gain+" HP · "+f.activeName+" takes "+f.returnDamage+" in reply",f,{badge:n+" packed",targetId:p.id}));
         }
       }
-      return {skills,duets,switches,tactics,medicine};
+      const trioMoves=(trios?.choices(g,v.trio)||[]).map(o=>move("useTrio",[o.id,o.skillId],o.label,"trio",o.detail,o,
+        {targetId:o.id,type:o.type,image:o.image,trioChoice:o}));
+      return {skills,duets,switches,tactics,medicine,trios:trioMoves};
     }
     const action=m=>btn("move",m.label,m.id,m.detail,{disabled:!m.available,key:m.key,image:m.image,badge:m.badge,
       tone:m.available&&m.kind==="attack"?"primary":undefined});
@@ -109,9 +112,12 @@
         link("Switch kin","switches","See the damage on entry.",{key:"S"})];
       if(opts.tactics?.length)support.push(link("Partner techniques","tactics"));
       if(opts.medicine?.length)support.push(link("Practice satchel","medicine","Use a copy of your packed supplies.",{key:"M"}));
+      const trioEntry=trios?.entry(v.g,"practice",v.trio);
+      if(trioEntry&&!v.trio)support.push(trioEntry);
       const more=[link("Party and fittings","team"),...(tape.length?[link("Review turns","log")]:[]),link("Leave the ring","exit")];
       const sections=opts.replacement?[group("Free replacement",opts.replacement.map(action),2),group("Practice ring",more,2)]:
         [group("Choose a skill",opts.skills.map(action),2),group("Field commands",support,2),group("Practice ring",more,2)];
+      if(v.trio&&trioEntry&&!opts.replacement)sections.unshift(group("Duet follow-up",[trioEntry]));
       const title=opts.replacement?"Choose the next kin":"Facing "+v.opponent;
       const last=tape.at(-1),logs=[intentLine(v)];
       if(v.duet.opening)logs.push(v.foe.name+" is exposed.");
@@ -187,6 +193,7 @@
       if(r.phase==="done")return finished(r);
       const v=view(r),opts=choices(v);
       if(screen==="team")return partyPanel(v);
+      if(screen==="trios"&&trios&&!opts.replacement)return trios.model(v.g,"practice",v.trio);
       if(screen==="exit")return {title:"Leave this rehearsal?",kicker:"PRACTICE YARD",subtitle:"The next rehearsal will start at its opening turn.",
         sections:[group("Practice ring",[link("Keep battling","battle","Return to turn "+v.turn+".",{tone:"primary"}),btn("leave","Leave this rehearsal")])]};
       if(Object.hasOwn(panels,screen)&&!opts.replacement)return panel(v,opts,screen);
@@ -199,6 +206,7 @@
       const v=view(r),opts=choices(v),m=Object.values(opts).flat().find(x=>x.id===command&&x.available);
       if(!m)return;
       // Render the old HP and both sprites even when a duet or a switch was chosen in a submenu.
+      const fx=m.trioChoice?trios.effect(v.g,m.trioChoice):effect(m,v);
       show("battle","replace");busy=true;
       try{
         const res=practice.act(m.method,...m.args);
@@ -209,7 +217,8 @@
           actual:measure(v,m,after,res),effects:suffix(res.fittingEvents)};
         tape.push(step);decisions++;
         const event=after.history.at(-1);
-        if(event&&m.kind!=="replace"&&event.turn===firstDecisions.length+1&&firstDecisions.length<3){
+        if(event&&m.kind!=="replace"&&event.turn===firstDecisions.length+1&&
+          (firstDecisions.length<3||firstDecisions.length===3&&event.method==="useTrio")){
           firstDecisions.push({decision:decisions,turn:{turn:event.turn,activeId:event.activeId,foe:event.foe,method:event.method,args:event.args.slice(),
             label:event.label,actual:[step.actual,step.effects].filter(Boolean).join(" ")}});
         }
@@ -218,7 +227,7 @@
         if(!active())return;
         playTone?.(m.kind==="heal"||m.kind==="medicine"?"care":"strike");
         if(animate){
-          await animate(effect(m,v));
+          await animate(fx);
           for(const e of (res.fittingEvents||[]).filter(e=>e.id!=="last-stitch")){
             if(!active())break;
             await animate({side:"ally",kind:"fitting",item:e.id,name:meta(e.id)?.name||"Fitting"});

@@ -4,7 +4,7 @@
   "use strict";
   const key="wilderkin.field-card.v1";
   const clone=value=>JSON.parse(JSON.stringify(value));
-  function create({game,row,image,go,notify,locate,travel,fight,review}){
+  function create({game,row,image,go,notify,locate,travel,fight,review,trioUI}){
     let plan=null,record=null,bound=null;
     const state=()=>game.state;
     const owner=id=>state().party.find(p=>p.id===id);
@@ -22,7 +22,7 @@
       const suffix=tag(s);
       return "#chalkyard/"+screen+(suffix?"/"+suffix:"");
     }
-    const methods={useSkill:1,swap:1,useDuet:1,useItem:2,useFamilyTechnique:1,useEmberTechnique:null};
+    const methods={useSkill:1,swap:1,useDuet:1,useTrio:2,useItem:2,useFamilyTechnique:1,useEmberTechnique:null};
     const plain=(s,max)=>typeof s==="string"&&s.length>0&&s.length<=max;
     function clean(s){
       if(!valid(s))return null;
@@ -33,11 +33,12 @@
           id:p.id,name:name(p.id,true),level:p.level,hp:p.hp,maxHp:p.maxHp,gear:window.WilderTrailFittings?.byId(p.gear)?.id||null}));
       if(members.length!==s.team.length||new Set(members.map(p=>p.id)).size!==members.length)return base;
       const turns=[];
-      for(const e of Array.isArray(t.turns)?t.turns.slice(0,3):[]){
-        if(!e||e.turn!==turns.length+1||!s.team.includes(e.activeId)||!opponentInCard(s,e.foe)||
+      for(const e of Array.isArray(t.turns)?t.turns.slice(0,4):[]){
+        if(!e||turns.length===3&&e.method!=="useTrio"||e.turn!==turns.length+1||!s.team.includes(e.activeId)||!opponentInCard(s,e.foe)||
           !Object.hasOwn(methods,e.method)||!Array.isArray(e.args)||e.args.length>2||!e.args.every(a=>plain(a,64))||
           (methods[e.method]!==null&&e.args.length!==methods[e.method])||!plain(e.label,160)||!plain(e.actual,1400))break;
         if(e.method==="useEmberTechnique"&&(e.args.length>1||e.args.length&&!s.team.includes(e.args[0])))break;
+        if(e.method==="useTrio"&&(!s.team.includes(e.args[0])||!game.species[e.args[0]].skills.some(k=>k.id===e.args[1])))break;
         if(e.method==="useItem"&&(!["balm","tonic","sparkseed"].includes(e.args[0])||!s.team.includes(e.args[1])))break;
         if(["swap","useDuet","useFamilyTechnique"].includes(e.method)&&!s.team.includes(e.args[0]))break;
         turns.push({turn:e.turn,activeId:e.activeId,foe:e.foe,method:e.method,args:e.args.slice(),label:e.label,actual:e.actual});
@@ -80,7 +81,7 @@
       plan=clean(saved.plan);bound=null;
       const r=saved.record;
       const knownResult=["victory","defeat","recruited","escaped"].includes(r?.result);
-      record=r&&(typeof r.signature==="string"||knownResult)&&Array.isArray(r.turns)&&r.turns.length<=3&&r.turns.every(t=>
+      record=r&&(typeof r.signature==="string"||knownResult)&&Array.isArray(r.turns)&&r.turns.length<=(plan.tested?.turns?.[3]?.method==="useTrio"?4:3)&&r.turns.every(t=>
         t&&Number.isInteger(t.turn)&&t.turn>0&&plain(t.label,160)&&plain(t.actual,1400)&&(!t.practice||plain(t.practice,1800)))?
         {signature:r.signature,result:knownResult?r.result:null,turns:clone(r.turns)}:null;
       const b=state().battle;
@@ -147,6 +148,10 @@
         f=game.skillPreview(a)||game.ordinaryForecast(a);
         if(f)button=row("skill",note.label,a);
         if(f)detail=f.reason||f.detail||(f.skill?.kind==="heal"?"Recover "+f.healing+" HP":"Deal "+f.damage+" damage")+(f.finishes?" · KO before reply":" · take "+f.returnDamage+" HP");
+      }else if(note.method==="useTrio"){
+        const option=game.trio?.()?.options.find(o=>o.id===a&&o.skill===z);
+        if(option){f=option;button=row("trio",option.kinName+" · "+option.name,a+"|"+z);detail=trioUI?.forecast(game,option)||option.reason||option.detail;}
+        else return {title:"Chalkyard · turn "+b.turn,text:"You practiced "+note.label+". This turn has no matching handoff. "+previous};
       }else if(note.method==="useDuet"){
         f=game.duets().options.find(d=>d.partnerId===a);
         if(f){button=row("duet",note.label+" with "+name(a,true),a);detail=f.reason||f.preview;}
@@ -184,7 +189,7 @@
       if(!s||!res.ok||!record)return;
       if(res.kind==="replacement"){refreshBinding();return;}
       const b=state().battle;
-      if(record.turns.length<3&&!record.turns.some(t=>t.turn===s.turn)){
+      if((s.turn<=3||s.turn===4&&expected(4)?.method==="useTrio")&&!record.turns.some(t=>t.turn===s.turn)){
         const effects=[name(s.foe.id)+" "+s.foeHp+" → "+s.foe.hp+" HP"],practice=expected(s.turn);
         for(const p of s.party){
           const hp=res.fieldHp?.[p.id]??owner(p.id).hp;

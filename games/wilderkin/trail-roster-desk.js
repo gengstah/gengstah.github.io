@@ -25,7 +25,7 @@
           Number.isInteger(p.maxHp)&&p.maxHp>0&&p.hp>=0&&p.hp<=p.maxHp&&Number.isInteger(p.level)&&p.level>0)
           .map(p=>({id:p.id,hp:p.hp,maxHp:p.maxHp,level:p.level,gear:p.gear||null}));
         if(members.length===draft.team.length&&new Set(members.map(p=>p.id)).size===members.length){
-          const turns=Array.isArray(tested.turns)?tested.turns.slice(0,3).filter(t=>t&&Number.isInteger(t.turn)&&t.turn>0&&
+          const turns=Array.isArray(tested.turns)?tested.turns.slice(0,4).filter((t,i)=>t&&(i<3||t.method==="useTrio")&&Number.isInteger(t.turn)&&t.turn>0&&
             draft.team.includes(t.activeId)&&Object.hasOwn(game.species,t.foe)&&typeof t.method==="string"&&
             Array.isArray(t.args)&&t.args.every(a=>typeof a==="string")&&typeof t.label==="string"&&typeof t.actual==="string")
             .map(({turn,activeId,foe,method,args,label,actual})=>({turn,activeId,foe,method,args:args.slice(),label,actual})):[];

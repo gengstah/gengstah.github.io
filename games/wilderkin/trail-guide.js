@@ -61,7 +61,7 @@ window.WilderPages = {
     function localLinks() {
       return area().sites.map((a,i)=>row("walk-site",a.label,i,
         a.label==="Brookside Mill"?"Reedbank Relay and trail camp":
-          ({warden:"Warden trial",wild:"Follow creature tracks",camp:"Rest and retrain",travel:"Atlas and crossings",activities:"Regional field station","lantern-cup":"Enter the Lantern Cup","guard-school":"Neri Pike’s field guard lessons",twinbell:"Two active kin per side · doubles Wardens",switchyard:"Ride to Captain Sela’s doubles cup"})[a.kind||a.id]));
+          ({warden:"Warden trial",wild:"Follow creature tracks",camp:"Rest and retrain",travel:"Atlas and crossings",activities:"Regional field station","lantern-cup":"Enter the Lantern Cup","guard-school":"Neri Pike’s field guard lessons","third-beat":"Iona Rill’s three-bell commission",twinbell:"Two active kin per side · doubles Wardens",switchyard:"Ride to Captain Sela’s doubles cup"})[a.kind||a.id]));
     }
     function guardStatus(lesson,owned) {
       if(!lesson)return "";
@@ -163,7 +163,8 @@ window.WilderPages = {
       if(!k.bonus&&local)controls.push(wayTo("wild","tracks","Follow local tracks"));
       else if(!k.bonus&&homes.length===1)controls.push(open("region",home,"Find its habitat",game.regions[home].name));
       if(!s().battle&&game.pools[s().region].includes(id)&&game.wildCall?.(id))controls.unshift(open("wild-scout",id,"Scout "+k.name+"’s call","Choose your lead for this encounter."));
-      if(p&&!s().battle&&window.WilderPracticeYard)controls.unshift(row("yard-kin","Build around "+k.name,id,"Compare this companion’s opening against local opponents."));
+      if(p&&!s().battle&&window.WilderTrioPlanner)controls.unshift(row("kin-trio","Build a trio around "+k.name,id,"Choose a duet partner and a third companion to take the next turn."));
+      if(p&&!s().battle&&window.WilderPracticeYard)controls.unshift(row("yard-kin","Compare "+k.name+" as lead",id,"Compare this companion’s opening against local opponents."));
       if(p&&game.trailFittings)controls.unshift(open("kit-bench","kin:"+id,"Field fitting",held(id)?.name||"See which fitting this companion could carry."));
       if(game.growthInfo(id))controls.unshift(open("growth",id,"Growth and disciplines",k.discipline?.name||"See training and forms."));
       const signature=window.WilderSparringSignatures?.byId(id);
@@ -215,6 +216,7 @@ window.WilderPages = {
         return row(switching?"swap":"open-kin",k.name,p.id,detail,
           {image:image(p.id),badge:p.id===lead?"LEAD":"",disabled:switching&&(!f?.available)});
       });
+      if(!switching&&window.WilderTrioPlanner)rows.push(row("open-trios","Build around a favorite",null,"Choose who leads, who plays the duet and who takes the next turn."));
       if(!switching&&window.WilderTrailRosterDesk)rows.push(row("yard-edit","Arrange a trail lineup",null,"Try companions in any seat, then save a pennant or take them onto the trail."));
       if(!switching&&window.WilderPracticeYard)rows.push(nav("practice-yard","Try this team at the Chalkyard","Compare leads and test reserve swaps with your own kin."));
       if(!switching&&game.trailFittings)rows.push(nav("kit-bench","Field fittings","Equip a campaign companion or visit Pella’s bench."));
@@ -598,6 +600,7 @@ window.WilderPages = {
       });
       const lodge=game.wardens.find(i=>!s().wardenLessons.includes(i))??0;
       return page("What’s new in Wilderkin","FIELD DISPATCH   /   TRAIL FORMATIONS",[
+        ...(window.WilderThirdBeat?[heading("Three kin, one opening",[nav("third-beat","Meet Iona at the ferry","Play a duet, then let a third kin take the lead with its own skill."),row("open-trios","Build a trio around a favorite")])]:[]),
         ...(window.WilderTrailRosterDesk?[heading("Build a traveling party",[row("yard-edit","Arrange your team",null,"Reorder six companions, choose a lead, then field the tested party against a real opponent.")])]:[]),
         ...(window.WilderPracticeYard?[heading("Try your campaign team",[nav("practice-yard","Enter the Chalkyard","Compare a reserve, face a local kin or a familiar Warden, and replay the last decision.")])]:[]),
         heading("Gear for the trail",[nav("kit-bench","Visit the field fittings bench","Choose a fitting for one of your own companions."),nav("formations","Trail formations","Record your party and fittings on a pennant.")]),

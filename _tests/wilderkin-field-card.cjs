@@ -231,3 +231,21 @@ test("a valid signature copied alongside the wrong local quarry cannot attach a 
   const other=boot(h.local,h.session);other.card.restore();assert.equal(other.game.state.battle.enemy.id,"mossbell");
   assert.equal(other.card.guide(),null);assert.equal(other.card.before("Brush Dash"),null);
 });
+
+test("the fourth paid decision survives reload when it completes the rehearsed trio",()=>{
+  const h=boot(),actions=[["useSkill","brush-dash"],["useSkill","sun-nap"],["useDuet","cindlet"],["useTrio","dewfin","slick-slide"]];
+  const plan=stage(h,actions);launch(h,plan);assert.equal(h.card.current().tested.turns.length,4);
+  for(const [i,[method,...args]] of actions.slice(0,3).entries()){
+    yes(doMove(h,method,args,plan.tested.turns[i].label));
+  }
+  const next=boot(h.local,h.session);next.card.restore();
+  const button=next.card.guide().rows[0];
+  assert.equal(button.id,"trio");assert.equal(button.value,"dewfin|slick-slide");
+  yes(doMove(next,"useTrio",["dewfin","slick-slide"],"Dewfin · Slick Slide"));
+  if(next.game.state.battle)yes(doMove(next,"flee",[],"Retreat"));
+  const cold=boot(next.local,next.session);cold.card.restore();
+  const recap=cold.card.resultSection().rows;assert.equal(recap.length,4);
+  assert.equal(recap[3].label,"Turn 4 · Dewfin · Slick Slide");assert.ok(recap[3].detail.includes(plan.tested.turns[3].actual));
+  const extra=copy(plan);extra.tested.turns[3]={...plan.tested.turns[2],turn:4};
+  assert.ok(cold.card.keep(extra));assert.equal(cold.card.current().tested.turns.length,3);
+});

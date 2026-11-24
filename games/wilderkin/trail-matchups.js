@@ -3,7 +3,7 @@
   "use strict";
   const group=(title,rows,columns=1)=>({title,rows,columns});
   const pageSize=6;
-  function create({game,row,image,go,render,notify,play,practice,openDuets,openTrail}) {
+  function create({game,row,image,go,render,notify,play,practice,openDuets,openTrail,openTrios}) {
     const state=()=>game.state,owned=id=>state().party.find(k=>k.id===id);
     const myKin=id=>game.kin(id,{owned:true}),myName=id=>myKin(id).name,foeName=id=>game.species[id].name;
     const portrait=id=>image(id,true);
@@ -192,6 +192,7 @@
       return {title:"Build your practice team",kicker:"CHALKYARD   /   "+d.team.length+" OF 6",
         formationStrip:{label:"Practice lineup",slots},subtitle:"Tap a companion to change its position, replace it or make it the lead.",sections:[
           group("Team desk",[link(d.team.length<6?"Add or swap a companion":"Swap a companion","reserves:0","Browse the rest of your owned kin."),
+            ...(openTrios?[btn("trios","Build around "+myName(d.anchor),null,"Choose its duet partner and a third kin’s follow-up skill.")]:[]),
             link("Compare coverage","coverage",summary(d)||"Compare your options on this trail."),...(openTrail?[trailButton()]:[]),link("Return to opening",null)],2),
           {title:"Traveling now",text:names(d.base)+". "+myName(d.baseLead)+" leads."},
           ...(edits.length||d.changed?[group("Draft edits",editControls(d,"lineup"),2)]:[])]};
@@ -345,8 +346,8 @@
         const text=cmd==="clear-search"?"":window.prompt?.("Find an owned reserve by name or affinity",reserveQuery);
         if(typeof text==="string"){reserveQuery=text.trim().slice(0,72);show("reserves:0","replace");}return true;
       }
-      if(cmd==="play"||cmd==="duet-plan"||cmd==="trail"){
-        const start=cmd==="trail"?openTrail:cmd==="play"?play:openDuets;
+      if(cmd==="play"||cmd==="duet-plan"||cmd==="trail"||cmd==="trios"){
+        const start=cmd==="trail"?openTrail:cmd==="play"?play:cmd==="trios"?openTrios:openDuets;
         const result=start?.({region:d.region,kind:d.kind,foe:d.kind==="warden"?d.opponents[0]:d.foe,lead:d.anchor,team:d.team.slice()});
         if(result===false||result?.ok===false){notify(result?.message||"This opening could not be started.");render?.();}
         return true;

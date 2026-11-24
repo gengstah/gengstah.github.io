@@ -1,6 +1,6 @@
 // A practice invitation belongs to the region and species printed on it.
 window.WilderPracticeYard = {
-  create({game,practice,row,image,go,notify,openMatchups,openDuets,start}){
+  create({game,practice,row,image,go,notify,openMatchups,openDuets,openTrios,start}){
     const name=id=>game.kin(id,{owned:false}).name;
     const tag=t=>[t.region,t.kind,t.foe].join("/");
     const currentTargets=()=>practice.targets(game.state.region);
@@ -24,6 +24,7 @@ window.WilderPracticeYard = {
         sections.push({title:target?"Selected opponent":"First bout",rows:[
           row("yard-play","Face "+opponent,tag(selected),lead+" leads your party at full HP. Opponent Lv. "+selected.level+".",{tone:"primary",image:image(selected.foe,false)}),
           row("yard-compare","Compare openings",tag(selected),"Choose a lead or try a reserve against "+opponent+"."),
+          ...(openTrios?[row("yard-trio","Build a trio for this opponent",tag(selected),"Choose three companions to play a duet and hand off the next turn.")]:[]),
           ...(team.length>1?[row("yard-pair","Plan a duet",tag(selected),"Find a path to a shared move with "+lead+".")]:[])
         ]});
       }
@@ -64,13 +65,14 @@ window.WilderPracticeYard = {
     }
     function act(id,value){
       if(id==="yard-invite"){invite();return true;}
-      if(!["yard-select","yard-play","yard-compare","yard-pair"].includes(id))return false;
+      if(!["yard-select","yard-play","yard-compare","yard-pair","yard-trio"].includes(id))return false;
       const t=find(value);
       if(!t){notify("Choose an opponent from the yard’s invitations.");return true;}
       if(id==="yard-select"){go("practice-yard",tag(t));return true;}
       const options={kind:t.kind,foe:t.foe,region:t.region,lead:game.state.lead,team:game.state.team.slice()};
       if(id==="yard-compare")openMatchups(options);
       else if(id==="yard-pair")openDuets(options);
+      else if(id==="yard-trio")openTrios?.(options);
       else start(options);
       return true;
     }
