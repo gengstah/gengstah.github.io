@@ -754,6 +754,7 @@
       state.battle=null;
       return result("victory",message+" The bout is yours.");
     }
+    const fieldHp=Object.fromEntries(team().map(p=>[p.id,p.hp]));
     const xp = kind==="warden" ? Math.ceil(xpNeeded(enemy.level)*.85) : Math.ceil(xpNeeded(enemy.level)*(kind==="expedition" ? .18 : .12));
     const levels=[];
     let activeGain=0;
@@ -786,7 +787,7 @@
     }
     message += " " + ownedKin(activeId).name + " gained " + activeGain + " XP.";
     if (levels.length) message += " " + levels.join(" ");
-    return commit("victory", message);
+    return {...commit("victory",message),fieldHp};
   }
 
   function foeIntent(enemyId=state.battle?.enemy.id,rotating=false) {
@@ -910,11 +911,12 @@
           state.battle=null;
           return commit("defeat",firstMessage+" "+reply+" Your last companion fainted. The rehearsal is over.");
         }
+        const fieldHp=Object.fromEntries(team().map(p=>[p.id,p.hp]));
         state.battle = null;
         delete state.positions[state.region];
         state.landmark=null;
         state.party.forEach(p => { p.hp = p.maxHp; });
-        return commit("defeat", "Your party ran out of strength. You returned to the trailhead, where your companions recovered to full health.");
+        return {...commit("defeat","Your party ran out of strength. You returned to the trailhead, where your companions recovered to full health."),fieldHp};
       }
       const next=ready[0];
       changeFront(battle,next.id);

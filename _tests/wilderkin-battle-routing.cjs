@@ -180,3 +180,50 @@ test("a planned duet can be carried into the ring, played manually and recovered
   a.click("rehearse-move","useDuet|cindlet");await tick();assert.match(a.model().sections[0].title,/Firebreak landed/);
   assert.equal(a.g.state.battle,null);assert.equal(a.save(),before);
 });
+
+test("a revised opening reaches the real wild battle through party review and the field guide records the paid move",async()=>{
+  const target="0/wild/mossbell",a=boot("#chalkyard/"+target,null,g=>ok(g.setLead("cindlet")));
+  const career=a.save();a.click("yard-play",target);
+  a.click("rehearse-move","useSkill|ember-pop");await tick();
+  a.click("rehearse-rewind");a.click("rehearse-move","useSkill|cinder-roll");await tick();
+  const revision=a.model().sections.find(s=>s.title?.includes("Same decision"));
+  assert.match(revision.rows[0].label,/Ember Pop/);assert.match(revision.rows[1].label,/Cinder Roll/);
+  for(let n=0;n<8&&a.model().title!=="Practice won";n++){
+    a.click("rehearse-move","useSkill|ember-pop");await tick();
+  }
+  assert.equal(a.model().title,"Practice won");assert.equal(a.save(),career);
+  a.click("rehearse-trail");assert.equal(a.model().title,"Bring this party to the trail");
+  a.click("roster-field");
+  const opening=a.model().sections.find(s=>s.title==="Opening from your rehearsal").rows;
+  assert.equal(opening[0].label,"Turn 1 · Cinder Roll");
+  assert.equal(opening[1].label,"Turn 2 · Ember Pop");
+  assert.equal(opening.filter(r=>r.label.startsWith("Turn 1")).length,1);
+
+  a.click("card-walk");a.walk();
+  assert.equal(a.model().id,"field-card:");assert.equal(a.g.state.landmark,"wild");
+  a.click("card-battle");assert.equal(a.model().id,"battle:");
+  const guide=a.model().sections.find(s=>s.title==="Chalkyard · turn 1");
+  assert.equal(guide.rows[0].id,"skill");assert.equal(guide.rows[0].value,"cinder-roll");
+  assert.ok(guide.text.includes(opening[0].detail));
+  const forecast=a.g.ordinaryForecast("cinder-roll"),foeHp=a.g.state.battle.enemy.hp,lead=a.g.team().find(p=>p.id==="cindlet"),before=lead.hp;
+  a.click(guide.rows[0].id,guide.rows[0].value);await tick();
+  assert.equal(a.g.state.battle.enemy.hp,foeHp-forecast.damage);assert.equal(lead.hp,before-forecast.returnDamage);
+  assert.equal(a.model().sections.find(s=>s.title==="Chalkyard · turn 2").rows[0].value,"ember-pop");
+  for(let n=0;a.g.state.battle&&n<8;n++){a.click("skill","ember-pop");await tick();}
+  assert.equal(a.g.state.wins,1);
+  const recap=a.model().sections.find(s=>s.title==="Field card · Mossbell");
+  assert.equal(recap.rows[0].label,"Turn 1 · Cinder Roll");assert.ok(recap.rows[0].detail.includes(opening[0].detail));
+});
+
+test("a field card at Fern's real lodge presents her ordinary campaign gate before the Leaf Crest",()=>{
+  const meeting=boot("#chalkyard");meeting.click("walk-kind","warden|warden");meeting.walk();
+  meeting.click("yard-invite");assert.ok(meeting.g.state.met.includes(0));assert.equal(meeting.g.state.landmark,"warden");
+  const a=boot("#chalkyard/field/0/warden/mossbell/sprigkit/sprigkit+cindlet+dewfin",meeting.save());
+  assert.equal(a.model().id,"field-card:");const gate=a.g.trialAccess();assert.equal(gate.open,false);
+  const rows=a.model().sections.flatMap(s=>s.rows||[]);
+  assert.ok(rows.some(r=>r.id==="nav"&&r.value==="warden"&&r.detail===gate.reason));
+  assert.ok(!rows.some(r=>r.id==="card-battle"));
+  a.click("nav","warden");assert.equal(a.model().title,"Warden Fern");
+  assert.ok(a.model().sections.flatMap(s=>s.rows||[]).find(r=>r.id==="accept-trial").disabled);
+  assert.equal(a.g.startBattle("warden").ok,false);assert.equal(a.g.state.battle,null);assert.equal(a.g.state.crests.length,0);
+});

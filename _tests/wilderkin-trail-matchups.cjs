@@ -6,15 +6,15 @@ const plain=x=>JSON.parse(JSON.stringify(x));
 function device(){
   const map=new Map(),window={localStorage:{getItem:k=>map.get(k)??null,setItem:(k,v)=>map.set(k,v)}},ctx=vm.createContext({window});
   scripts.forEach(script=>script.runInContext(ctx));const game=window.WilderGame,practice=window.WilderRehearsal.create({game});
-  let view=null,start=null,duet=null,lookups=0;
+  let view=null,start=null,duet=null,trail=null,lookups=0;
   const finder=window.WilderTrailMatchups.create({game,practice:{...practice,preview:o=>{lookups++;return practice.preview(o);}},
     row:(id,label,value,detail,extra)=>({id,label,value,detail,...extra}),image:(id,owned)=>id+"-"+(owned?"owned":"wild"),
-    play:o=>{start=plain(o);return practice.start(o);},openDuets:o=>{duet=plain(o);},go:(route,v)=>{assert.equal(route,"trail-matchups");view=v;},notify(){},render(){}});
-  const model=()=>finder.model(view),rows=()=>model().sections.flatMap(s=>s.rows||[]);
+    play:o=>{start=plain(o);return practice.start(o);},openDuets:o=>{duet=plain(o);},openTrail:o=>{trail=plain(o);},go:(route,v)=>{assert.equal(route,"trail-matchups");view=v;},notify(){},render(){}});
+  const model=()=>finder.model(view),rows=()=>{const m=model();return [...(m.formationStrip?.slots||[]).map(k=>k.action),...m.sections.flatMap(s=>s.rows||[])];};
   const click=(id,val)=>{const r=rows().find(r=>r.id==="matchup-"+id&&(val===undefined||r.value===val));
     assert.ok(r&&!r.disabled,[view,id,val,JSON.stringify(rows())].join(" / "));assert.ok(finder.act(r.id,r.value,view));};
   const grant=(id,level=5)=>{const k=game.species[id],maxHp=k.baseHp+(level-5)*3;game.state.party.push({id,hp:1,maxHp,level,xp:7});};
-  return {finder,game,practice,model,rows,click,grant,map,view:()=>view,started:()=>start,duet:()=>duet,lookups:()=>lookups};
+  return {finder,game,practice,model,rows,click,grant,map,view:()=>view,started:()=>start,duet:()=>duet,trail:()=>trail,lookups:()=>lookups};
 }
 test("each ordinary move, including a stronger guard, and charged defensive check agree with two independent real camp projections",()=>{
   const h=device(),s=h.game.state,save=JSON.stringify(s);
@@ -69,4 +69,57 @@ test("favorite profile in a full team asks which seat to use, retains other memb
   h.click("view","team");h.click("anchor","sprigkit");assert.ok(h.model().subtitle.includes("Brackenveil"));
   h.click("view","kin:sprigkit");assert.ok(h.model().sections.find(q=>q.title==="Trained skills").rows.some(r=>r.label==="Briar Seam"));
   assert.equal(s.team.at(-1),"pincoil");
+});
+test("successive swaps and additions, ordered seat edits and a deliberate lead survive a bout; coverage compares the two complete squads",()=>{
+  const h=device(),s=h.game.state;
+  for(const id of ["mossbell","gustlance","pincoil","opalclasp"])h.grant(id,8);
+  const career=JSON.stringify(s),original=plain(s.team);
+  h.finder.open({kind:"wild",foe:"mossbell"});
+  h.click("view","reserves:0");h.click("reserve","mossbell");h.click("slot","cindlet");
+  h.click("view","reserves:0");h.click("reserve","gustlance");h.click("slot","sprigkit");
+  h.click("view","lineup");h.click("view","reserves:0");h.click("reserve","pincoil");h.click("slot","add");
+  h.click("view","reserves:0");h.click("reserve","opalclasp");h.click("slot","add");
+  h.click("view","reserves:0");h.click("reserve","cindlet");h.click("slot","add");
+  h.click("view","lineup");
+  const slots=()=>h.model().formationStrip.slots,order=()=>plain(slots().map(k=>k.id));
+  assert.deepEqual(order(),["gustlance","mossbell","dewfin","pincoil","opalclasp","cindlet"]);
+  assert.ok(slots().every(k=>k.level>0&&k.src.endsWith("-owned")&&k.action.id==="matchup-view"&&k.action.value==="seat:"+k.id));
+  h.click("view","seat:opalclasp");h.click("move","opalclasp|0");h.click("view","seat:mossbell");h.click("captain","mossbell");
+  const final=order();assert.deepEqual(final,["opalclasp","gustlance","mossbell","dewfin","pincoil","cindlet"]);
+  assert.equal(slots().find(k=>k.lead).id,"mossbell");assert.equal(slots().filter(k=>k.lead).length,1);
+  h.click("view","coverage");const compared=h.model();
+  assert.match(compared.sections.find(s=>s.title==="Before and after").text,/Sprigkit · Cindlet · Dewfin → Opalclasp · Gustlance · Mossbell · Dewfin · Pincoil · Cindlet/);
+  const from=h.finder.report({team:original,kind:"wild",foe:"mossbell"}),to=h.finder.report({team:final,lead:"mossbell",kind:"wild",foe:"mossbell"});
+  assert.deepEqual(plain(to.base),original);assert.deepEqual(plain(to.joined),["opalclasp","gustlance","mossbell","pincoil"]);
+  const strongest=r=>r.members.slice().sort((a,b)=>b.move.damage-a.move.damage||a.move.reply-b.move.reply)[0];
+  const a=strongest(from),b=strongest(to);
+  const group=compared.sections.find(s=>s.title==="Mossbell");assert.ok(group.rows[1].detail.includes(h.game.species[a.id].name+" "+a.move.damage+" → "+h.game.species[b.id].name+" "+b.move.damage));
+  assert.match(group.rows[0].label,/Sprigkit.+Mossbell/);
+  h.click("trail");const expected={region:0,kind:"wild",foe:"mossbell",team:final,lead:"mossbell"};
+  assert.deepEqual(h.trail(),expected);assert.equal(JSON.stringify(s),career);
+  h.click("view",null);h.click("play");assert.deepEqual(h.started(),expected);
+  while(h.practice.read().phase==="battle"){
+    const g=h.practice.read().game;
+    if(g.replacements()){assert.ok(h.practice.act("replaceFainted",g.replacements().defaultId).ok);continue;}
+    const active=g.kin(g.state.battle.activeId,{owned:true});
+    const skill=active.skills.filter(k=>k.kind==="attack"||k.kind==="guard").sort((a,b)=>g.ordinaryForecast(b.id).damage-g.ordinaryForecast(a.id).damage)[0];
+    assert.ok(h.practice.act("useSkill",skill.id).ok);
+  }
+  h.finder.open(h.started());h.click("view","lineup");assert.deepEqual(order(),final);assert.equal(slots().find(k=>k.lead).id,"mossbell");
+  h.click("undo","lineup");assert.deepEqual(order(),final);assert.equal(slots().find(k=>k.lead).id,"gustlance");
+  h.click("undo","lineup");assert.equal(order()[0],"gustlance");
+  h.click("clear","lineup");assert.deepEqual(order(),original);assert.equal(slots().find(k=>k.lead).id,s.lead);
+  h.click("undo","lineup");assert.equal(order().length,6);assert.equal(JSON.stringify(s),career);assert.equal(h.map.size,0);
+});
+test("removing a drafted lead chooses the next available kin; a replacement can be changed again and the final companion is protected",()=>{
+  const h=device(),s=h.game.state;h.grant("mossbell");
+  h.finder.open();h.click("view","lineup");h.click("view","seat:sprigkit");h.click("remove","sprigkit");
+  assert.equal(h.model().formationStrip.slots.find(k=>k.lead).id,"cindlet");
+  h.click("view","seat:dewfin");h.click("change-seat","dewfin");assert.equal(h.model().title,"Replace Dewfin");h.click("reserve","mossbell");
+  const draft=()=>plain(h.model().formationStrip.slots.map(k=>k.id));
+  assert.deepEqual(draft(),["cindlet","mossbell"]);h.click("view","seat:mossbell");h.click("change-seat","mossbell");h.click("reserve","sprigkit");
+  assert.deepEqual(draft(),["cindlet","sprigkit"]);h.click("view","seat:sprigkit");h.click("remove","sprigkit");h.click("view","seat:cindlet");
+  assert.ok(h.rows().find(r=>r.id==="matchup-remove").disabled);h.finder.act("matchup-remove","cindlet");h.click("view","lineup");
+  assert.deepEqual(draft(),["cindlet"]);h.click("view","reserves:0");h.click("reserve","dewfin");h.click("slot","add");
+  h.click("trail");assert.deepEqual(h.trail().team,["cindlet","dewfin"]);assert.equal(h.trail().lead,"cindlet");assert.deepEqual(plain(s.team),["sprigkit","cindlet","dewfin"]);
 });

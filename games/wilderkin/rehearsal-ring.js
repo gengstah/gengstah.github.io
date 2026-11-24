@@ -3,7 +3,7 @@
   "use strict";
   const group=(title,rows,columns=1)=>({title,rows,columns});
   const meta=id=>window.WilderTrailFittings?.byId(id);
-  function create({game,practice,row,image,go,render,notify,animate,playTone,onExit,onCompare,active=()=>true}){
+  function create({game,practice,row,image,go,render,notify,animate,playTone,onExit,onCompare,onTrail,active=()=>true}){
     const btn=(id,label,value,detail="",extra={})=>row("rehearse-"+id,label,value,detail,extra);
     const link=(label,to,detail="",extra={})=>btn("view",label,to,detail,extra);
     const show=(v="battle",mode="push")=>go("rehearsal-ring",v,mode);
@@ -33,7 +33,7 @@
       return {side:"ally",kind,name:m.label,type:m.type||v.ally.types[0]||"Neutral",...(m.pass?{pass:m.pass}:{}),...(kind==="duet"&&shown?{partner:shown.src,partnerType:game.species[partner.id].type}:{}),
         ...(kind==="swap"&&shown?{incoming:shown.src,incomingKin:shown}:{})};
     }
-    let tracked=null,tape=[],decisions=0,busy=false,openingEffects="";
+    let tracked=null,tape=[],firstDecisions=[],decisions=0,busy=false,openingEffects="";
     function read(){
       const r=practice.read();
       if(tracked!==r?.game){clear();tracked=r?.game;
@@ -161,6 +161,11 @@
     function rewindRow(r){
       return r.canRewind?btn("rewind","Replay last decision",null,r.rewindLabel||"Try a different command from the same position.",{key:"Z"}):null;
     }
+    function fieldSetup(r){
+      const team=r.game.team(),turns=firstDecisions.map(entry=>entry.turn);
+      return {...r.setup,team:[...r.setup.team],tested:{result:r.result.kind,turns,members:team.map(p=>({
+        id:p.id,name:r.game.kin(p.id,{owned:true}).name,level:p.level,hp:p.hp,maxHp:p.maxHp,gear:r.game.state.trailFittings?.gear[p.id]||null}))}};
+    }
     function finished(r){
       const native=r.result.kind;
       const title=native==="victory"?"Practice won":native==="defeat"?"Practice lost":"Practice complete";
@@ -168,7 +173,8 @@
       if(openingEffects)used.unshift({label:"Opening bell",detail:openingEffects});
       const remaining=r.game.team().map(k=>r.game.kin(k.id,{owned:true}).name+" "+k.hp+"/"+k.maxHp).join(" · ");
       return {title,kicker:"FIELD REHEARSAL   /   "+heading(r).toUpperCase(),subtitle:last?.actual||r.result?.message||"The rehearsal is over.",
-        sections:[...comparison(),group("Try the matchup again",[rewindRow(r),retry,
+        sections:[...(onTrail?[group("Campaign",[btn("trail","Take this team onto the trail",null,"Review the party’s real HP and follow this opponent.",{tone:"primary"})])]:[]),
+          ...comparison(),group("Try the matchup again",[rewindRow(r),retry,
           ...(onCompare?[btn("compare","Compare another opening",null,"Change your lead or try a different setup.")]:[]),
           btn("desk","Return to the yard")].filter(Boolean)),
           {title:"Party at the last bell",text:remaining+" HP."},...(used.length?[group("Fittings in action",used)]:[]),
@@ -202,6 +208,11 @@
         const step={turn:v.turn,ally:fighter(v.ally,true),foe:fighter(v.foe,false),label:m.kind==="switch"||m.kind==="replace"?after.history.at(-1).label:m.label,forecast:m.detail,
           actual:measure(v,m,after,res),effects:suffix(res.fittingEvents)};
         tape.push(step);decisions++;
+        const event=after.history.at(-1);
+        if(event&&m.kind!=="replace"&&event.turn===firstDecisions.length+1&&firstDecisions.length<3){
+          firstDecisions.push({decision:decisions,turn:{turn:event.turn,activeId:event.activeId,foe:event.foe,method:event.method,args:event.args.slice(),
+            label:event.label,actual:[step.actual,step.effects].filter(Boolean).join(" ")}});
+        }
         if(tape.length>80)tape.shift();
         if(previous&&!revised&&rewindTurn===decisions)revised=step;
         if(!active())return;
@@ -224,7 +235,7 @@
         busy=false;if(active())render();
       }
     }
-    function clear(){tracked=null;tape=[];decisions=0;openingEffects="";previous=null;revised=null;rewindTurn=null;}
+    function clear(){tracked=null;tape=[];firstDecisions=[];decisions=0;openingEffects="";previous=null;revised=null;rewindTurn=null;}
     function backFrom(current){
       if(busy)return true;
       const r=read(),page=String(current||"battle");
@@ -248,6 +259,7 @@
           if(!r.canRewind)break;
           const result=practice.rewind();
           if(result?.ok===false){warn(result.message);break;}
+          if(firstDecisions.at(-1)?.decision===decisions)firstDecisions.pop();
           const prior=tape.pop();decisions=Math.max(0,decisions-1);
           previous=prior||null;rewindTurn=decisions+1;revised=null;tracked=practice.read()?.game;
           show("battle","replace");break;
@@ -257,6 +269,10 @@
           const result=practice.retry();
           if(result?.ok===false){warn(result.message);break;}
           clear();show("battle","replace");break;
+        }
+        case "rehearse-trail":{
+          if(!onTrail||r.phase!=="done")break;
+          const setup=fieldSetup(r);practice.leave();clear();onTrail(setup);break;
         }
         case "rehearse-compare":{
           if(!onCompare||r.phase!=="done")break;

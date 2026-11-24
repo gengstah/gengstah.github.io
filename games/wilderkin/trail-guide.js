@@ -215,6 +215,7 @@ window.WilderPages = {
         return row(switching?"swap":"open-kin",k.name,p.id,detail,
           {image:image(p.id),badge:p.id===lead?"LEAD":"",disabled:switching&&(!f?.available)});
       });
+      if(!switching&&window.WilderTrailRosterDesk)rows.push(row("yard-edit","Arrange a trail lineup",null,"Try companions in any seat, then save a pennant or take them onto the trail."));
       if(!switching&&window.WilderPracticeYard)rows.push(nav("practice-yard","Try this team at the Chalkyard","Compare leads and test reserve swaps with your own kin."));
       if(!switching&&game.trailFittings)rows.push(nav("kit-bench","Field fittings","Equip a campaign companion or visit Pella’s bench."));
       if (!switching) rows.push(row("reserve","Open reserve roster",null,(s().party.length-s().team.length)+" companions at camp"),nav("formations","Trail formations","Recall a party and its lead, with optional fittings."),nav("mentoring","Camp mentorship","Train a companion from your reserve."));
@@ -596,7 +597,8 @@ window.WilderPages = {
         return open("growth",id,g.formName,g.baseName+"’s two camp disciplines",{image:"art/growth/"+g.formId+".png"});
       });
       const lodge=game.wardens.find(i=>!s().wardenLessons.includes(i))??0;
-      return page("What’s new in Wilderkin","FIELD DISPATCH   /   THE CHALKYARD",[
+      return page("What’s new in Wilderkin","FIELD DISPATCH   /   TRAIL FORMATIONS",[
+        ...(window.WilderTrailRosterDesk?[heading("Build a traveling party",[row("yard-edit","Arrange your team",null,"Reorder six companions, choose a lead, then field the tested party against a real opponent.")])]:[]),
         ...(window.WilderPracticeYard?[heading("Try your campaign team",[nav("practice-yard","Enter the Chalkyard","Compare a reserve, face a local kin or a familiar Warden, and replay the last decision.")])]:[]),
         heading("Gear for the trail",[nav("kit-bench","Visit the field fittings bench","Choose a fitting for one of your own companions."),nav("formations","Trail formations","Record your party and fittings on a pennant.")]),
         heading("Switchyard Cup",[nav("switchyard","Face Captain Sela Switch","Register six and choose a new four for each doubles game. First to two wins takes the Cup.")]),
