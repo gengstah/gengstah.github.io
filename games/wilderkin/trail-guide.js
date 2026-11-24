@@ -297,7 +297,9 @@ window.WilderPages = {
     function warden() {
       const r=here(),i=s().region,job=game.expedition();
       const gate=game.trialAccess(i);
-      const choices=[row("accept-trial",gate.open?"Accept the trial":"Trial locked",null,gate.reason,{tone:"primary",disabled:!gate.open}),nav("expedition","Open field commission",job.title),nav("chronicle","Listen to the chapter dispatch")];
+      const choices=[row("accept-trial",gate.open?"Accept the trial":"Trial locked",null,gate.reason,{tone:"primary",disabled:!gate.open}),
+        open("second-bell",i,"Second Bell exhibition","Scout "+r.warden+"’s lineup and bring your own party."),
+        nav("expedition","Open field commission",job.title),nav("chronicle","Listen to the chapter dispatch")];
       if(gate.target!=null && gate.target!==i)choices.push(open("region",gate.target,"Locate the uncharted passage",game.regions[gate.target].name));
       if(gate.target===i&&i>=3)choices.push(nav("passage","File a naturalist’s report"));
       const lesson=game.wardenLesson?.(i);
@@ -498,7 +500,8 @@ window.WilderPages = {
         return open("growth",id,g.formName,g.baseName+"’s two camp disciplines",{image:"art/growth/"+g.formId+".png"});
       });
       const lodge=game.wardens.find(i=>!s().wardenLessons.includes(i))??0;
-      return page("What’s new in Wilderkin","FIELD DISPATCH   /   GUARD TRAINING",[
+      return page("What’s new in Wilderkin","FIELD DISPATCH   /   SECOND BELL",[
+        heading("Warden exhibitions",[nav("second-bell","Enter the Second Bell","Scout a Warden’s published formation and challenge it with your traveling party.")]),
         heading("Neri Pike’s guard school",[nav("guard-school","Train a guard with Neri","Find Opalclasp in Mossbrook Vale or Cragroll in Cinderfall Ridge.")]),
         {title:"Battle forecasts",text:"Each ordinary skill shows the damage it deals or HP it restores, plus how much damage comes back. Switch kin shows each reserve’s HP after the reply and how much a prepared Shell Escort saves."},
         heading("Brookside Mill",[nav("reedbank","Run the Reedbank Relay","Borrow Gustlance or Galeskip for two crossings with Cindlet.")]),
@@ -519,11 +522,11 @@ window.WilderPages = {
           nav("stillwake","Investigate the fourth sounding","Follow an unlisted signal across the trail."),
           nav("circuit","Draft a loaner team","Try a three-bout course with a fresh squad.")]),
         heading("Adventure",[row("root",s().battle?"Return to your battle":"Explore the map",null,"",{tone:"primary"})])],
-        "Bring a crab or armadillo into a campaign battle. Its first surviving guard against a charged hit teaches a lasting specialty.");
+        "When a companion falls, choose among your conscious reserves. Each one previews its best ordinary attack and the rival’s reply.");
     }
     function help() {
       return page("Controls","TRAIL HANDBOOK",[
-        {title:"Explore",text:"Click or tap a landmark to walk there. Move with WASD or the arrow keys. Press E to interact. In combat, 1–4 select your kin’s skills."},
+        {title:"Explore",text:"Click or tap a landmark to walk there. Move with WASD or the arrow keys. Press E to interact. In combat, 1–4 select skills. After a knockout, use the letter beside a reserve to send it in for free."},
         {title:"Journal shortcuts",text:"Q quests · X expedition · C chronicle · G field guide · N wildlife notebook · P party · M atlas · B satchel · F field games · V sparring hall · L loaner circuit · R battle duets · ? settings."},
         {title:"Menus",text:"Tap Menu or press F1 for all screens. Scroll or swipe to see more. Tab moves between controls, Enter selects, and Escape goes back."}]);
     }

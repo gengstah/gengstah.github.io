@@ -14,7 +14,7 @@
   // Name, score, spoken briefing, first cue, interval, choreography and local signal affinities.
   const scripts=[
     ["Fern","The shelter door","Mossbell raises its shell when my elbow lifts. Tap the lip with your own guarding move before it settles. The shelter was built to let small things out.",1,4,["screen"],"Grove","Tide"],
-    ["Flint","The cold-lantern round","At Emberwatch we worked in pairs. Take a different job on the lantern beat, then notice which light passes to the next keeper.",2,3,["cadence","relay"],"Ember","Loam"],
+    ["Flint","The cold-lantern round","My lantern has two wicks. Repeat your last move’s role on Borrowed Beat, or leave our relay lane open, and the front keeper lights them both. Watch the color. Guard the flashes or send someone who resists it.",2,3,["cadence","relay"],"Ember","Loam"],
     ["Lune","The twin reflection","Watch the second reflection at Moonwell. While my line trades places you can cross in front of it. The next quiet interval belongs to the medic.",1,3,["relay","aid"],"Tide","Gloam"],
     ["Marl","The ferryman’s eddy","Set your feet when I turn the tiller. Otherwise the near bank becomes the far bank. The green and blue flags tell you what current comes next.",1,3,["shunt","colors"],"Grove","Tide"],
     ["Kestrel","Slack in the kite line","The pennant runs down a long cord. Pass the bell before the knot reaches you. A fresh hand keeps the next stroke from tangling.",1,4,["tangle","cadence"],"Vane","Arc"],
@@ -50,8 +50,13 @@
     const p=plan(region);
     if(!p)return null;
     const heard=Array.isArray(b?.heard)?[...new Set(b.heard.filter(code=>p[5].includes(code)))]:[];
-    return {heard,screen:b?.screen===1||b?.screen===2?b.screen:0,
+    const t={heard,screen:b?.screen===1||b?.screen===2?b.screen:0,
       charge:b?.charge===true,last:parts.includes(b?.last)?b.last:null,action:null};
+    const lamp=b?.lantern;
+    if(region.warden==="Flint"&&t.charge&&lamp&&[1,2].includes(lamp.left)&&[p[6],p[7]].includes(lamp.type)){
+      t.lantern={type:lamp.type,left:lamp.left};
+    }
+    return t;
   }
   function lesson(s,r,i) {
     const p=plan(r);if(!p)return null;
@@ -72,6 +77,10 @@
     const c=cue(r,b);if(!c)return base;
     base.guarding=base.guarding||b.coach.screen>0;
     if(c.wait) {
+      if(b.coach.lantern){
+        const lamp=b.coach.lantern,skill={name:lamp.type+" lantern volley",type:lamp.type,power:32};
+        return {...base,skill,charged:true,power:skill.power};
+      }
       if(b.coach.charge){base.skill=attack;base.charged=true;base.power=attack.power+2;}
       return base;
     }
@@ -81,10 +90,22 @@
   function forecast(s,r,i) {
     const b=s.battle;if(b?.kind!=="warden")return null;
     const c=cue(r,b),l=lesson(s,r,i);if(!c||!l)return null;
+    const flint=r.warden==="Flint",lamp=b.coach.lantern;
+    if(flint&&lamp&&c.wait){
+      const count=lamp.left===1?"Final wick":"Two wicks";
+      return {...l,lesson:l.title,title:count+" · "+lamp.type+" lantern volley",active:true,kind:"lantern",
+        description:lamp.left+" charged "+lamp.type+(lamp.left===1?" reply remains. ":" replies remain. ")+c.title+" follows in "+c.wait+(c.wait===1?" turn.":" turns."),
+        counter:"Guard to halve this hit, switch to a kin that resists "+lamp.type+", or finish the front before it fires."};
+    }
     const prefix=b.coach.screen>0?"Their screen braces the front. ":b.coach.charge?"A banked reply is charged. ":"";
     let desc=c.description;
     if(c.code==="colors")desc="The Warden calls a "+c.element+" volley. A different color returns on the next volley.";
     if(c.code==="relay"&&!b.remaining.length)desc="The last kin will hold a one-response screen in place of the exchange.";
+    if(flint){
+      const keeper=c.code==="relay"&&b.remaining.length?b.remaining[0]:b.enemy.id;
+      const kin=window.WilderGame.species[keeper];
+      desc+=(c.code==="cadence"?" Repeating your last role":" An open lane")+" lets "+kin.name+" light two "+kin.type+" wicks.";
+    }
     return {...l,lesson:l.title,title:c.wait?"Next call · "+c.title:c.title,active:c.wait===0,kind:c.code,
       description:prefix+(c.wait?"In "+c.wait+" turn"+(c.wait===1?"":"s")+". ":"")+desc,
       counter:(c.code==="cadence"?"Previous action: "+(b.coach.last||"none (guard to open)")+". ":"")+c.counter};
@@ -93,7 +114,12 @@
     const b=s.battle,t=b.coach,c=cue(r,b);if(!c)return null;
     const part=t.action||"duet",last=t.last,active=member(b.activeId);
     t.last=part;t.action=null;t.screen=Math.max(0,t.screen-1);t.charge=false;
-    if(c.wait)return null;
+    const lamp=t.lantern;
+    if(lamp){
+      if(--lamp.left>0)t.charge=true;
+      else delete t.lantern;
+    }
+    if(c.wait)return lamp?{message:t.lantern?"One "+lamp.type+" wick remains.":"The last "+lamp.type+" wick goes dark."}:null;
     let read=false,message="",shifted=false;
     switch(c.code) {
       case "screen":
@@ -135,6 +161,11 @@
         read=part==="switch"||part==="duet";
         if(!read&&!knockedOut){const lost=Math.min(2,b.beats);b.beats-=lost;message="The cord catches "+lost+" of your beats.";}
         else if(read)message="You pass the bell clear of the cord.";break;
+    }
+    if(r.warden==="Flint"&&!read&&!knockedOut&&(c.code==="cadence"||c.code==="relay")){
+      const type=species[b.enemy.id].type;
+      t.lantern={type,left:2};t.charge=true;
+      message+=" Flint lights two "+type+" wicks. The next two replies are "+type+" lantern volleys.";
     }
     if(read&&!t.heard.includes(c.code)){
       t.heard.push(c.code);message+=(message?" ":"")+r.warden+" marks "+c.title+" on the lesson sheet.";

@@ -372,6 +372,14 @@
         rect(c,'#6b533e',28,36,22,3);
         rect(c,'#bd9764',30,38,3,wallBottom-38);
         rect(c,'#ab8658',46,38,3,wallBottom-38);
+        // Hang the exhibition bell beside the lodge door, below the crest.
+        rect(c,'#5b4938',25,39,7,2);
+        rect(c,'#735135',26,41,2,2);
+        rect(c,'#92632c',25,43,4,3);
+        rect(c,'#ebbb62',25,43,2,3);
+        rect(c,'#ae7b3d',24,46,6,1);
+        rect(c,'#f1ce80',24,46,3,1);
+        rect(c,'#694c37',26,47,2,2);
         if(index===0) {
           poly(c,'#dba952',[[38,29],[42,27],[42,31],[39,33],[37,32]]);
         } else if(index===1) {

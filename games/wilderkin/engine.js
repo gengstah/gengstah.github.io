@@ -109,7 +109,7 @@
       lead: starters[0], crests: [], met: [], seen: starters.slice(), battle: null, firstOuting:window.WilderOpening?"new":"closed",
       team: starters.slice(), visited: [0], quests: {}, clears: {}, rests: 0,
       sound: true, wins: 0, bag:{reed:5,sap:5,ore:2,kinweave:4,balm:3,tonic:1,sparkseed:1,broth:0},reports:[],
-      surveys:{},localWins:{},licenses:[],passes:[],crafted:{},landmark:null,forageReady:true,wardenLessons:[],relayClears:[],trainedGuards:[],
+      surveys:{},localWins:{},licenses:[],passes:[],crafted:{},landmark:null,forageReady:true,wardenLessons:[],relayClears:[],trainedGuards:[],bellMarks:{},
       stillwake:window.WilderStillwake?.restore(null)||{},
       story:story.restore(null),refit:0,animationSpeed:1,music:1,growth:growth?.restore(null)||{},
       fieldwork:field?.restore(null)||{},caravan:window.WilderCaravans?.restore(null,[])||{},
@@ -122,6 +122,47 @@
   function validFighter(fighter) {
     return fighter && validSpecies(fighter.id) && integer(fighter.level, 1, MAX_LEVEL)
       && fighter.maxHp === hpAt(fighter.id, fighter.level) && integer(fighter.hp, 0, fighter.maxHp);
+  }
+
+  const bellEligible=(s,i)=>i===wardens[0]||s.crests.includes(i);
+  function publishedBell(s,i) {
+    if (!wardens.includes(i)) return null;
+    const party=s.team.map(id=>s.party.find(p=>p.id===id));
+    return window.WilderSecondBell?.card({region:i,regions,wardens,pools,species,dex,party,crests:s.crests})||null;
+  }
+
+  function readBellMark(s,i,mark) {
+    if (!bellEligible(s,i) || !mark || !Array.isArray(mark.team) || !integer(mark.team.length,1,6) ||
+        !integer(mark.standing,1,mark.team.length) || unique(mark.team).length!==mark.team.length ||
+        !mark.team.every(id=>enrolled(id,s.party))) return null;
+    const floor=regions[i].wardenLevel;
+    const ceiling=Math.max(floor,...s.party.filter(p=>mark.team.includes(p.id)).map(p=>p.level));
+    return integer(mark.level,floor,ceiling) ? {level:mark.level,standing:mark.standing,team:mark.team.slice()} : null;
+  }
+
+  // The printed team stays fixed during a bout. Its surviving members can be in any order after Warden relays.
+  function readBellFight(s,b) {
+    const rec=b.secondBell;
+    if (!rec || b.kind!=="warden" || rec.region!==s.region || !bellEligible(s,s.region) ||
+        s.landmark!=="warden" || !Array.isArray(rec.roster) || !Array.isArray(rec.defeated) ||
+        !Array.isArray(b.remaining) || !rec.entryHp || typeof rec.entryHp!=="object" ||
+        Object.keys(rec.entryHp).length!==s.team.length || !s.team.every(id=>
+          integer(rec.entryHp[id],0,s.party.find(p=>p.id===id).maxHp))) return null;
+    const card=publishedBell(s,s.region);
+    if (!card || rec.level!==card.level || b.enemy?.level!==card.level || rec.roster.length!==card.roster.length ||
+        !card.roster.every((id,n)=>id===rec.roster[n])) return null;
+    const lineup=[...rec.defeated,b.enemy.id,...b.remaining];
+    if (lineup.length!==card.roster.length || unique(lineup).length!==lineup.length ||
+        !lineup.every(id=>card.roster.includes(id))) return null;
+    if (!Array.isArray(b.reserveHp) || (b.reserveHp.length!==0 &&
+        (b.reserveHp.length!==b.remaining.length || !b.reserveHp.every((hp,i)=>integer(hp,1,hpAt(b.remaining[i],card.level)))))) return null;
+    return {region:s.region,level:card.level,roster:card.roster.slice(),entryHp:{...rec.entryHp},defeated:rec.defeated.slice()};
+  }
+
+  function restoreBellHp(s,entryHp) {
+    for (const p of s.party) {
+      if (s.team.includes(p.id) && integer(entryHp?.[p.id],0,p.maxHp)) p.hp=entryHp[p.id];
+    }
   }
 
   function loadGame() {
@@ -172,6 +213,10 @@
     }
     fresh.met = unique([...(Array.isArray(saved.met) ? saved.met.filter(i => wardens.includes(i)) : []), ...fresh.crests]);
     fresh.wardenLessons=fresh.crests.filter(i=>Array.isArray(saved.wardenLessons)&&saved.wardenLessons.includes(i));
+    for (const i of wardens) {
+      const mark=readBellMark(fresh,i,saved.bellMarks?.[i]);
+      if (mark) fresh.bellMarks[i]=mark;
+    }
     if (Array.isArray(saved.relayClears)) fresh.relayClears=unique(saved.relayClears.filter(stamp=>relayStamps.includes(stamp)));
     fresh.seen = unique([...(Array.isArray(saved.seen) ? saved.seen.filter(validSpecies) : []), ...fresh.party.map(p => p.id)]);
     const ownsAbility = ability => !ability || fresh.party.some(p => species[p.id].ability === ability);
@@ -217,12 +262,15 @@
       if (resumed && count(saved.localWins?.[i])) fresh.localWins[i]=saved.localWins[i];
     }
     const battle = saved.battle;
+    const exhibition=battle && (battle.mode==="second-bell" || Object.hasOwn(battle,"secondBell"));
+    const bell=exhibition ? readBellFight(fresh,battle) : null;
+    const opponentPool=bell?bell.roster:pools[fresh.region];
     if (battle && ["wild","warden","expedition"].includes(battle.kind) && validFighter(battle.enemy) && battle.enemy.hp > 0
-      && pools[fresh.region].includes(battle.enemy.id) && fresh.team.includes(battle.activeId) && fresh.party.some(p => p.id === battle.activeId && p.hp > 0)
+      && (!exhibition||bell) && opponentPool.includes(battle.enemy.id) && fresh.team.includes(battle.activeId) && fresh.party.some(p => p.id === battle.activeId && p.hp > 0)
       && Number.isSafeInteger(battle.turn) && battle.turn >= 1 && Array.isArray(battle.log)) {
       fresh.battle = {
         kind: battle.kind, activeId: battle.activeId, enemy: battle.enemy, turn: battle.turn,
-        remaining: battle.kind !== "wild" && Array.isArray(battle.remaining) ? battle.remaining.filter(id => pools[fresh.region].includes(id)).slice(0, 6) : [],
+        remaining: battle.kind !== "wild" && Array.isArray(battle.remaining) ? battle.remaining.filter(id => opponentPool.includes(id)).slice(0, 6) : [],
         commissioned: battle.kind === "expedition" && count(battle.commissioned) === count(fresh.surveys[fresh.region]) ? count(battle.commissioned) : null,
         bonus: battle.bonus === "supplies" ? "supplies" : null,
         weather: Object.hasOwn(dex.types,battle.weather) ? battle.weather : null,
@@ -238,6 +286,12 @@
         log: battle.log.filter(entry => typeof entry === "string").slice(-8)
       };
       const rest=fresh.battle.remaining;
+      if (bell) Object.assign(fresh.battle,{mode:"second-bell",secondBell:bell});
+      const fallen=fresh.party.find(p=>p.id===battle.pendingFallen);
+      if (fallen?.hp===0 && fresh.team.includes(fallen.id) && battle.turn>1 &&
+          fresh.team.filter(id=>fresh.party.find(p=>p.id===id).hp>0).length>1) {
+        fresh.battle.pendingFallen=fallen.id;
+      }
       if (battle.enemy.pincerOpening!==true || !fresh.trainedGuards.some(id=>guardSchool.forKin(id)?.id==="pincer")) delete fresh.battle.enemy.pincerOpening;
       if (!fresh.battle.familyUsed || battle.enemy.beaconMarked!==true) delete fresh.battle.enemy.beaconMarked;
       if(fresh.battle.familyUsed && !fresh.battle.enemy.beaconMarked && rest.length===battle.remaining?.length &&
@@ -247,7 +301,11 @@
         fresh.battle.reserveHp=rest.map((id,i)=>integer(battle.reserveHp[i],1,hpAt(id,battle.enemy.level))?battle.reserveHp[i]:hpAt(id,battle.enemy.level));
       }
     }
-    if (!fresh.team.some(id => fresh.party.find(p => p.id === id)?.hp > 0)) fresh.party.forEach(p => { p.hp = p.maxHp; });
+    if (exhibition && !fresh.battle) restoreBellHp(fresh,battle.secondBell?.entryHp);
+    // A resting team can return to the lodge with exactly the zero HP it brought to an exhibition.
+    else if ((battle || fresh.landmark!=="warden") && !fresh.team.some(id=>fresh.party.find(p=>p.id===id)?.hp>0)) {
+      fresh.party.forEach(p=>{p.hp=p.maxHp;});
+    }
     return fresh;
   }
 
@@ -432,13 +490,24 @@
     return {open:true,reason:"The trial is ready."};
   }
 
+  function secondBell(index=state.region) {
+    const card=publishedBell(state,index);
+    if (!card) return null;
+    const region=regions[index],eligible=bellEligible(state,index);
+    const atLodge=state.region===index && state.landmark==="warden";
+    const reason=!eligible?"Earn the "+region.crest+" to enter this exhibition." :
+      !atLodge?"Visit "+region.lodge+" for this exhibition." :
+      state.battle||usingLoaners?"Finish the current encounter first." : "";
+    return {...card,eligible,atLodge,available:!reason,reason,mark:state.bellMarks[index]||null};
+  }
+
   function beginEncounter(kind,ids,level,label,options={}) {
     const lead=member(state.lead);
     const ready=lead?.hp>0 ? lead : team().find(p=>p.hp>0);
     if (!ready) return error("Rest at camp before entering an encounter.");
     const enemy=makeMember(ids[0],level);
     const message=label+" "+species[enemy.id].name+" takes the field.";
-    if (!state.seen.includes(enemy.id)) state.seen.push(enemy.id);
+    if (!options.secondBell && !state.seen.includes(enemy.id)) state.seen.push(enemy.id);
     state.battle={kind,activeId:ready.id,enemy,remaining:ids.slice(1),turn:1,
       commissioned:null,bonus:null,weather:null,condition:null,lastAttack:null,beats:1,lastPart:null,opening:false,familyUsed:false,shellGuard:null,cover:0,reserveHp:[],...options,log:[message]};
     return commit("battle",message);
@@ -447,6 +516,18 @@
   function startBattle(kind,track) {
     if (state.battle) return error("You are already in an encounter.");
     const r=regions[state.region], pool=pools[state.region];
+    if (kind==="second-bell") {
+      const card=secondBell();
+      if (!card?.available) return error(card?.reason||"There is no Second Bell exhibition here.");
+      const activeId=track===undefined ? (state.team.includes(state.lead)?state.lead:state.team[0]) : track;
+      if (!state.team.includes(activeId)) return error("Choose an exhibition lead from your traveling team.");
+      const travelTeam=team(),entryHp=Object.fromEntries(travelTeam.map(p=>[p.id,p.hp]));
+      for (const p of travelTeam) p.hp=p.maxHp;
+      const bout={region:state.region,level:card.level,roster:card.roster.slice(),entryHp,defeated:[]};
+      return beginEncounter("warden",bout.roster,bout.level,"Warden "+r.warden+" rings the second bell.",{
+        activeId,mode:"second-bell",secondBell:bout,coach:coaches?.restore(null,r)??null
+      });
+    }
     if (kind==="wild") {
       if (track!==undefined && !pool.includes(track)) return error("That species has no tracks here.");
       const id=track || pool[Math.floor(Math.random()*pool.length)];
@@ -482,10 +563,25 @@
     return p.level !== start;
   }
 
+  function finishBell(kind,message) {
+    const bout=state.battle.secondBell;
+    const standing=team().filter(p=>p.hp>0).length,level=bout.level;
+    const prior=state.bellMarks[bout.region];
+    const updatedBest=kind==="victory" && (!prior || level>prior.level || level===prior.level && standing>prior.standing);
+    if (updatedBest) state.bellMarks[bout.region]={level,standing,team:state.team.slice()};
+    restoreBellHp(state,bout.entryHp);
+    state.battle=null;
+    if (kind==="victory") message+=" You won the level "+level+" exhibition with "+standing+" of "+state.team.length+" standing.";
+    message+=" Your team returned to its entry health.";
+    return {...commit(kind,message),secondBell:true,standing,level,updatedBest,best:state.bellMarks[bout.region]||null};
+  }
+
   function winBattle(message) {
+    delete state.battle.pendingFallen;
     const response=applyCoaching(true);
     if(response?.message)message+=" "+response.message;
     const {kind,activeId,enemy,remaining,commissioned,bonus}=state.battle;
+    if (state.battle.secondBell) state.battle.secondBell.defeated.push(enemy.id);
     if (remaining.length) {
       nextFoe(state.battle);
       const id=state.battle.enemy.id;
@@ -499,6 +595,7 @@
       state.battle.log = [...state.battle.log, message, reply].slice(-8);
       return commit("turn", reply);
     }
+    if (state.battle.secondBell) return finishBell("victory",message);
     if(kind==="circuit") {
       state.battle=null;
       return result("victory",message+" The bout is yours.");
@@ -581,6 +678,7 @@
 
   function counterattack(firstMessage, guardFactor=1, lesson=null) {
     const battle = state.battle;
+    delete battle.pendingFallen;
     const { enemy } = battle;
     const enemySpecies = species[enemy.id];
     const active = member(battle.activeId);
@@ -609,16 +707,22 @@
     const response=applyCoaching(false,lesson?.learned && lesson.id==="pincer");
     if(response?.message)reply+=(reply?" ":"")+response.message;
     if (active.hp === 0) {
-      const next = team().find(p => p.hp > 0);
-      if (!next) {
+      const ready=team().filter(p=>p.hp>0);
+      if (!ready.length) {
+        if (battle.secondBell) return finishBell("defeat","The Warden won the exhibition.");
         state.battle = null;
         delete state.positions[state.region];
         state.landmark=null;
         state.party.forEach(p => { p.hp = p.maxHp; });
         return commit("defeat", "Your party ran out of strength. You returned to the trailhead, where your companions recovered to full health.");
       }
+      const next=ready[0];
       changeFront(battle,next.id);
-      reply += " " + ownedKin(active.id).name + " needs a rest. " + ownedKin(next.id).name + " stepped in.";
+      reply+=" "+ownedKin(active.id).name+" needs a rest. ";
+      if (!usingLoaners && ready.length>1) {
+        battle.pendingFallen=active.id;
+        reply+=ownedKin(next.id).name+" is ready to step in.";
+      } else reply+=ownedKin(next.id).name+" stepped in.";
     }
     battle.turn++;
     battle.log = [...battle.log, firstMessage, reply].slice(-8);
@@ -644,7 +748,7 @@
     if(b.beaconReserve===0){incoming.beaconMarked=true;delete b.beaconReserve;}
     else if(b.beaconReserve>0)b.beaconReserve--;
     b.enemy=incoming;b.opening=false;
-    if(!state.seen.includes(incoming.id))state.seen.push(incoming.id);
+    if(!b.secondBell && !state.seen.includes(incoming.id))state.seen.push(incoming.id);
   }
   function rotateFoe() {
     const b=state.battle,outgoing=b.enemy;
@@ -722,7 +826,7 @@
     if (!option.available) return error(option.reason);
     const lead=member(b.activeId),partner=member(partnerId);
     if(b.coach)b.coach.action=option.switchLead?"switch":"duet";
-    if(!usingLoaners&&state.growth.cindlet&&[lead.id,partnerId].includes("cindlet"))state.growth.cindlet.demonstrated=true;
+    if(!usingLoaners&&!b.secondBell&&state.growth.cindlet&&[lead.id,partnerId].includes("cindlet"))state.growth.cindlet.demonstrated=true;
     b.beats-=option.cost;b.lastPart=null;b.lastAttack=null;
     b.enemy.hp-=option.damage;
     lead.hp+=option.healLead;partner.hp+=option.healPartner;
@@ -814,8 +918,10 @@
 
   function ordinaryForecast(id) {
     const b=state.battle;
-    if(!b)return null;
-    const active=member(b.activeId),user=ownedKin(active.id),enemy=b.enemy;
+    return b?forecastOrdinaryFor(member(b.activeId),id):null;
+  }
+  function forecastOrdinaryFor(active,id) {
+    const b=state.battle,user=ownedKin(active.id),enemy=b.enemy;
     const skill=id===trailFeint.id && b.kind==="wild"?trailFeint:user.skills.find(s=>s.id===id);
     if(!skill || skill.trained)return null;
     const intent=foeIntent(),guard=skill.kind==="guard";
@@ -860,7 +966,7 @@
     if (skill.kind === "heal") {
       earnBeat("care");
       active.hp += healing;
-      if(!usingLoaners&&state.growth.dewfin&&active.id==="dewfin"&&id==="dew-bath")state.growth.dewfin.demonstrated=true;
+      if(!usingLoaners&&!battle.secondBell&&state.growth.dewfin&&active.id==="dewfin"&&id==="dew-bath")state.growth.dewfin.demonstrated=true;
       return counterattack(user.name + " used " + skill.name + " and recovered " + healing + " HP.");
     }
     const enemy = battle.enemy;
@@ -881,7 +987,7 @@
       message+=" Roll Brace will cover the next ordinary switch.";
     }
     if (enemy.hp === 0) return winBattle(message);
-    if(!usingLoaners&&state.growth.sprigkit&&active.id==="sprigkit"&&id==="brush-dash"&&foeIntent().charged)state.growth.sprigkit.demonstrated=true;
+    if(!usingLoaners&&!battle.secondBell&&state.growth.sprigkit&&active.id==="sprigkit"&&id==="brush-dash"&&foeIntent().charged)state.growth.sprigkit.demonstrated=true;
     return counterattack(message,plan.guardFactor,lesson);
   }
 
@@ -910,6 +1016,38 @@
     battle.lastAttack=null;
     const message="You called in "+ownedKin(id).name+"."+(plan.protected?" Roll Brace covered the switch.":"");
     return counterattack(message,plan.factor);
+  }
+
+  function replacements() {
+    const b=state.battle;
+    if (usingLoaners || !b?.pendingFallen) return null;
+    const ready=team().filter(p=>p.hp>0);
+    if (ready.length<2) return null;
+    const intent=foeIntent(),foeTypes=species[b.enemy.id].types;
+    const options=ready.map(p=>{
+      const k=ownedKin(p.id);
+      const attacks=k.skills.filter(s=>!s.trained && (s.kind==="attack" || s.kind==="guard"));
+      const plans=attacks.map(s=>forecastOrdinaryFor(p,s.id));
+      const best=plans.reduce((a,c)=>c.damage>a.damage || (c.damage===a.damage && c.returnDamage<a.returnDamage)?c:a);
+      return {id:p.id,name:k.name,hp:p.hp,maxHp:p.maxHp,types:k.types,level:p.level,
+        attackName:best.skill.name,attackType:best.skill.type,attackMultiplier:dex.effectiveness(best.skill.type,foeTypes),
+        attackDamage:best.damage,attackFinishes:best.finishes,attackReplyDamage:best.returnDamage,
+        replyName:intent.skill.name,replyDamage:Math.min(p.hp,returnHit(p,1,intent))};
+    });
+    return {fallen:b.pendingFallen,defaultId:b.activeId,options};
+  }
+
+  function replaceFainted(id) {
+    const choice=replacements();
+    if (!choice) return error("There is no replacement to choose.");
+    const option=choice.options.find(p=>p.id===id);
+    if (!option) return error("Choose a conscious traveling companion.");
+    const b=state.battle;
+    changeFront(b,id);
+    delete b.pendingFallen;
+    const message=option.name+" took the field for "+ownedKin(choice.fallen).name+".";
+    b.log=[...b.log,message].slice(-8);
+    return commit("replacement",message);
   }
 
   function familyTechnique() {
@@ -1002,6 +1140,7 @@
 
   function flee() {
     if (!state.battle) return error("There is no active encounter.");
+    if (state.battle.secondBell) return finishBell("escaped","You withdrew from the exhibition.");
     state.battle = null;
     return commit("escaped", "You called your party back and returned to the trail.");
   }
@@ -1075,6 +1214,7 @@
   }
 
   function useItem(id,targetId) {
+    if (state.battle?.secondBell) return error("Satchel items are unavailable in a Second Bell exhibition.");
     if(id==="broth"){
       if(state.battle)return error("Share a meal between encounters.");
       if(!state.bag.broth)return error("Prepare Trailpot broth in your satchel.");
@@ -1293,8 +1433,8 @@
   }
   window.WilderGame = {
     firstOuting:window.WilderOpening?.create({state:()=>state,commit,setLead,sightings:()=>field?.sightings(state.region)||[]}),
-    wardenLesson,wardenForecast,guardTraining,guardPractice,switchForecast,ordinaryForecast,
-    passageReport,filePassage,
+    wardenLesson,wardenForecast,guardTraining,guardPractice,switchForecast,ordinaryForecast,replacements,replaceFainted,
+    passageReport,filePassage,secondBell,
     pinRegion,setWalker,walkerPose:(time,reduced)=>walking?.pose(state,time,reduced),walkerInfo:()=>walking.info(state),walkerSense:()=>walking.sense(state,field.sightings(state.region),expedition(),objective()),
     stillwake:window.WilderStillwake?.create({state:()=>state,commit,regions,species,makeMember,story,duetPair}),
     hollows:window.WilderHollows?.create({state:()=>state,commit,regions,species,items}),
