@@ -185,11 +185,13 @@
             (best.id!==prior.move.id?"Try "+best.label+". "+best.why:"The coach also favored that move. "+best.why)});
         }else sections.push({title:"Rematch idea",text:"Scout how your lead matches up against "+kin(swing.actor)+" before the next opening."});
       }
-      sections.push(group("At the bell",p.sides.map((side,i)=>({label:sideName(m,i),detail:standing(side)+" standing · "+total(side)+" HP · "+
-        played.filter(e=>e.side===i&&e.move.kind==="duet").length+" duets",image:image(member(side).id)})),2),
+      sections.push(group("At the bell",p.sides.map((side,i)=>{
+        const duets=played.filter(e=>e.side===i&&e.move.kind==="duet").length;
+        return {label:sideName(m,i),detail:standing(side)+" standing · "+total(side)+" HP · "+duets+(duets===1?" duet":" duets"),image:image(member(side).id)};
+      }),2),
         group("Match desk",[...(m.setup.mode==="cpu"?[row("nav","Replay a decision","sparring-review","Try an alternate move against a coached reply.")]:[]),
           link("Read the action log","log:0"),link("Back to the hall","lobby")],2));
-      return {title,kicker:"MATCH RESULT",subtitle:p.ply+" actions played. "+(p.ply===p.limit?"The bell settled the match on standing kin, then remaining health.":"The last opposing kin fell."),sections};
+      return {title,kicker:"MATCH RESULT",subtitle:p.ply+" actions played. "+(p.sides.every(s=>standing(s)>0)?"The bell settled the match on standing kin, then remaining health.":"The last opposing kin fell."),sections};
     }
     function log(m,p,page){
       const events=timeline(m).slice().reverse(),pages=Math.max(1,Math.ceil(events.length/8));
