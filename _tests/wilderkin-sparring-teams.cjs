@@ -17,6 +17,20 @@ function room() {
   return {b,game,ui,win,read:()=>saved};
 }
 function controls(page) {return page.sections.flatMap(s=>[...(s.rows||[]),...(s.grid?.cells||[])]);}
+test("comparing a private third kin lists only its new pairings with the exact costs and effects from the Hall",()=>{
+  const {b,game,win}=room(),front=["cindlet","dewfin"],third="sprigkit",other="charquill";
+  const scout=(ids,candidate)=>copy(win.WilderSparringTeams.scoutDuets(game.species,ids,candidate));
+  assert.deepEqual(scout([]),[]);assert.deepEqual(scout([front[0]]),[]);
+  const ours=scout(front,third),alternative=scout(front,other);
+  assert.deepEqual(ours.map(d=>d.label),["Firebreak · 2 beats","Rain Garden · 2 beats"]);
+  assert.match(ours[1].detail,/Dewfin \+ Sprigkit.*quarter of their maximum HP/);
+  assert.deepEqual(alternative.map(d=>d.label),["Cinder Chorus · 3 beats","Steam Exchange · 2 beats"]);
+  assert.match(alternative[0].detail,/Cindlet \+ Charquill.*through cover/);
+  const final=[...front,third];
+  assert.deepEqual(scout(final),copy(b.scout(final).duets).map(d=>({
+    label:d.name+" · "+d.cost+" beats",detail:d.ids.map(id=>game.species[id].name).join(" + ")+". "+d.detail
+  })));
+});
 test("all 500 standard loaners are reachable, pictured and choosable from an empty trail collection",()=>{
   const {b,game,ui,read,win}=room(),species=game.species,seen=new Set(),battle=win.WilderSparringBattle.create({species});
   const trail=JSON.stringify(game.state);

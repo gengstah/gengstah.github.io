@@ -163,3 +163,31 @@ test("the real Hall can play a coach-first Scout Table fight through human reser
   click("scout-pr-restart");assert.equal(hall.model(view).title,"Scout Table practice");
   assert.deepEqual(plain(hall.reviewRecord()),review);
 });
+
+test("two private picks reveal the two remaining candidates’ real duet options, and the final three can review every pair before locking",()=>{
+  const h=boot();
+  h.click("register");h.click("pick","cindlet");
+  assert.ok(!h.rows().some(r=>r.value===route+":duets"));
+  assert.equal(h.desk.model(route+":duets").title,"Pick your three");
+  h.click("pick","dewfin");h.click("view",route+":duets");
+  const compare=h.model(),sections=compare.sections.filter(s=>s.title.endsWith(" as third"));
+  assert.equal(sections.length,2);
+  for(const [section,id] of sections.map((s,i)=>[s,["sprigkit","gustlance"][i]])){
+    const real=h.sim.options(h.sim.start(["cindlet","dewfin",id],["mossbell","coalmoth","pincoil"],0))
+      .find(m=>m.kind==="duet"&&m.targetId===id);
+    assert.equal(section.rows.length,3);
+    assert.equal(section.rows[0].label,real.label+" · "+real.cost+" beats");
+    assert.ok(section.rows[0].detail.includes(h.g.species[id].name));
+    assert.equal(section.rows[2].value,id);
+    assert.equal(section.rows[1].label,h.w.WilderDuets.score("Tide",h.g.species[id].type).name+" · "+h.w.WilderDuets.score("Tide",h.g.species[id].type).cost+" beats");
+  }
+  assert.equal(compare.sections.find(s=>s.title==="Your existing pair").rows.length,1);
+  h.click("pick","gustlance");
+  assert.equal(h.model().title,"Pick your three");assert.ok(!h.rows().find(r=>r.id==="scout-pr-lock").disabled);
+  h.click("view",route+":duets");
+  const trios=h.model().sections[0].rows;
+  assert.equal(trios.length,3);
+  assert.ok(trios.every(r=>!r.detail.includes("Sprigkit")&&!r.detail.includes("Mossbell")));
+  h.click("view",route);h.click("lock");assert.equal(h.model().title,"Both trios revealed");
+  assert.equal(h.desk.model(route+":duets").title,"Both trios revealed");
+});

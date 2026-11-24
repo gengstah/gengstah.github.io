@@ -103,3 +103,35 @@ test("native paste accepts chat wrappers, does not join on inspection and delega
   await d.open(ticket+"%E2%80%9D");assert.equal(d.hash,ticket);await d.open(ticket+".bad!");assert.equal(d.route,"error");
   assert.equal(d.rules.list().length,0);assert.equal(d.ui.act("elsewhere",null,"desk"),false);
 });
+
+test("the third-pick controls explain the guard-breaking and recovery tradeoff before locking, separately for each private seat",async()=>{
+  const host=browser(),guest=browser(),viewer=browser(),ticket=await register(host);
+  await guest.open(ticket);const joined=await register(guest,true);await host.open(joined);
+  function compare(d){
+    d.act("order");d.act("pick","cindlet");d.act("pick","dewfin");
+    const choices=d.view.sections.find(s=>s.title==="Duets each reserve adds").rows;
+    assert.deepEqual(plain(choices.map(r=>r.value)).sort(),["charquill","sprigkit"]);
+    const clean=choices.find(r=>r.value==="sprigkit"),charge=choices.find(r=>r.value==="charquill");
+    assert.match(clean.detail,/Firebreak · 2 beats.+Cindlet \+ Sprigkit.+one quarter of the usual damage/);
+    assert.match(clean.detail,/Rain Garden · 2 beats.+Dewfin \+ Sprigkit.+regain up to a quarter of their maximum HP/);
+    assert.match(charge.detail,/Cinder Chorus · 3 beats.+Cindlet \+ Charquill.+Breaks through cover/);
+    assert.match(charge.detail,/Steam Exchange · 2 beats.+Dewfin \+ Charquill.+halves the next hit/);
+    assert.doesNotMatch(clean.detail,/Cinder Chorus|Steam Exchange/);assert.doesNotMatch(charge.detail,/Firebreak|Rain Garden/);
+  }
+  compare(host);host.act("pick","sprigkit");host.act("lock-check");
+  const duets=d=>d.view.sections.find(s=>s.title==="Your three duets")?.rows.map(r=>r.label);
+  assert.deepEqual(plain(duets(host)),["Steam Exchange · 2 beats","Firebreak · 2 beats","Rain Garden · 2 beats"]);
+  const own=plain(duets(host));host.act("lock");await host.at("table|");const report=host.hash;
+  await viewer.open(report);assert.ok(!JSON.stringify(viewer.view).includes("Rain Garden"));
+  await guest.open(report);assert.ok(!JSON.stringify(guest.view).includes("Rain Garden"));compare(guest);
+  guest.act("pick","charquill");guest.act("lock-check");const away=plain(duets(guest));
+  assert.ok(away.includes("Cinder Chorus · 3 beats"));guest.act("lock");await guest.at("table|");
+  await viewer.open(guest.hash);assert.ok(!JSON.stringify(viewer.view).includes("Rain Garden"));
+  assert.ok(!viewer.view.sections.some(s=>s.title==="Host’s three duets"));
+  await host.open(guest.hash);host.act("report");assert.deepEqual(plain(duets(host)),own);
+  await guest.open(host.hash);guest.act("report");assert.deepEqual(plain(duets(guest)),away);
+  await viewer.open(host.hash);viewer.act("report");assert.equal(duets(viewer),undefined);
+  const shown=(d,title)=>plain(d.view.sections.find(s=>s.title===title).rows.map(r=>r.label));
+  assert.deepEqual(shown(viewer,"Host’s three duets"),own);assert.deepEqual(shown(viewer,"Guest’s three duets"),away);
+  assert.deepEqual(shown(host,"Guest’s three duets"),away);assert.deepEqual(shown(guest,"Host’s three duets"),own);
+});

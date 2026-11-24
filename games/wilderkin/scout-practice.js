@@ -157,12 +157,27 @@
       return {title:"Pick your three",kicker:"SCOUT TABLE   /   "+rival.name.toUpperCase(),subtitle:rival.plan,
         sections:[group("Your order · "+p.length+" / 3",[
           ...(p.length?[{label:p.map(name).join(" → "),detail:"First kin leads. Tap a selected kin below to remove it."}]:[]),
+          ...(p.length>=2?[link(p.length===2?"Compare both third picks":"Your trio’s duets",path("duets"),
+            p.length===2?"Read the moves each candidate can make with your first two kin.":"See the moves and beat costs available to these three.")]:[]),
           select("lock","Lock trio and roll for first",null,"The coach has picked from your public four. Reveal both orders.",{disabled:p.length!==3,tone:"primary"}),
           link("Scout all four rivals",path("scout"),"Their gear, likely duets and individual opening matchups.")]),
           group("Choose in battle order",draft.ids.map(id=>select("pick",name(id),id,prospect(id),{image:image(id),badge:p.includes(id)?(p.indexOf(id)===0?"Lead":"Reserve "+p.indexOf(id)):"",
             disabled:p.length===3&&!p.includes(id)}))),
           group(rival.name+" registered",rival.team.map(id=>kinCard(id,rival.gear)),2),
           group("Registration",[select("restart","Reopen registration",null,"Return all four to the table and clear the picks.")])]};
+    }
+    function privateDuets(){
+      const picks=draft.picks,duets=id=>window.WilderSparringTeams.scoutDuets(species,picks,id);
+      const comparing=picks.length===2;
+      const sections=comparing?draft.ids.filter(id=>!picks.includes(id)).map(id=>
+        group(name(id)+" as third",[
+          ...duets(id),
+          select("pick","Choose "+name(id)+" as third",id,"Keep "+name(picks[0])+" in the lead.",{image:image(id),tone:"primary"})
+        ])):[];
+      sections.push(group(comparing?"Your existing pair":"Your trio’s three pairs",duets()),
+        group("Your order",[link(comparing?"Back to the picks":"Review and lock your trio",route)]));
+      return {title:comparing?"Compare both third picks":"Your trio’s duets",kicker:"SCOUT TABLE   /   PRIVATE PICKS",
+        subtitle:picks.map(name).join(" → "),sections};
     }
     function scouting(){
       const rival=coach(),m=report().matrix;
@@ -220,6 +235,7 @@
       }
       if(draft.phase==="pick"){
         if(page==="rival"&&coach().team.includes(rawSlot))return rivalCard(rawSlot);
+        if(page==="duets"&&draft.picks.length>=2)return privateDuets();
         return page==="scout"?scouting():pick();
       }
       return reveal();

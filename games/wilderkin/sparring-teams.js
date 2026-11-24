@@ -13,12 +13,25 @@
     {id:"signal-weavers",name:"Signal Weavers",team:["prismpeep","bellgryph","ironblink"],plan:"The Chime lead and Ember reserve can expose your front with Signal Flare. The Alloy anchor shares Bell Foundry with Bellgryph.",counter:"Try Alloy against Prismpeep and Tide against Bellgryph or Ironblink. The lead’s Rime affinity adds to its Alloy weakness."}
   ];
   const duetNotes={
-    ward:"Takes a quarter reply under cover.",mend:"Both partners regain up to a quarter of their health.",
-    relay:"The partner takes the lead under half cover.",lure:"Leaves at least 1 HP, blocks the next direct switch and halves the reply.",
-    mark:"Exposes a survivor to a stronger ordinary strike through cover.",rush:"Breaks through cover for a heavy hit."
+    ward:"The lead takes one quarter of the usual damage on the next hit.",mend:"Both partners regain up to a quarter of their maximum HP.",
+    relay:"The partner takes the lead and halves the next hit.",lure:"Leaves the target at 1 HP or more, pins it for a turn and halves the reply.",
+    mark:"Exposes a survivor. The next ordinary strike deals 50% more damage and pierces cover.",rush:"Breaks through cover for a heavy hit."
   };
   const standard=(species,id)=>typeof id==="string"&&Object.hasOwn(species,id)&&!species[id].bonus;
   const valid=(species,ids)=>Array.isArray(ids)&&ids.length===3&&new Set(ids).size===3&&[...ids].every(id=>standard(species,id));
+  function duetPairs(species,ids){
+    return ids.flatMap((lead,i)=>ids.slice(i+1).map(mate=>{
+      const d=window.WilderDuets.score(species[lead].type,species[mate].type);
+      return {ids:[lead,mate],name:d.name,role:d.role,cost:d.cost,label:d.label,detail:duetNotes[d.role]};
+    }));
+  }
+  function scoutDuets(species,selected,candidate){
+    const ids=candidate===undefined?selected:[...selected,candidate];
+    return duetPairs(species,ids).filter(d=>candidate===undefined||d.ids.includes(candidate)).map(d=>({
+      label:d.name+" · "+d.cost+" beats",
+      detail:d.ids.map(id=>species[id].name).join(" + ")+". "+d.detail
+    }));
+  }
   function cleanKit(ids,raw) {
     return window.WilderSparringGear?.normalize({left:raw},ids,ids).left||{};
   }
@@ -93,15 +106,10 @@
       const coverage=affinities.filter(type=>attackTypes.some(move=>dex.effectiveness(move,[type])>1));
       const defense=affinities.map(type=>({type,weak:ids.filter(id=>dex.effectiveness(type,species[id].types)>1),
         resists:ids.filter(id=>dex.effectiveness(type,species[id].types)<1)}));
-      const pairs=[];
-      for(let a=0;a<2;a++)for(let b=a+1;b<3;b++) {
-        const d=duets.score(roster[a].type,roster[b].type);
-        pairs.push({ids:[ids[a],ids[b]],name:d.name,role:d.role,cost:d.cost,label:d.label,detail:duetNotes[d.role]});
-      }
       const clean=cleanKit(ids,gear),equipment=ids.filter(id=>clean[id]).map(id=>({holder:id,...gearDesk.byId(clean[id])}));
       return {attackTypes,coverage,uncovered:affinities.filter(t=>!coverage.includes(t)),defense,equipment,signatures:ids.map(signature).filter(Boolean),
         emberArts:roster.filter(k=>k.emberArt).map(k=>({id:k.id,art:k.emberArt})),
-        holes:defense.filter(d=>d.weak.length>=2&&!d.resists.length),duets:pairs};
+        holes:defense.filter(d=>d.weak.length>=2&&!d.resists.length),duets:duetPairs(species,ids)};
     }
     function answers(ids,target) {
       return ids.map(id=>{
@@ -389,5 +397,5 @@
     }
     return {page,act,key,restore:raw=>restore(raw,{species}),decode,encode,decodeLoadout,encodeLoadout,scout,rivals};
   }
-  window.WilderSparringTeams={create,restore};
+  window.WilderSparringTeams={create,restore,scoutDuets};
 })();

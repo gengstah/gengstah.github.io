@@ -22,6 +22,7 @@
     const caption=(id,kit={})=>[species[id].types.join(" / "),gear.byId(kit[id])?.name,species[id].emberArt?.name,sig(id)?.name].filter(Boolean).join(" · ");
     const eachKin=(t,order=t.ids)=>order.map((id,i)=>({label:name(id),detail:caption(id,t.gear),image:portrait(id),...(order.length===3?{badge:slots[i]}:{})}));
     const names=ids=>ids.map(name).join(" · ");
+    const duets=(ids,candidate)=>window.WilderSparringTeams.scoutDuets(species,ids,candidate);
     function record(id){
       const own=rules.get(id),publicView=previews.get(id);
       if(!own)return publicView||null;
@@ -200,12 +201,15 @@
     }
     function order(r){
       const selected=pick(r),t=r.rosters[r.seat],opponent=r.rosters[1-r.seat];
-      const rows=t.ids.filter(k=>!selected.includes(k)).map(k=>button("pick",name(k),k,caption(k,t.gear),{image:portrait(k),disabled:selected.length===3}));
+      const rows=selected.length===3?[]:t.ids.filter(k=>!selected.includes(k)).map(k=>{
+        const detail=[caption(k,t.gear),...duets(selected,k).map(d=>d.label+" · "+d.detail)].join("\n");
+        return button("pick",name(k),k,detail,{image:portrait(k)});
+      });
       return page(selected.length<3?"Choose your "+slots[selected.length].toLowerCase():"Review your three","SCOUT TABLE   /   PRIVATE FORMATION",
-        "Across the table: "+names(opponent.ids)+". Your opponent sees your final order when both choices are locked.",[
-          group("Your order",slots.map((label,i)=>selected[i]?button("remove",label+" · "+name(selected[i]),selected[i],"Tap to remove and shift later picks forward.",{image:portrait(selected[i])}):
-            {label:label+" · open",detail:i===selected.length?"Choose this position next.":""})),
-          ...(selected.length<3?[group("Add to your formation",rows,2)]:[group("One stays behind",[{label:name(t.ids.find(k=>!selected.includes(k))),detail:"This kin sits out this battle."}])]),
+        "Across the table: "+names(opponent.ids)+"."+(selected.length?" Tap a chosen kin to remove it.":""),[
+          ...(selected.length?[group("Your order",selected.map((k,i)=>button("remove",slots[i]+" · "+name(k),k,"",{image:portrait(k)})),selected.length===3?3:2)]:[]),
+          ...(selected.length<3?[group(selected.length?"Duets each reserve adds":"Choose the lead",rows,selected.length?1:2)]:
+            [group("One stays behind",[{label:name(t.ids.find(k=>!selected.includes(k))),detail:"This kin sits out this battle."}])]),
           group("Formation desk",[...(selected.length===3?[button("lock-check","Review sealed choice",null,names(selected),{tone:"primary"})]:[]),
             button("rival","Scout their four"),button("table","Return to table")])]);
     }
@@ -214,13 +218,14 @@
       if(selected.length!==3)return order(r);
       return page("Lock this formation?","SCOUT TABLE   /   PRIVATE CHOICE",
         "The first kin leads. The other two take the reserve slots in this order. After locking, send the link and keep this browser’s saved seat for the reveal.",[
-          group("Your private three",eachKin(r.rosters[r.seat],selected)),group("Formation",[
+          group("Your private three",eachKin(r.rosters[r.seat],selected)),group("Your three duets",duets(selected)),group("Formation",[
             button("lock","Lock my three",null,"Seal this order for the match.",{tone:"primary",disabled:pending}),button("order","Change my picks")])]);
     }
     function report(r){
-      const sections=r.rosters.map((t,i)=>{
-        const ids=r.picks[i],unused=t.ids.find(k=>!ids.includes(k));
-        return group((r.seat===i?"Your":seatNames[i]+"’s")+" formation",[...eachKin(t,ids),{label:name(unused),detail:caption(unused,t.gear),image:portrait(unused),badge:"SITS OUT"}],2);
+      const sections=r.rosters.flatMap((t,i)=>{
+        const ids=r.picks[i],unused=t.ids.find(k=>!ids.includes(k)),owner=r.seat===i?"Your":seatNames[i]+"’s";
+        return [group(owner+" formation",[...eachKin(t,ids),{label:name(unused),detail:caption(unused,t.gear),image:portrait(unused),badge:"SITS OUT"}],2),
+          group(owner+" three duets",duets(ids))];
       });
       const a=species[r.picks[0][0]],b=species[r.picks[1][0]];
       return page("The revealed formations","SCOUT TABLE   /   FINAL REPORT",
