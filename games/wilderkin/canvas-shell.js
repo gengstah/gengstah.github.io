@@ -661,7 +661,8 @@
     }
     function battle(x,y,w,t){
       if(!model.ally||!model.foe)return 0;
-      const active=fx,elapsed=active?clamp((t-active.started)/active.duration,0,1):0;
+      const active=fx?.handoff&&fx.handoffView!==model?null:fx;
+      const elapsed=active?clamp((t-active.started)/active.duration,0,1):0;
       const mobile=w<530,sh=mobile?122:Math.min(235,Math.max(145,w/4.6)),bar=mobile?72:78,gap=4;
       const half=(w-gap)/2;
       const leads={ally:passedLeads.ally||model.ally,foe:passedLeads.foe||model.foe};
@@ -868,6 +869,7 @@
       const token={...effect,kind,side,duration,started:performance.now(),promise};
       if(passing){
         source(portrait);
+        token.handoffView=view;
         token.handoff={...(effect.incomingKin||passedLeads[side]||model[side]),flip:effect.incomingKin?.flip,src:portrait};
       }
       if(model.kind==="battle" && arenaRect && (arenaRect.y<clipTop || arenaRect.y+arenaRect.h>clipBottom)){
