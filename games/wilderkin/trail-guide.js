@@ -58,7 +58,7 @@ window.WilderPages = {
     function localLinks() {
       return area().sites.map((a,i)=>row("walk-site",a.label,i,
         a.label==="Brookside Mill"?"Reedbank Relay and trail camp":
-          ({warden:"Warden trial",wild:"Follow creature tracks",camp:"Rest and retrain",travel:"Atlas and crossings",activities:"Regional field station","lantern-cup":"Enter the Lantern Cup","guard-school":"Neri Pike’s field guard lessons"})[a.kind||a.id]));
+          ({warden:"Warden trial",wild:"Follow creature tracks",camp:"Rest and retrain",travel:"Atlas and crossings",activities:"Regional field station","lantern-cup":"Enter the Lantern Cup","guard-school":"Neri Pike’s field guard lessons",twinbell:"Two active kin per side · doubles Wardens"})[a.kind||a.id]));
     }
     function guardStatus(lesson,owned) {
       if(!lesson)return "";
@@ -317,6 +317,7 @@ window.WilderPages = {
       const r=here(),i=s().region,job=game.expedition();
       const gate=game.trialAccess(i);
       const choices=[row("accept-trial",gate.open?"Accept the trial":"Trial locked",null,gate.reason,{tone:"primary",disabled:!gate.open}),
+        ...(window.WilderTwinbell?[nav("twinbell","Visit Twinbell Grounds","Challenge three doubles Wardens with two leads on the field.")]:[]),
         open("second-bell",i,"Second Bell exhibition","Scout "+r.warden+"’s lineup and bring your own party."),
         nav("expedition","Open field commission",job.title),nav("chronicle","Listen to the chapter dispatch")];
       if(gate.target!=null && gate.target!==i)choices.push(open("region",gate.target,"Locate the uncharted passage",game.regions[gate.target].name));
@@ -571,7 +572,8 @@ window.WilderPages = {
         return open("growth",id,g.formName,g.baseName+"’s two camp disciplines",{image:"art/growth/"+g.formId+".png"});
       });
       const lodge=game.wardens.find(i=>!s().wardenLessons.includes(i))??0;
-      return page("What’s new in Wilderkin","FIELD DISPATCH   /   RENTAL TEAMS",[
+      return page("What’s new in Wilderkin","FIELD DISPATCH   /   TWINBELL GROUNDS",[
+        heading("Battle with a pair",[nav("twinbell","Fight at Twinbell Grounds","Bring four kin and choose both leads’ orders against the doubles Wardens.")]),
         heading("Play a rental team",[nav("rental-counter","Visit the Rental Counter","Borrow four kin, pick three to battle, or bring your own team to face them.")]),
         heading("Build a pairing",[nav("partner-finder","Find a duet partner","Choose a skill for two kin, compare partners and try it in battle.")]),
         heading("Rehearse a battle",[nav("film-room","Enter the Film Room","Take Kilnbeak’s side at 22 HP, or bring your own match film.")]),

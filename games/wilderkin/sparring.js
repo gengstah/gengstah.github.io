@@ -120,17 +120,19 @@
       const r=rec(),s=r.setup,ongoing=live(),opponent=rival(s);
       const sections=[];
       const rentals=openRentals?[row("nav","Borrow or challenge a rental team","rental-counter","Choose a four-kin team at the Rental Counter.")]:[];
+      const doubles=window.WilderTwinbell?[row("nav","Twinbell doubles","twinbell","Two leads take the field together. Give both an order.")]:[];
       if(pending)sections.push(group("A guest crew sent a challenge",[button("invitation","Scout the guest lineup",null,pending.ids.map(kin).join(" · "))]));
       if(ongoing)sections.push(group("On the floor",[link("Resume the match","match",sideName(r.match,position().turn)+" to act · "+position().ply+" actions played",{tone:"primary"})]));
       else {
         sections.push(group("Choose a match",[
           button("mode","Battle a rival crew","cpu",opponent.name+" · tactical opponent",{tone:"primary"}),
+          ...doubles,
           ...rentals,
           button("mode","Pass and play","local","Two players share this device and take turns."),
           row("nav","Battle a friend by link","bellpost","Play on two devices. Each of you chooses your own moves.")]));
         if(r.match)sections.push(group("Last match",[link("Review the result","result")]));
       }
-      if(ongoing)sections.push(group("Friend matches",[...rentals,row("nav","Bellpost","bellpost","Play a friend on another device. Your Hall match stays on the floor.")]));
+      if(ongoing)sections.push(group("Other matches",[...doubles,...rentals,row("nav","Bellpost","bellpost","Play a friend on another device. Your Hall match stays on the floor.")]));
       if(cup)sections.push(group("Tournament desk",[link("Lantern Cup","cup","Register six, bring three, and play a best-of-three series.")]));
       if(ember)sections.push(group("Practice with partners",[link("Ember partners","ember","Bring a wounded reserve back into the fight or challenge the rival’s guard.")]));
       if(scout)sections.push(group("Scout Table",[row("nav","Scout a friend’s roster","scout-table","Bring four kin and lock three after scouting."),link("Practice with a scout","scout-practice","Choose a trio against a coach’s public four.")]));

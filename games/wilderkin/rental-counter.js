@@ -3,7 +3,7 @@
   "use strict";
   const route="rental-counter",pageSize=5;
   const group=(title,rows,columns=1)=>({title,rows,columns});
-  function create({game,row,image,go,notify,library,borrowSolo,borrowTable,challengeSolo,tryPair,share,pasteRental}){
+  function create({game,row,image,go,notify,library,borrowSolo,borrowTable,challengeSolo,playDoubles,tryPair,share,pasteRental}){
     const species=game.species,gear=window.WilderSparringGear;
     const name=id=>species[id].name;
     const button=(action,label,value,detail="",extra={})=>row("hire-"+action,label,value,detail,extra);
@@ -104,6 +104,9 @@
       const play=group("Play this team",choiceRows(card,key),2);
       if(key==="current")sections.push(group("Your registration",[...keep,details[1]],2),play,group("Team card",[details[0]]));
       else sections.push(play,group("Team card",details,2),group("Your copies",keep,2));
+      if(playDoubles)sections.push(group("Twinbell doubles",[
+        button("doubles","Use this pair in doubles",key,"Send "+name(card.ids[0])+" and "+name(card.ids[1])+" out together."),
+        button("rival-doubles","Face this four in doubles",key,"Bring your own pair to Twinbell Grounds.")],2));
       return {title:card.name,kicker:"RENTAL COUNTER   /   "+e.type,subtitle:teamPlan(e),sections};
     }
     function duetPage(key,e){
@@ -152,6 +155,7 @@
       if(shown!==key)return true;
       const card=read(e.card);
       if(id==="kin")show("kin|"+value);
+      else if(id==="doubles"||id==="rival-doubles")playDoubles?.(card,id==="rival-doubles");
       else if(id==="duets")show("duets|"+key);
       else if(id==="apply"&&key!=="current"){
         if(context?.apply?.(card)===false)notify("Your registration changed. Return to its current four before borrowing.");

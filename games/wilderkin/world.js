@@ -532,6 +532,21 @@
       rect(c,'#e8cb83',2,0,3,2);
     });
   }
+  function twinbellGate(){
+    return sprite('twinbell-gate',34,29,c=>{
+      oval(c,'#788656',17,26,15,2);
+      for(const x of [2,29]){
+        rect(c,'#493c32',x,3,4,23);rect(c,'#ad8055',x+1,3,1,21);rect(c,'#756958',x-1,24,6,3);
+      }
+      rect(c,'#483a31',0,2,34,4);rect(c,'#c09669',1,2,32,1);
+      for(const [x,y] of [[7,2],[19,5]]){
+        rect(c,'#514536',x+3,6,2,y+2);
+        poly(c,'#624a30',[[x+2,6+y],[x+6,6+y],[x+8,10+y],[x+8,14+y],[x+10,16+y],[x-1,16+y],[x+1,13+y]]);
+        rect(c,'#b5863d',x+2,8+y,5,6);rect(c,'#e5bb5e',x+2,9+y,2,5);
+        rect(c,'#cc9949',x,14+y,9,1);rect(c,'#e0b661',x+3,17+y,2,2);
+      }
+    });
+  }
   function lanternGate() {
     return sprite('lantern-court-gate',30,27,c=>{
       oval(c,'#80945d',14,25,13,2);
@@ -760,6 +775,7 @@
     [[7,7],[8,8],[14,7]].forEach(([x,y],i)=>regions[i].sites.push(site('activities',x,y,'Field station')));
     regions[0].sites.push(site('lantern-cup',13,8,'Lantern Gate'));
     regions[0].sites.push(site('guard-school',16,6,'Neri Pike'));
+    regions[0].sites.push(site('twinbell',9,8,'Twinbell Grounds'));
     regions[1].sites.push(site('guard-school',4,8,'Neri Pike'));
     window.WilderAtlas.regions.slice(3).forEach((meta,j)=>regions.push(expeditionRegion(meta,j+3)));
   }
@@ -1237,6 +1253,11 @@
       place(map,lanternGate(),x,y);hot(gate,x-14,y-26,x+15,y+1);
     }
     const medic=at('guard-school');
+    const twinbell=at('twinbell');
+    if(twinbell){
+      const x=twinbell.x*TILE+8,y=twinbell.y*TILE+8;
+      place(map,twinbellGate(),x,y);hot(twinbell,x-16,y-27,x+16,y+1);
+    }
     if(medic){
       const x=medic.x*TILE+8,y=medic.y*TILE+9;
       place(map,explorer(index,'neri','down'),x,y);hot(medic,x-8,y-21,x+9,y+1);

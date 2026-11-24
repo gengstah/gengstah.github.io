@@ -127,6 +127,7 @@
     let passedLeads={};
     let mirrorSig="",destroyed=false;
     const surface = {get busy(){return Boolean(fx);},show,animate,toast,invalidate:()=>{dirty=true;},destroy};
+    const twinField=window.WilderTwinField?.create({c,rect,ellipse,label,getFont,fit,source,picture,rightFacing,control,highlighted});
     function source(src){
       if(!src)return null;
       if(typeof src!=="string")return src;
@@ -183,9 +184,10 @@
       if(next.id!==model.id || next.kind!==model.kind){
         scroll=0;focus="";hover="";lastPage=performance.now();
       }
-      model=next;passedLeads={};menu=false;dirty=true;
+      twinField?.update(next.twinField);model=next;passedLeads={};menu=false;dirty=true;
       // Update controls synchronously so a screen reader can follow each transition.
       render(performance.now());
+      if(next.twinField?.focus&&next.subtitle&&live.textContent!==next.subtitle)live.textContent=next.subtitle;
     }
     function toast(value){
       const text=String(value||"");
@@ -570,6 +572,17 @@
       }
       const desktop=w>=860;
       const parts=model.sections||[];
+      if(twinField&&model.twinField){
+        const top=y+titleBlock(x,y,w)+10;
+        if(desktop){
+          const fieldW=Math.floor(w*.555),gap=22;
+          const fieldEnd=top+twinField.draw(model.twinField,x,top,fieldW,t,reduced.matches);
+          let bottom=top;for(const part of parts)bottom+=section(part,x+fieldW+gap,bottom,w-fieldW-gap,t);
+          return Math.max(bottom,fieldEnd+12);
+        }
+        let bottom=top+twinField.draw(model.twinField,x,top,w,t,reduced.matches)+12;
+        for(const part of parts)bottom+=section(part,x,bottom,w,t);return bottom;
+      }
       let art=model.art;
       if(!art && model.id?.startsWith("scene:")){
         const theme=Number(window.WilderGame?.regions[window.WilderGame.state.region]?.theme)||0;
@@ -961,11 +974,12 @@
       const accessible=menu?hits.filter(h=>h.area.startsWith("menu")):hits;
       const unique=new Map();
       for(const h of accessible){
-        if(h.area==="map")continue;
+        if(h.area==="map"||h.pointerOnly)continue;
         const signature=h.row.id+"|"+String(h.row.value??"")+"|"+h.row.label;
         if(!unique.has(signature))unique.set(signature,h);
       }
       const narration=[model.kicker,model.title,model.subtitle,model.status];
+      if(model.twinField&&window.WilderTwinField)narration.push(...window.WilderTwinField.narration(model.twinField));
       if(model.objective)narration.push(model.objective.title,model.objective.description);
       if(model.log)narration.push(...(Array.isArray(model.log)?model.log:[model.log]));
       if(model.lineups)for(const side of [model.lineups.left,model.lineups.right]){
@@ -1078,7 +1092,7 @@
       dirty=true;render(performance.now());
     }
     function moveFocus(dir) {
-      const options=hits.filter(h=>!h.disabled && h.area!=="map" && (menu?h.area.startsWith("menu"):!h.area.startsWith("menu")));
+      const options=hits.filter(h=>!h.disabled && !h.pointerOnly && h.area!=="map" && (menu?h.area.startsWith("menu"):!h.area.startsWith("menu")));
       if(!options.length)return;
       const index=options.findIndex(h=>h.uid===focus);
       const next=index<0?(dir>0?0:options.length-1):(index+dir+options.length)%options.length;
