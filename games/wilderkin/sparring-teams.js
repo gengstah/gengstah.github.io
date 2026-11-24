@@ -18,6 +18,9 @@
     mark:"Exposes a survivor. The next ordinary strike deals 50% more damage and pierces cover.",rush:"Breaks through cover for a heavy hit."
   };
   const standard=(species,id)=>typeof id==="string"&&Object.hasOwn(species,id)&&!species[id].bonus;
+  function namedCrew(id,team){
+    return Array.isArray(team)&&team.length===3?rivals.find(r=>r.id===id&&r.team.every((kin,i)=>kin===team[i]))?.name||null:null;
+  }
   const valid=(species,ids)=>Array.isArray(ids)&&ids.length===3&&new Set(ids).size===3&&[...ids].every(id=>standard(species,id));
   function duetPairs(species,ids){
     return ids.flatMap((lead,i)=>ids.slice(i+1).map(mate=>{
@@ -397,5 +400,5 @@
     }
     return {page,act,key,restore:raw=>restore(raw,{species}),decode,encode,decodeLoadout,encodeLoadout,scout,rivals};
   }
-  window.WilderSparringTeams={create,restore,scoutDuets};
+  window.WilderSparringTeams={create,restore,scoutDuets,namedCrew};
 })();

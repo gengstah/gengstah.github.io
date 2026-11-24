@@ -43,7 +43,7 @@
       const same=["left","right"].every(side=>Array.isArray(stored[side])&&stored[side].length===3&&teams[side].every((id,i)=>id===stored[side][i]));
       if(same&&validKit(stored)&&replay(sim,{setup:teams,first:stored.first,moves:stored.moves})?.phase==="done"){
         const scout=window.WilderScoutPractice?.checkCard(stored.scout,{...teams,rival:"custom"},stored.first,species,sim);
-        rec.lastReview=tape({setup:teams,first:stored.first,moves:stored.moves,scout});
+        rec.lastReview=tape({setup:teams,first:stored.first,moves:stored.moves,scout},stored.rival??null);
       }
     }
     const m=raw.match;
@@ -58,13 +58,14 @@
           if(scout)match.scout=scout;
           match.handoff=lineups.mode==="local"&&pos.phase!=="done"&&m.handoff===true;
           rec.match=match;
-          if(lineups.mode==="cpu"&&pos.phase==="done")rec.lastReview=tape(match);
+          if(lineups.mode==="cpu"&&pos.phase==="done")rec.lastReview=tape(match,m.setup.rival??null);
         }
       }
     }
     return rec;
   }
-  function tape(m){return {left:m.setup.left.slice(),right:m.setup.right.slice(),...gearCopy(m.setup.gear),first:m.first,human:0,moves:m.moves.slice(),
+  function tape(m,rival=m.setup.rival){return {left:m.setup.left.slice(),right:m.setup.right.slice(),...gearCopy(m.setup.gear),first:m.first,human:0,moves:m.moves.slice(),
+    ...(window.WilderSparringTeams.namedCrew(rival,m.setup.right)?{rival}:{}),
     ...(m.scout?{scout:{...m.scout,ids:m.scout.ids.slice(),gear:{...m.scout.gear},picks:m.scout.picks.slice()}}:{})};}
   function create({game,row,image,go,render,notify,animate,playTone,active=()=>true}) {
     const species=game.species,sim=window.WilderSparringBattle.create({species});
@@ -131,7 +132,10 @@
       if(cup)sections.push(group("Tournament desk",[link("Lantern Cup","cup","Register six, bring three, and play a best-of-three series.")]));
       if(ember)sections.push(group("Practice with partners",[link("Ember partners","ember","Bring a wounded reserve back into the fight or challenge the rival’s guard.")]));
       if(scout)sections.push(group("Scout Table",[row("nav","Scout a friend’s roster","scout-table","Bring four kin and lock three after scouting."),link("Practice with a scout","scout-practice","Choose a trio against a coach’s public four.")]));
-      if(r.lastReview)sections.push(group("Practice film",[row("nav","Replay your last rival match","sparring-review","Try a different decision on a recorded turn.")]));
+      const films=[];
+      if(r.lastReview)films.push(row("nav","Replay your last rival match","sparring-review","Try a different decision on a recorded turn."));
+      if(window.WilderFilmRoom)films.push(row("nav","Enter the Film Room","film-room","Rehearse a shared battle or redraft its opening trio."));
+      if(films.length)sections.push(group("Battle films",films));
       if(!ongoing)sections.push(group("Prepare",[
         link("Build your trio","edit:left:team",s.left.map(kin).join(" · ")),
         ...(library?[link("Team case","bench","Save your builds and compare them in practice matches.")]:[]),
@@ -285,6 +289,11 @@
         m.scout?row("scout-pr-restart","Return to Scout Table",null,"Keep your four and scout the next match.",{tone:"primary"}):
           button("rematch","Quick rematch",null,sideName(m,1-m.first)+" opens next.",{tone:"primary"}),
         link("Edit your trio","edit:left:team","Change the lead, a reserve or a duet.")],2)];
+      if(window.WilderFilmRoom&&m.setup.mode==="cpu"&&swing){
+        const moment=played.filter(e=>e.side===0&&e.number<=swing.number).at(-1)||swing;
+        sections[0].rows.splice(1,0,row("hall-open-film","Rehearse action "+moment.number,events.indexOf(moment),
+          "Take over before "+kin(moment.actor)+" used "+moment.move.label+", or try a different opening trio."));
+      }
       if(swing){
         const facts=[swing.hit?kin(swing.foe)+" lost "+swing.hit+" HP":"",swing.heal?"the team recovered "+swing.heal+" HP":"",swing.ko?kin(swing.foe)+" fell":""].filter(Boolean);
         sections.push({title:"Turning point · action "+swing.number,text:kin(swing.actor)+" used "+swing.move.label+". "+(facts.join(" and ")+(facts.length?".":swing.move.detail))});

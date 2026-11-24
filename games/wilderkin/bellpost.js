@@ -5,12 +5,12 @@
   // A chat client can attach sentence punctuation and Markdown closers to the URL.
   const trailingPunctuation=/(?:[.,;:!?'")\]}>*_\x60’”…。]|%(?:22|27|29|3E|5D|60|7D)|%E2%80%(?:99|9D|A6)|%E3%80%82)+$/i;
   const copyTeam=t=>({ids:t.ids.slice(),gear:{...t.gear}});
-  function create({game,row,image,go,render,notify,scoutRules,openSharedMessage,openScoutReport}) {
+  function create({game,row,image,go,render,notify,scoutRules,openSharedMessage,openScoutReport,openFilmRoom}) {
     const rules=window.WilderBellpostRules.create({game});
-    const arena=window.WilderBellpostArena.create({game,row,image});
+    const arena=window.WilderBellpostArena.create({game,row,image,rehearse:!!openFilmRoom});
     const wire=window.WilderBellpostWire?.create({rules,row,render,notify});
     const inbox=new Map(),drafts=new Map(),charters=new Map();
-    let problem="",olderLetter=null,displayed=null;
+    let problem="",olderLetter=null,displayed=null,filmSnapshot=null;
     const hotkeys=new Map();
     const group=(title,rows,columns=1)=>({title,rows,columns});
     const control=(id,label,value=null,detail="",extra={})=>row("post-"+id,label,value,detail,extra);
@@ -27,6 +27,7 @@
     const buttons=(t,protocol)=>t.ids.map((id,i)=>({label:name(id),image:image(id,false),
       detail:[game.species[id].types.join(" / "),piece(t.gear?.[id])?.name,protocol!==1&&game.species[id].emberArt?.name].filter(Boolean).join(" · "),badge:i===0?"LEAD":""}));
     const record=id=>rules.get(id)||inbox.get(id)||null;
+    const screenRecord=(view,id)=>["film","film-crew"].includes(view)&&filmSnapshot?.id===id?filmSnapshot:record(id);
     const role=r=>r.seat===0?"Host":r.seat===1?"Guest":"Spectator";
     const myTurn=r=>r.status==="active"&&r.pos?.turn===r.seat;
     const hallTrio=()=>{
@@ -80,6 +81,7 @@
         control("paste","Open a letter",null,"Paste an invitation or a return link.")]));
       sections.push(group("Adventure",[row("root",game.state.battle?"Resume campaign battle":"Back to the trail"),
         row("nav","Visit the Sparring Hall","sparring")],2));
+      if(openFilmRoom)sections.push(group("Battle films",[row("nav","Enter the Film Room","film-room","Play a recorded decision from either side.")]));
       const desk=page("Bellpost","TWO-PLAYER SPARRING","Two browsers, one level-20 match. Send a link after each turn or pair your devices on the same Wi-Fi.",sections,
         {src:"ui/bellpost.png",landscape:true,height:164});
       if(rules.persistent===false)desk.status="Session only · keep this tab open to retain your seat.";
@@ -163,7 +165,7 @@
       return {...result,subtitle:subtitle.trim(),sections};
     }
     function model(value){
-      const [view,id,part]=String(value||"desk").split("|"),r=id&&record(id);
+      const [view,id,part]=String(value||"desk").split("|"),r=id&&screenRecord(view,id);
       hotkeys.clear();
       displayed=r?{id:r.id,hash:r.hash}:null;
       if(view==="draft")return lineup(id);
@@ -214,6 +216,15 @@
       olderLetter=null;const r=check.record;inbox.set(r.id,r);
       rememberUrl(rules.export(r.id));
       return path("game",r.id);
+    }
+    function showSourceFilm(resolved,index){
+      const r=resolved?.source;
+      if(!r?.pos)return null;
+      if(resolved.table)charters.set(r.id,resolved.table);
+      filmSnapshot=rules.inspect(r.hash)||r;
+      if(!record(r.id))inbox.set(r.id,r);
+      rememberUrl(r.hash);
+      return path("film",r.id,Number.isInteger(index)?index:-1);
     }
     function scoutingTable(hash){
       if(!hash?.startsWith("#bellpost-v3="))return null;
@@ -280,6 +291,10 @@
       const publicHash=hash==="#bellpost"?hash:publicLetter(hash);
       if(publicHash&&window.location.hash!==publicHash)try{window.history?.replaceState(null,"",publicHash);}catch{}
     }
+    function restoreAddress(route){
+      const [view,id]=String(route||"desk").split("|"),r=id&&screenRecord(view,id);
+      rememberUrl(r?r.hash:"#bellpost");
+    }
     function textBox(title,text,accept,allowEmpty=false){
       // A native input gives mobile users the OS paste/select controls.
       const v=window.prompt?.(title,text);
@@ -298,7 +313,7 @@
       }catch{selectable(r);}
     }
     function act(action,value,current){
-      const [view,id,part]=String(current||"desk").split("|"),r=record(id);
+      const [view,id,part]=String(current||"desk").split("|"),r=screenRecord(view,id);
       if(r&&action.startsWith("wire-"))return wire?.act(action,value,r);
       if(action==="spar-view"&&value==="equipment"&&r){show(view==="film"?path("film-crew",id,part):path("panel",id,"crew"));return true;}
       if(!action.startsWith("post-"))return false;
@@ -337,10 +352,17 @@
       if(cmd==="share"||cmd==="copy")void deliver(r,cmd);
       else if(cmd==="link")selectable(r);
       else if(cmd==="scout-report"){const table=scoutingTable(r.hash);if(table)openScoutReport?.(table.hash);}
-      else if(cmd==="battle")show(path("game",id),"replace");
+      else if(cmd==="battle"){const latest=record(id);if(latest)rememberUrl(rules.export(id)||latest.hash);show(path("game",id),"replace");}
       else if(cmd==="panel")show(path("panel",id,value));
       else if(cmd==="wire"&&wire)show(path("wire",id));
-      else if(cmd==="film"||cmd==="film-step")show(path("film",id,value??-1),cmd==="film"?"push":"replace");
+      else if(cmd==="film"||cmd==="film-step"){
+        if(cmd==="film")filmSnapshot=r;
+        show(path("film",id,value??-1),cmd==="film"?"push":"replace");
+      }
+      else if(cmd==="rehearse"&&r.pos){
+        const table=scoutingTable(r.hash);
+        openFilmRoom?.(r,value===null||value===undefined?null:Number(value),{publicHash:publicLetter(r.hash),rosters:table?.rosters});
+      }
       else if(cmd==="manage"&&r.seat!==null&&!r.archived)show(path("manage",id,value));
       else if(cmd==="close"&&view==="manage"&&part===value&&r.seat!==null){
         if(displayed?.id!==id||displayed.hash!==r.hash){show(path("game",id),"replace");notify("This match has changed. Review its latest position.");return true;}
@@ -363,7 +385,7 @@
       if(!e.repeat)act(action.id,action.value,current);
       return true;
     }
-    return {model,act,key,loadFragment,loadScouted,loadScoutBout};
+    return {model,act,key,loadFragment,loadScouted,loadScoutBout,showSourceFilm,restoreAddress};
   }
   window.WilderBellpost={create};
 })();

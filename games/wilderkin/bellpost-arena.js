@@ -1,14 +1,14 @@
 // A Bellpost match is the same level-20 duel on both devices. The viewer's seat only changes the controls and the camera.
 (() => {
   "use strict";
-  function create({game,row,image}){
+  function create({game,row,image,rehearse=false}){
     const species=game.species,sim=window.WilderSparringBattle.create({species});
     const name=id=>species[id].name,front=side=>side.team[side.active];
     const group=(title,rows,columns=1)=>({title,rows,columns});
     const button=(id,label,value,detail="",extra={})=>row("post-"+id,label,value,detail,extra);
     const back=()=>button("battle","Back to the battle");
     const order=r=>r.seat===1?[1,0]:[0,1];
-    const sideName=(r,i)=>r.seat===0||r.seat===1?r.seat===i?"You":"Friend":i===0?"Host":"Guest";
+    const sideName=(r,i)=>r.labels?.[i]||(r.seat===0||r.seat===1?r.seat===i?"You":"Friend":i===0?"Host":"Guest");
     const possessive=(r,i)=>r.seat===i?"Your":sideName(r,i)+"’s";
     const done=r=>r.status==="done"||r.pos.phase==="done";
     const resigned=r=>r.resigned===0||r.resigned===1||r.resigned===true;
@@ -104,10 +104,10 @@
     function model(r,panel=""){
       const p=r.pos,events=tape(r),isDone=done(r),mine=!isDone&&r.seat===p.turn,lead=name(front(p.sides[p.turn]).id);
       const page={...snapshot(r,p),title:isDone?result(r):mine?p.phase==="replace"?"Choose your next lead":"Your turn":possessive(r,p.turn)+" turn",
-        kicker:"BELLPOST   /   ACTION "+Math.min(isDone?p.ply:p.ply+1,p.limit)+" OF "+p.limit,log:latest(r,events.at(-1)),sections:[]};
+        kicker:(r.kind==="hall"?"HALL FILM":"BELLPOST")+"   /   ACTION "+Math.min(isDone?p.ply:p.ply+1,p.limit)+" OF "+p.limit,log:latest(r,events.at(-1)),sections:[]};
       if(isDone)page.subtitle=verdict(r);
       else if(!mine)page.subtitle=possessive(r,p.turn)+" "+lead+(p.phase==="replace"?" needs a replacement.":" has the next move.");
-      if(panel==="crew")return {title:"Meet the trios",kicker:"BELLPOST   /   EQUIPMENT",sections:[group("Battle floor",[back()]),...crew(r,p)]};
+      if(panel==="crew")return {title:"Meet the trios",kicker:(r.kind==="hall"?"HALL FILM":"BELLPOST")+"   /   EQUIPMENT",sections:[group("Battle floor",[back()]),...crew(r,p)]};
       if(mine){
         const opts=sim.options(p);
         if(p.phase==="replace")page.sections.push(group("Free replacement · you act again",
@@ -131,19 +131,21 @@
       }
       const desk=[button("panel","Inspect trios","crew","Health, beats and equipment")];
       if(events.length||isDone)desk.unshift(button("film","Battle film",events.length-1,events.length+" recorded decisions"));
+      if(rehearse)desk.push(button("rehearse","Practice this match",null,"Take either team into a private rematch against the coach."));
       page.sections.push(group("At the ring",desk,2));return page;
     }
     function review(r,index,panel=""){
       const events=tape(r),last=events.length-1;
       if(!events.length)return {title:"Battle film",kicker:"BELLPOST",subtitle:done(r)?result(r)+". "+verdict(r):"The opening move is still to come.",
-        sections:[group("At the ring",[back()])]};
+        sections:[group("At the ring",[...(rehearse?[button("rehearse","Try the opening",0)]:[]),back()])]};
       const num=Number(index),at=index===null||index===undefined||!Number.isInteger(num)||num<0?last:Math.min(num,last),e=events[at];
-      if(panel==="crew")return {title:"Trios on film",kicker:"BELLPOST   /   DECISION "+(at+1),
+      if(panel==="crew")return {title:"Trios on film",kicker:(r.kind==="hall"?"HALL FILM":"BELLPOST")+"   /   DECISION "+(at+1),
         sections:[group("Film controls",[button("film-step","Return to this decision",at)]),...crew(r,e.after)]};
       const replace=e.move.kind==="replace",sections=[],nav=[];
       if(at>0)nav.push(button("film-step","Previous",at-1));
       if(at<last)nav.push(button("film-step","Next",at+1));
       nav.push(back());sections.push(group("Film controls",nav,nav.length));
+      if(rehearse)sections.push(group("Film Room",[button("rehearse","Try this decision",at,"Take control before "+e.move.label+" and play out your own ending.",{tone:"primary"})]));
       const changes=changeRows(r,e);
       sections.push({title:eventLabel(r,e),text:e.move.detail});
       if(changes.length)sections.push(group("What changed",changes,2));
@@ -158,5 +160,12 @@
     }
     return {model,review};
   }
-  window.WilderBellpostArena={create};
+  // A completed public Scout Table match. The guest's eighth decision starts at 22 HP.
+  const featured={index:7,publicHash:"#scout-bout1="+
+    "3b4c8f910c03d2e92d0ced0b.e82fb3acf96ef00de47af39880b04b712fa1a14e413a7e74e3c644e906bd5772."+
+    "9b097cc6944894c0e48003ba.cindlet,dewfin,gustlance~mender-wrap,kilnbeak~prism-lens."+
+    "cindlet,dewfin~last-stitch,mossbell,sprigkit~opening-pennant.5dc1bc0b3868c338a742f7f7f0d0b901."+
+    "7b0296555e9984484453c96b0fd2e36406d5f7b2369426b5803713c6d2485970.320.0f7096cfaa1417a7b74697610f66db72."+
+    "321.328230b1c8c34257f4a37e18f4a9dc14!BCKABCBJNANBBBBBBBBMAJAAAMAAAAA!x"};
+  window.WilderBellpostArena={create,featured};
 })();

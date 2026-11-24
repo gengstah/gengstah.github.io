@@ -67,6 +67,12 @@
     const card={v:1,coach:rival.id,ids:ids.slice(),gear:fitting.left,picks:setup.left.slice(),die:raw.die};
     return same(measure(sim,card,rival).order,setup.right)?card:null;
   }
+  function filmRosters(raw,setup,first,species,sim){
+    const card=checkCard(raw,setup,first,species,sim);
+    if(!card)return null;
+    const rival=coaches.find(c=>c.id===card.coach);
+    return {card,name:rival.name,rosters:[{ids:card.ids,gear:card.gear},{ids:rival.team.slice(),gear:{...rival.gear}}]};
+  }
   function create({game,sim,row,image,show,live,playFromPractice,readSetup}){
     const species=game.species,kit=window.WilderSparringGear;
     const catalog=Object.values(species).filter(k=>!k.bonus).sort((a,b)=>a.name.localeCompare(b.name));
@@ -291,5 +297,5 @@
     }
     return {matches,model,act};
   }
-  window.WilderScoutPractice={create,checkCard,coachName};
+  window.WilderScoutPractice={create,checkCard,coachName,filmRosters};
 })();

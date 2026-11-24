@@ -3,7 +3,7 @@ const fs=require("node:fs"),path=require("node:path"),vm=require("node:vm"),cryp
 const names=["atlas","bestiary","activities","campaign","story","duets","sparring-gear","sparring-signatures","sparring-battle",
   "sparring-teams","bellpost-rules","bellpost-arena","bellpost","engine"];
 const root=path.join(__dirname,"../games/wilderkin");
-function device(store=new Map()){
+function device(store=new Map(),openFilmRoom){
   const localStorage={getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,v),removeItem:k=>store.delete(k)};
   const messages=[],w={localStorage,crypto,location:{origin:"https://game.test",pathname:"/games/wilderkin/",search:"?release=1"},navigator:{},
     history:{replaceState:(_,__,hash)=>{w.location.hash=hash;}}};
@@ -14,7 +14,7 @@ function device(store=new Map()){
   const repaint=()=>{model=desk.model(route);};
   const go=(screen,next)=>{assert.equal(screen,"bellpost");route=next;repaint();};
   const row=(id,label,value,detail,extra)=>({id,label,value,detail,...extra});
-  const desk=w.WilderBellpost.create({game,row,image:id=>id+".png",go,render:repaint,notify:m=>messages.push(m)});
+  const desk=w.WilderBellpost.create({game,row,image:id=>id+".png",go,render:repaint,notify:m=>messages.push(m),openFilmRoom});
   w.navigator.clipboard={writeText:async url=>{clip=url;}};
   w.prompt=(label,value)=>{prompt={label,value};return null;};
   function open(hash){route=desk.loadFragment(hash);assert.ok(route);repaint();}
@@ -27,6 +27,23 @@ function device(store=new Map()){
     hash:()=>w.location.hash,repaint:()=>repaint()};
 }
 const plain=x=>JSON.parse(JSON.stringify(x)),code=url=>url.slice(url.indexOf("#"));
+
+test("returning to an earlier rehearsal keeps the selected film frame and preserves a newer correspondence position",()=>{
+  const launched=[],host=device(new Map(),(...args)=>launched.push(args)),guest=device();
+  host.click("post-new");host.click("post-confirm");guest.open(host.hash());guest.click("post-join",host.route().split("|")[1]);guest.click("post-confirm");
+  host.open(guest.hash());host.click("post-move");
+  const early=host.hash(),rules=host.w.WilderBellpostRules.create({game:host.game}),source=rules.inspect(early);
+  host.click("post-film");host.click("post-rehearse",0);
+  assert.equal(launched.length,1);assert.equal(launched[0][0].hash,source.hash);
+  assert.equal(launched[0][1],0);assert.equal(launched[0][2].publicHash,early);
+  guest.open(early);guest.click("post-move");host.open(guest.hash());
+  const current=host.hash(),stored=JSON.stringify([...host.store]);
+  const route=host.desk.showSourceFilm({source:{...source,seat:null},publicHash:early},0);
+  assert.equal(host.desk.model(route).kicker,"DECISION 1 OF 1");
+  assert.equal(host.hash(),early);assert.equal(JSON.stringify([...host.store]),stored);
+  host.desk.act("post-battle",null,route);
+  assert.equal(host.hash(),current);assert.equal(host.model().title,"Your turn");
+});
 
 test("clipboard, native share, selectable text and the address bar use a chat-safe letter while the stored packet stays raw",async()=>{
   const host=device(),guest=device(),spectator=device();

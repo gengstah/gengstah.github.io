@@ -50,8 +50,8 @@
       for(const key of memory.keys())if(key.startsWith(storePrefix)&&tokenRE.test(key.slice(storePrefix.length)))set.add(key.slice(storePrefix.length));
       return [...set];
     }
-    function loadout(value) {
-      if(!value || !Array.isArray(value.ids) || value.ids.length!==3 || new Set(value.ids).size!==3 ||
+    function loadout(value,count=3) {
+      if(!value || ![3,4].includes(count) || !Array.isArray(value.ids) || value.ids.length!==count || new Set(value.ids).size!==count ||
           !Array.from(value.ids).every(id=>typeof id==="string" && speciesRE.test(id) && Object.hasOwn(species,id) && !species[id].bonus))return null;
       const fitting=kit.validate({left:value.gear===undefined?{}:value.gear},value.ids,[]);
       return fitting?{ids:value.ids.slice(),gear:fitting.left}:null;
@@ -59,9 +59,10 @@
     function packTeam(t) {
       return t.ids.map(id=>id+(t.gear[id]?"~"+equipment.indexOf(t.gear[id]):"")).join(",");
     }
-    function unpackTeam(code) {
+    function unpackTeam(code,count=3) {
+      if(typeof code!=="string"||code.length>190)return null;
       const slots=code.split(",");
-      if(slots.length!==3)return null;
+      if(slots.length!==count)return null;
       const ids=[],gear={};
       for(const slot of slots){
         const parts=slot.split("~");
@@ -69,7 +70,7 @@
         ids.push(parts[0]);
         if(parts.length===2)gear[parts[0]]=equipment[Number(parts[1])];
       }
-      return loadout({ids,gear});
+      return loadout({ids,gear},count);
     }
     function commandCode(pos,id,protocol) {
       const [kind,arg]=id.split(":"),side=pos.sides[pos.turn];
@@ -88,6 +89,9 @@
     }
     function pack(protocol,id,left,visitor,right) {
       return prefix(protocol)+[id,packTeam(left),visitor||"",right?packTeam(right):"","",""].join(".");
+    }
+    function readCommand(pos,code,protocol) {
+      return sim.options(pos).find(m=>m.available&&commandCode(pos,m.id,protocol)===code)||null;
     }
     function decode(hash,events) {
       if(typeof hash!=="string"||hash.length>limit)return null;
@@ -111,7 +115,7 @@
         pos=sim.start(left.ids,right.ids,first,{left:left.gear,right:right.gear},protocol);
         if(!pos)return null;
         for(const c of commands){
-          const move=sim.options(pos).find(m=>m.available && commandCode(pos,m.id,protocol)===c);
+          const move=readCommand(pos,c,protocol);
           if(!move)return null;
           const after=sim.apply(pos,move.id);
           if(!after)return null;
@@ -212,7 +216,7 @@
       if(!battle||!tokenRE.test(battle.id)||!tokenRE.test(battle.guestId)||![0,1].includes(battle.first)||
         !Array.isArray(battle.teams)||battle.teams.length!==2||typeof tape!=="string"||tape.length>maxMoves||
         !/^[A-Z2]*$/.test(tape)||!["","0","1"].includes(flag))return null;
-      const [left,right]=battle.teams.map(loadout);
+      const [left,right]=battle.teams.map(team=>loadout(team));
       return left&&right?prefix(3)+[battle.id,packTeam(left),battle.guestId,packTeam(right),tape,flag,battle.first].join("."):null;
     }
     function seatScouted(battle,seat){
@@ -287,7 +291,10 @@
       if(local?.hash===record.hash)record.seat=local.seat;
       return {record,events,final:record.pos};
     }
-    return {invite,join,receive,inspect,forSharing,scoutedHash,seatScouted,get:id=>remember(get(id)),list:()=>ids().map(get).filter(r=>r&&!r.archived),
+    // Hall films use the same command alphabet and fitted teams without any correspondence identity.
+    const filmCodec={team:(value,count=3)=>{const t=loadout(value,count);return t?packTeam(t):null;},
+      readTeam:unpackTeam,command:commandCode,readCommand};
+    return {invite,join,receive,inspect,forSharing,scoutedHash,seatScouted,filmCodec,get:id=>remember(get(id)),list:()=>ids().map(get).filter(r=>r&&!r.archived),
       play:(id,move,hash)=>change(id,move,false,hash),resign:(id,hash)=>change(id,null,true,hash),
       archive:id=>close(id),withdraw:id=>close(id,true),export:exportHash,review,get persistent(){return persistent;}};
   }

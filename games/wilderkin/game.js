@@ -42,7 +42,16 @@
   const bell=window.WilderSecondBell.create({...rentalControls,image:(id,owned=false)=>image(id,owned),locate,travel,fight});
   const hall=window.WilderSparring.create({...rentalControls,active:()=>screen.name==="sparring"});
   const scoutRules=window.WilderScoutRules?.create({game});
-  const post=window.WilderBellpost?.create({...rentalControls,scoutRules,openSharedMessage,openScoutReport:hash=>followScout(hash,true)});
+  const filmPractice=window.WilderFilmPractice?.create({game});
+  const films=window.WilderFilmRoom?.create({...rentalControls,practice:filmPractice,
+    active:()=>screen.name==="film-room",returnToFilm:(sourceHash,publicHash,index)=>openRoomSource(publicHash||sourceHash,index,sourceHash),
+    latestHallFilm:()=>!!hall.reviewRecord(),openHallFilm:()=>openLatestHall(),shareSource:copyOriginalFilm,
+    openLetter:pasteFilm,openFeatured:()=>{
+      const featured=window.WilderBellpostArena.featured;return openRoomSource(featured.publicHash,featured.index);
+    }});
+  const hallViewer=window.WilderHallFilm?.create({...rentalControls,openPractice:(r,i,ctx)=>films.open(r,i,ctx),share:copyOriginalFilm});
+  const post=window.WilderBellpost?.create({...rentalControls,scoutRules,openSharedMessage,openScoutReport:hash=>followScout(hash,true),
+    openFilmRoom:films?(r,index,context)=>films.open(r,index,context):null});
   const scouts=window.WilderScoutTable?.create({...rentalControls,rules:scoutRules,openSharedMessage,
     active:()=>screen.name==="scout-table",openBattle:table=>{
       const value=post.loadScouted(table);go("bellpost",value);return !value.startsWith("error");
@@ -64,6 +73,16 @@
     } catch { /* Audio output is optional. */ }
   }
   function stopWalk(){route=[];arrival=null;}
+  function addressRoom(next){
+    const loc=window.location;
+    const address=next.name==="film-room"?"#film-room":next.name==="hall-film"?hallViewer.hash():null;
+    if(address){if(loc.hash!==address)window.history.replaceState(null,"",address);}
+    else if(["film-room","hall-film"].includes(screen.name)&&
+      (loc.hash==="#film-room"||loc.hash.startsWith("#hall-film1="))){
+      if(next.name==="bellpost")post.restoreAddress(next.value);
+      else window.history.replaceState(null,"",loc.pathname+loc.search);
+    }
+  }
   function go(name,value=null,mode="push") {
     if (resolving) return;
     locationRevision++;
@@ -74,7 +93,7 @@
     if (["world","guard-school","second-bell","wild-calls"].includes(name) && game.state.battle) name="battle";
     if (mode==="root") history=[];
     else if (mode==="push" && (name!==screen.name || value!==screen.value)) history.push(screen);
-    screen={name,value};render();
+    const next={name,value};addressRoom(next);screen=next;render();
   }
   function root(){go(game.state.battle?"battle":"world",null,"root");}
   function back() {
@@ -83,7 +102,7 @@
     if (!dest || screen.name==="outcome") return root();
     if ((dest.name==="battle" && !game.state.battle) || (dest.name==="world" && game.state.battle)) return root();
     locationRevision++;
-    screen=dest;render();
+    addressRoom(dest);screen=dest;render();
   }
   function reset() {
     game.reset();pages.reset();fair.reset();outcome=null;restorePlayer();root();
@@ -112,6 +131,8 @@
       case "second-bell":model=bell.model(screen.value);break;
       case "sparring":model=hall.model(screen.value);break;
       case "bellpost":model=post.model(screen.value);break;
+      case "film-room":model=films.model(screen.value);break;
+      case "hall-film":model=hallViewer.model(screen.value);break;
       case "scout-table":model=scouts.model(screen.value);break;
       case "sparring-review":model=replay.model(screen.value);break;
       default:model=pages.model(screen.name,screen.value);break;
@@ -473,6 +494,7 @@
     if (screen.name==="circuit" && circuit.key(e)) return true;
     if (screen.name==="sparring" && hall.key(e,screen.value)) return true;
     if (screen.name==="bellpost" && post.key(e,screen.value)) return true;
+    if (screen.name==="film-room" && films.key?.(e,screen.value)) return true;
     if (screen.name==="scout-table" && scouts.key?.(e,screen.value)) return true;
     if (screen.name==="hollow" && pages.hollowKey(e,screen.value)) return true;
     if (screen.name==="search" && pages.typeKey(e)) return true;
@@ -512,6 +534,7 @@
       return;
     }
     switch (id) {
+      case "hall-open-film":if(screen.name==="sparring")return openLatestHall(value);return;
       case "nav":
         if (value==="world") return root();
         if (game.state.battle && ["station","landmarks","expedition"].includes(value)) return notify("Finish the encounter before returning to the trail.");
@@ -562,6 +585,8 @@
       case "swap":return resolveBattle(()=>game.swap(value),{type:spec(value).type,kind:"swap",name:spec(value).name});
       default:
         if(screen.name==="bellpost"&&post.act(id,value,screen.value))return;
+        if(screen.name==="film-room"&&films.act(id,value,screen.value))return;
+        if(screen.name==="hall-film"&&hallViewer.act(id,value,screen.value))return;
         if(screen.name==="scout-table"&&scouts.act(id,value,screen.value))return;
         if (screen.name==="second-bell"&&bell.act(id,value))return;
         if (screen.name==="guard-school" && guardSchool.act(id,value)) return;
@@ -574,7 +599,8 @@
     }
   }
   function deferredButton(){
-    return row("nav",deferredLetter.name==="scout-table"?"Read your Scout Table letter":"Read your Bellpost letter",deferredLetter.name,"This encounter will remain here.");
+    const label={"scout-table":"Read your Scout Table letter","film-room":"Open the Film Room","hall-film":"Watch your Hall film"};
+    return row("nav",label[deferredLetter.name]||"Read your Bellpost letter",deferredLetter.name,"This encounter will remain here.");
   }
   function deliverScreen(dest){
     if(dest&&resolving){deferredLetter=dest;return null;}
@@ -585,6 +611,7 @@
     return dest;
   }
   function sharedScreen(hash) {
+    if(hash==="#film-room"&&films)return deliverScreen({name:"film-room",value:null});
     const letter=post?.loadFragment(hash);
     const dest=deliverScreen(letter?{name:"bellpost",value:letter}:null);
     if(dest||letter)return dest;
@@ -601,6 +628,50 @@
     if(hash==="#ember-partners")return {name:"sparring",value:"ember"};
     return hall.loadFragment(hash)?{name:"sparring",value:null}:null;
   }
+  async function openRoomSource(hash,index,returnHash,watch=false){
+    const revision=++locationRevision;
+    try{
+      const entry=await filmPractice.resolve(hash);
+      if(revision!==locationRevision)return false;
+      if(!entry?.source?.pos||returnHash&&entry.source.hash!==returnHash){
+        if(watch){
+          const dest=deliverScreen({name:"film-room",value:null});if(dest)go(dest.name,dest.value,"replace");
+        }
+        notify("Choose a Hall film or a Bellpost battle with both teams registered.");return false;
+      }
+      if(entry.source.kind==="hall"&&(returnHash||watch)){
+        const dest=deliverScreen({name:"hall-film",value:hallViewer.load(entry,index)});
+        if(dest)go(dest.name,dest.value,"replace");
+      }else if(returnHash){
+        const value=post.showSourceFilm(entry,index);go("bellpost",value,"replace");
+      }else{
+        films.open(entry.source,index,{publicHash:entry.publicHash,rosters:entry.rosters});
+      }
+      return true;
+    }catch{
+      if(revision===locationRevision)notify("The film could not be read. Copy its match link again.");
+      return false;
+    }
+  }
+  function openLatestHall(index=null){
+    const hash=filmPractice.hallFilm(hall.reviewRecord());
+    if(hash)return openRoomSource(hash,index);
+    notify("Finish a Hall battle against a coach to open its film.");
+  }
+  async function copyOriginalFilm(hash){
+    const loc=window.location,url=loc.origin+loc.pathname+loc.search+hash;
+    try{
+      if(!navigator.clipboard?.writeText)throw new Error();
+      await navigator.clipboard.writeText(url);notify("Original Hall film link copied.");
+    }catch{window.prompt("Select and copy the original Hall film link",url);}
+  }
+  function pasteFilm(){
+    const text=window.prompt("Paste a Hall film, a Bellpost battle link, or a message containing one.","");
+    if(!text?.trim())return;
+    const hash=text.match(/#(?:hall-film1|scout-bout1|bellpost-v[123])=\S+/u)?.[0];
+    if(hash)return openRoomSource(hash,null);
+    notify("Choose a Hall film or a Bellpost battle with both teams registered.");
+  }
   function followScout(hash,report=false){
     if(!scouts||!/^#scout-(?:v1|bout1)=/.test(hash))return false;
     const revision=++locationRevision,isCurrent=()=>revision===locationRevision;
@@ -614,11 +685,16 @@
     return true;
   }
   function openSharedMessage(raw){
-    const hash=typeof raw==="string"&&raw.match(/#(?:scout-(?:v1|bout1)|bellpost-v[123])=\S+/u)?.[0];
+    const hash=typeof raw==="string"&&raw.match(/#(?:hall-film1|scout-(?:v1|bout1)|bellpost-v[123])=\S+/u)?.[0];
     if(!hash)return false;
+    if(followHallFilm(hash))return true;
     if(followScout(hash))return true;
     const result=sharedScreen(hash);if(result)go(result.name,result.value);
     return !!result;
+  }
+  function followHallFilm(hash){
+    if(!hallViewer||!hash.startsWith("#hall-film1="))return false;
+    void openRoomSource(hash,null,null,true);return true;
   }
   restorePlayer();
   const destination=sharedScreen(window.location.hash);
@@ -626,9 +702,10 @@
   else if(game.state.battle)screen={name:"battle",value:null};
   else if(circuit.hasInvitation())screen={name:"circuit",value:null};
   followScout(window.location.hash);
+  followHallFilm(window.location.hash);
   window.addEventListener("hashchange",()=>{
     locationRevision++;
-    if(followScout(window.location.hash))return;
+    if(followScout(window.location.hash)||followHallFilm(window.location.hash))return;
     const dest=sharedScreen(window.location.hash);if(dest)go(dest.name,dest.value);
   });
   window.addEventListener("storage",e=>{

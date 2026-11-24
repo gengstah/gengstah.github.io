@@ -47,7 +47,9 @@ test("a full rival match preserves the adventure, animates opposing replies, rep
   assert.match(summary.subtitle,new RegExp(p.ply+" actions played"));
   assert.ok(summary.sections.some(x=>/^Turning point · action \d+/.test(x.title)));assert.ok(summary.sections.some(x=>/^Rematch idea/.test(x.title)));
   assert.ok(h.rows().some(x=>x.id==="nav"&&x.value==="sparring-review"));
-  assert.deepEqual(clone(h.hall.reviewRecord()),{left:clone(m.setup.left),right:clone(m.setup.right),first:0,human:0,moves:clone(m.moves)});
+  assert.deepEqual(clone(h.hall.reviewRecord()),{left:clone(m.setup.left),right:clone(m.setup.right),rival:"bell-keepers",first:0,human:0,moves:clone(m.moves)});
+  const legacy=clone(h.hall.reviewRecord());delete legacy.rival;
+  assert.deepEqual(clone(h.restore({v:1,lastReview:legacy}).lastReview),legacy);
   const tape=clone(h.hall.reviewRecord()),loaded=h.reload();assert.deepEqual(clone(loaded.hall.reviewRecord()),tape);
   loaded.click("spar-view","result");loaded.click("spar-rematch");await settle();
   assert.equal(loaded.pos().first,1);assert.equal(loaded.pos().ply,1);assert.equal(loaded.pos().turn,0);
