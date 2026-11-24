@@ -246,5 +246,6 @@
       summary:"Pincer Block exposes a charging rival for the next ordinary attack. Against a Warden’s Reserve relay, it holds that rival in place."}
   };
   window.WilderGuardSchool = {forKin:id=>guardRoles[designs.get(id)?.shape] || null};
-  window.WilderKinDex = {expand, encounterPools, effectiveness, types, abilities, spriteUrl};
+  window.WilderKinDex = {expand, encounterPools, effectiveness, types, abilities, spriteUrl,
+    shapeOf:id=>designs.get(id)?.shape || null};
 })();

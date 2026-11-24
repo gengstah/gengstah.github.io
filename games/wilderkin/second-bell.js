@@ -80,6 +80,12 @@
     function act(id,value){
       if(!id.startsWith("bell-"))return false;
       if(game.state.battle)return true;
+      if(id==="bell-preview"){
+        if(game.state.team.includes(value)&&game.secondBell()?.eligible){
+          nominee=value;go("second-bell",game.state.region);
+        }
+        return true;
+      }
       if(id==="bell-lead"){
         if(game.state.team.includes(value)){nominee=value;render();}
         return true;

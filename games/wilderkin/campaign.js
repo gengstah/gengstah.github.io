@@ -7,7 +7,7 @@
     reed:{name:"Silver reed",use:"material",description:"Fibers harvested from trail edges. Used to weave capture loops and splints."},
     sap:{name:"Sun sap",use:"material",description:"A fragrant resin for medicine and kin-binding knots."},
     ore:{name:"Bellstone",use:"material",description:"A resonant mineral that holds a charge in emergency supplies."},
-    kinweave:{name:"Kinweave",use:"capture",recipe:{reed:2,sap:1},description:"A soft, resonant loop. Befriend a wild kin at half health or lower. A successful invitation uses one weave."},
+    kinweave:{name:"Kinweave",use:"capture",recipe:{reed:2,sap:1},description:"A soft, resonant loop. Offer one after answering a wild kin’s call, at half health or lower in battle, or after gaining its trust through field observations."},
     balm:{name:"Fern balm",use:"heal",recipe:{sap:2,reed:1},description:"Restore half of a conscious companion’s health. Using medicine in a battle spends a turn."},
     tonic:{name:"Brighthorn tonic",use:"heal",recipe:{sap:3,ore:1},description:"Restore all health to one conscious companion. It takes one battle turn."},
     sparkseed:{name:"Sparkwake seed",use:"revive",recipe:{ore:2,sap:2,reed:1},description:"Revive a resting companion with half its health. The enemy acts after an in-battle revival."}

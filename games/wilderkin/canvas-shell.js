@@ -722,7 +722,8 @@
         impact(active,elapsed,points,tile);
         if(active.name){
           c.font=getFont(12,"body",650);
-          const move=fit(c,active.name,w-34),sw=c.measureText(move).width+20;
+          const caption=active.kind==="wild-call" && active.target?active.name+" → "+active.target:active.name;
+          const move=fit(c,caption,w-34),sw=c.measureText(move).width+20;
           rect(c,x+(w-sw)/2,yy+6,sw,23,"#203c30ee","#829571");
           label(c,move,x+w/2,yy+9,12,C.cream,"body",650,"center");
         }
@@ -744,6 +745,35 @@
       const [ink,light]=affinity[a.type]||affinity.Neutral;
       const unit=clamp(tile/95,.62,1.6);
       c.save();
+      if(a.kind==="wild-call"){
+        // Aim between the fighters. The quarry stays on screen and never plays a hit reaction.
+        const x=(src.x+dst.x)/2, y=Math.max(src.y,dst.y)+tile*.39;
+        ellipse(c,x,y+2*unit,15*unit,4*unit,"#47614a");
+        if(a.motif==="stone"){
+          poly(c,[[x-13*unit,y],[x-8*unit,y-8*unit],[x+6*unit,y-10*unit],[x+13*unit,y-3*unit],[x+10*unit,y+unit]],"#818482");
+          line(c,x-7*unit,y-7*unit,x+5*unit,y-9*unit,"#d2c59e",2*unit);
+        }else{
+          for(let i=-1;i<=1;i++){
+            const stem=x+i*7*unit,tip=y-(i===0?15:11)*unit;
+            line(c,stem,y,stem+i*3*unit,tip,"#39644c",2*unit);
+            if(a.motif==="flowers")star(c,stem+i*3*unit,tip,4*unit,"#f8d36c");
+            else line(c,stem,y-3*unit,stem+5*unit,tip+3*unit,"#8bae66",2*unit);
+          }
+        }
+        const t=reduced.matches?.72:clamp(p/.76,0,1);
+        for(let i=0;i<6;i++){
+          const along=t-i*.06;
+          if(along<=0||along>1)continue;
+          const xx=src.x+(x-src.x)*along, yy=src.y+(y-src.y)*along-Math.sin(pi*along)*tile*.46;
+          ellipse(c,xx,yy,unit*(4-i*.35),unit*(3-i*.2),i%2?ink:light);
+        }
+        if(reduced.matches||p>.55){
+          const glow=reduced.matches?.65:clamp((p-.55)/.45,0,1);
+          c.globalAlpha=1-glow*.7;
+          ellipse(c,x,y,unit*(10+glow*18),unit*(3+glow*5),null,light,2*unit);
+        }
+        c.restore();return;
+      }
       if(a.kind==="learn"){
         const rise=reduced.matches?1:clamp(p*2,0,1);
         const xx=src.x+sign*tile*.27,yy=src.y-tile*(.30+.12*rise),r=unit*9;
@@ -876,7 +906,7 @@
       if(fx)return fx.promise;
       const kind=effect.kind||"attack",speed=window.WilderGame?.state.animationSpeed||1;
       const side=effect.side==="foe"?"foe":"ally",view=model,portrait=effect.incoming||effect.incomingKin?.src;
-      const passing=kind==="swap"&&(effect.pass==="beacon"||effect.pass==="slipstream")&&portrait&&model.kind==="battle";
+      const passing=(kind==="swap"||kind==="wild-call")&&(effect.pass==="beacon"||effect.pass==="slipstream")&&portrait&&model.kind==="battle";
       const duration=reduced.matches?(passing||kind==="learn"?190:95):(passing?640:({heal:610,capture:820,defeat:460,swap:350,item:600,duet:850,learn:760}[kind]||550))/speed;
       let resolve;
       const promise=new Promise(done=>{resolve=done;});

@@ -102,6 +102,8 @@
   const growth=window.WilderGrowth;
   const coaches=window.WilderWardens;
   const guardSchool=window.WilderGuardSchool;
+  const calls=window.WilderWildCalls;
+  const wildCard=id=>validSpecies(id) ? calls?.forKin(id,species[id]) : null;
 
   function newGame() {
     return {
@@ -163,6 +165,26 @@
     for (const p of s.party) {
       if (s.team.includes(p.id) && integer(entryHp?.[p.id],0,p.maxHp)) p.hp=entryHp[p.id];
     }
+  }
+
+  function readWildCall(s,b) {
+    const raw=b.wildCall,quarry=b.enemy.id,card=wildCard(quarry);
+    if (b.kind!=="wild" || !card || raw?.quarry!==quarry || enrolled(quarry,s.party)) return null;
+    const clean={quarry},answer=raw.answered;
+    if (!answer || b.turn<2 || b.pendingFallen) return clean;
+    const {actor,skill,partner}=answer;
+    const conscious=id=>s.team.includes(id) && s.party.some(p=>p.id===id && p.hp>0);
+    if (!conscious(actor)) return clean;
+    if (card.pass) {
+      if (skill===card.pass && window.WilderFamilyTechniques?.forKin(actor)?.id===skill &&
+          conscious(partner) && partner!==actor && b.activeId===partner && b.familyUsed===true &&
+          integer(b.beats,0,2) && !b.enemy.beaconMarked) {
+        clean.answered={actor,skill,partner};
+      }
+    } else if (actor===b.activeId && partner===undefined && calls.answeringMoves(species[actor],card).some(s=>s.id===skill)) {
+      clean.answered={actor,skill};
+    }
+    return clean;
   }
 
   function loadGame() {
@@ -287,6 +309,10 @@
       };
       const rest=fresh.battle.remaining;
       if (bell) Object.assign(fresh.battle,{mode:"second-bell",secondBell:bell});
+      if (resumed && battle.wildCall) {
+        const call=readWildCall(fresh,battle);
+        if (call) fresh.battle.wildCall=call;
+      }
       const fallen=fresh.party.find(p=>p.id===battle.pendingFallen);
       if (fallen?.hp===0 && fresh.team.includes(fallen.id) && battle.turn>1 &&
           fresh.team.filter(id=>fresh.party.find(p=>p.id===id).hp>0).length>1) {
@@ -531,7 +557,8 @@
     if (kind==="wild") {
       if (track!==undefined && !pool.includes(track)) return error("That species has no tracks here.");
       const id=track || pool[Math.floor(Math.random()*pool.length)];
-      return beginEncounter(kind,[id],r.wildLevel,"A trail stirs!");
+      const options=!usingLoaners && !member(id) && wildCard(id) ? {wildCall:{quarry:id}} : {};
+      return beginEncounter(kind,[id],r.wildLevel,"A trail stirs!",options);
     }
     if (kind!=="warden") return error("Unknown encounter.");
     const gate=trialAccess();
@@ -640,6 +667,13 @@
     if (!b) return null;
     const r = regions[state.region];
     const attacks = species[enemyId].skills.filter(skill => skill.kind === "attack");
+    if (b.wildCall?.answered) {
+      return {skill:{name:"Wait nearby",type:"Neutral",power:0},power:0,support:true,charged:false,guarding:false};
+    }
+    if (b.wildCall && b.turn===1) {
+      const warning={...attacks[0],power:5};
+      return {skill:warning,power:warning.power,charged:false,guarding:false,warning:true};
+    }
     const laterTrial = b.kind === "warden" && r.requiredCrests >= 3;
     // Veteran Wardens train different rhythms. Their opponents can read the next move before committing.
     const rhythm = laterTrial ? [3, 2, 4][r.requiredCrests % 3] : 3;
@@ -790,8 +824,8 @@
     const defender=switchLead?partner:lead,defenderName=ownedKin(defender.id).name;
     const falls=damageDone===foe.hp,opens=role==="mark"&&!falls;
     const returnDamage=falls?0:Math.min(defender.hp+restore(defender),returnHit(defender,score.counter,intent));
-    const reason=!partner.hp ? ownedKin(partner.id).name+" needs to recover." :
-      battle.beats<cost ? "Needs "+(cost-battle.beats)+" more "+(cost-battle.beats===1?"beat.":"beats.") : "";
+    const reason=wildWaitingReason() || (!partner.hp ? ownedKin(partner.id).name+" needs to recover." :
+      battle.beats<cost ? "Needs "+(cost-battle.beats)+" more "+(cost-battle.beats===1?"beat.":"beats.") : "");
     const details=[damageDone+" damage"];
     if (role==="lure") details.push("leaves at least 1 HP");
     if (role==="mend") details.push("restore "+healLead+" / "+healPartner+" HP to leader / partner");
@@ -892,6 +926,7 @@
     const returnDamage=hit===b.enemy.hp||!guard?0:Math.min(replyHp,returnHit(receiver,guard,intent,b.cover>0||id==="wattle-ward"));
     details.push(returnDamage?ownedKin(receiver.id).name+" takes "+returnDamage+" in reply"+(returnDamage===replyHp?" and faints.":"."):"No return hit.");
     if(b.beats<skill.cost)reason="Needs "+skill.cost+" beats; you have "+b.beats+".";
+    reason=wildWaitingReason()||reason;
     return {available:!reason,reason,effect,detail:details.join(" "),kind:skill.kind,cost:skill.cost,damage:hit,returnDamage,
       guard,healing,tax,gain,target,shift,replySkill:intent.skill};
   }
@@ -941,6 +976,7 @@
       const raw=base*braceEffect*(repeated ? .75 : 1)*(exposed ? 1.5 : 1);
       hit=Math.min(enemy.hp,Math.max(1,Math.round(raw)));
     }
+    reason=wildWaitingReason()||reason;
     const finishes=hit===enemy.hp;
     const returnDamage=(reason || finishes) ? 0 : Math.min(active.hp+healing,returnHit(active,guardFactor,intent));
     return {available:!reason,reason,skill,damage:hit,healing,returnDamage,finishes,guardFactor,exposed,braced,repeated};
@@ -995,8 +1031,8 @@
     const battle=state.battle;
     if (!battle) return null;
     const p=member(id);
-    const reason=battle.activeId===id ? "This companion is already in the field." :
-      !state.team.includes(id)||!p?.hp ? "Choose a companion with some health remaining." : "";
+    const reason=wildWaitingReason() || (battle.activeId===id ? "This companion is already in the field." :
+      !state.team.includes(id)||!p?.hp ? "Choose a companion with some health remaining." : "");
     const covered=!reason && !usingLoaners && battle.shellGuard===battle.activeId;
     const normalFactor=battle.condition==="gale" ? .25 : .5;
     const factor=covered ? .25 : normalFactor;
@@ -1020,7 +1056,7 @@
 
   function replacements() {
     const b=state.battle;
-    if (usingLoaners || !b?.pendingFallen) return null;
+    if (usingLoaners || !b?.pendingFallen || b.wildCall?.answered) return null;
     const ready=team().filter(p=>p.hp>0);
     if (ready.length<2) return null;
     const intent=foeIntent(),foeTypes=species[b.enemy.id].types;
@@ -1050,6 +1086,21 @@
     return commit("replacement",message);
   }
 
+  function familyPassReason(battle,hasReserve) {
+    if (battle?.familyUsed) return "Your party has used its family technique this battle.";
+    if (battle && battle.beats<1) return "Earn one beat before calling a family technique.";
+    return hasReserve ? "" : "A conscious teammate must be available to take the lead.";
+  }
+
+  function passLead(battle,partner) {
+    battle.beats--;
+    battle.familyUsed=true;
+    battle.lastPart=null;
+    battle.lastAttack=null;
+    if (battle.coach) battle.coach.action="switch";
+    changeFront(battle,partner);
+  }
+
   function familyTechnique() {
     const battle=state.battle;
     if (!battle) return null;
@@ -1062,9 +1113,7 @@
       return {id:p.id,name:ownedKin(p.id).name,heal,returnDamage,hpAfter:p.hp+heal-returnDamage,maxHp:p.maxHp};
     });
     const used=battle.familyUsed===true;
-    const reason=used ? "Your party has used its family technique this battle." :
-      battle.beats<1 ? "Earn one beat before calling a family technique." :
-      !targets.length ? "A conscious teammate must be available to take the lead." : "";
+    const reason=wildWaitingReason() || familyPassReason(battle,targets.length>0);
     return {...technique,cost:1,used,available:!reason,reason,targets};
   }
 
@@ -1076,12 +1125,7 @@
     if (!target) return error("Choose a conscious traveling companion to take the lead.");
     const battle=state.battle;
     let message=ownedKin(battle.activeId).name+" used "+technique.name+". ";
-    battle.beats-=technique.cost;
-    battle.familyUsed=true;
-    battle.lastPart=null;
-    battle.lastAttack=null;
-    if (battle.coach) battle.coach.action="switch";
-    changeFront(battle,target.id);
+    passLead(battle,target.id);
     if (technique.id==="beacon") {
       battle.enemy.beaconMarked=true;
       message+=species[battle.enemy.id].name+" is exposed to the next ordinary strike. ";
@@ -1092,15 +1136,80 @@
     return counterattack(message+target.name+" took the lead.");
   }
 
+  function wildWaitingReason() {
+    return state.battle?.wildCall?.answered ? "Offer a Kinweave or let the waiting Wilderkin go." : "";
+  }
+
+  function openingForecast(quarry,lead) {
+    if (!lead) return {strike:null,warning:null};
+    const level=regions[homes[quarry][0]].wildLevel,foe=makeMember(quarry,level);
+    const summarize=(s,base,lv,target)=>{
+      const hit=Math.min(target.hp,damage(base,lv,s.type,target));
+      return {name:s.name,type:s.type,damage:hit,finishes:hit===target.hp};
+    };
+    const warningSkill=species[quarry].skills.find(s=>s.kind==="attack");
+    const choices=species[lead.id].skills.filter(s=>s.kind==="attack")
+      .map(s=>summarize(s,s.power,lead.level,foe));
+    return {strike:choices.reduce((a,b)=>a.damage>=b.damage?a:b),warning:summarize(warningSkill,5,level,lead)};
+  }
+
+  function wildCall(id=state.battle?.enemy.id) {
+    const b=state.battle,card=wildCard(id);
+    if (!card || usingLoaners || member(id) || (b && (b.kind!=="wild" || b.wildCall?.quarry!==id))) return null;
+    const ready=team().filter(p=>p.hp>0),answered=b?.wildCall?.answered,options=[];
+    if (!answered) for (const p of ready) {
+      if (card.pass) {
+        const pass=window.WilderFamilyTechniques?.forKin(p.id);
+        if (pass?.id!==card.pass) continue;
+        const reserves=ready.filter(target=>target.id!==p.id);
+        const reason=familyPassReason(b,reserves.length>0);
+        for (const target of reserves) options.push({actor:p.id,skill:pass.id,name:pass.name,partner:target.id,available:!reason,reason});
+      } else {
+        for (const skill of calls.answeringMoves(species[p.id],card)) {
+          options.push({actor:p.id,skill:skill.id,name:skill.name,available:true,reason:""});
+        }
+      }
+    }
+    const leader=ready.find(p=>p.id===(b?.activeId || state.lead)) || ready[0];
+    return {...card,...openingForecast(id,leader),waiting:!!answered,options,...(answered?{answered:{...answered}}:{})};
+  }
+
+  function answerWildCall(skill,partner) {
+    const b=state.battle,call=b && wildCall();
+    if (!call) return error("There is no wild call to answer here.");
+    if (call.waiting) return error(wildWaitingReason());
+    const actor=b.activeId,option=call.options.find(o=>o.actor===actor && o.skill===skill && o.partner===partner);
+    if (!option) return error("Choose an answering move your active companion knows and its required target.");
+    if (!option.available) return error(option.reason);
+    const answer={actor,skill};
+    if (call.pass) {
+      passLead(b,partner);
+      answer.partner=partner;
+    }
+    delete b.pendingFallen;
+    b.wildCall.answered=answer;
+    b.turn++;
+    const action=ownedKin(actor).name+" used "+option.name+" on "+call.target+".";
+    b.log=[...b.log,action,call.response].slice(-8);
+    return {...commit("turn",action+" "+call.response),skipCounterFx:true};
+  }
+
+  function captureStatus() {
+    const b=state.battle;
+    let reason="";
+    if (!b) reason="Look for a wild Wilderkin first.";
+    else if (usingLoaners || b.kind!=="wild") reason="Kinweaves work on individual Wilderkin you have tracked in the wild.";
+    else if (member(b.enemy.id)) reason=species[b.enemy.id].name+" is already in your party.";
+    else if (!b.wildCall?.answered && b.enemy.hp*2>b.enemy.maxHp) {
+      reason="Bring "+species[b.enemy.id].name+" to half health or lower"+(b.wildCall?", or answer its call.":" to befriend it.");
+    } else if (!state.bag.kinweave) reason="Your Kinweaves are gone. Craft another with two reeds and one sun sap.";
+    return {available:!reason,reason};
+  }
+
   function recruit() {
-    const battle = state.battle;
-    if (!battle) return error("Look for a wild Wilderkin first.");
-    if (battle.kind !== "wild") return error("Kinweaves work on individual Wilderkin you have tracked in the wild.");
-    const { enemy } = battle;
-    const name = species[enemy.id].name;
-    if (member(enemy.id)) return error(name + " is already in your party.");
-    if (enemy.hp * 2 > enemy.maxHp) return error("Bring " + name + " to half health or lower to befriend it.");
-    if (!state.bag.kinweave) return error("Your Kinweaves are gone. Craft another with two reeds and one sun sap.");
+    const gate=captureStatus();
+    if (!gate.available) return error(gate.reason);
+    const {enemy}=state.battle;
     state.battle = null;
     return befriend(enemy.id,enemy.level);
   }
@@ -1141,8 +1250,10 @@
   function flee() {
     if (!state.battle) return error("There is no active encounter.");
     if (state.battle.secondBell) return finishBell("escaped","You withdrew from the exhibition.");
+    const message=state.battle.wildCall?.answered ? species[state.battle.enemy.id].name+" returned freely to the wild." :
+      "You called your party back and returned to the trail.";
     state.battle = null;
-    return commit("escaped", "You called your party back and returned to the trail.");
+    return commit("escaped",message);
   }
 
   function training(amount) {
@@ -1215,6 +1326,7 @@
 
   function useItem(id,targetId) {
     if (state.battle?.secondBell) return error("Satchel items are unavailable in a Second Bell exhibition.");
+    if (id!=="kinweave" && wildWaitingReason()) return error(wildWaitingReason());
     if(id==="broth"){
       if(state.battle)return error("Share a meal between encounters.");
       if(!state.bag.broth)return error("Prepare Trailpot broth in your satchel.");
@@ -1434,7 +1546,7 @@
   window.WilderGame = {
     firstOuting:window.WilderOpening?.create({state:()=>state,commit,setLead,sightings:()=>field?.sightings(state.region)||[]}),
     wardenLesson,wardenForecast,guardTraining,guardPractice,switchForecast,ordinaryForecast,replacements,replaceFainted,
-    passageReport,filePassage,secondBell,
+    passageReport,filePassage,secondBell,wildCall,answerWildCall,captureStatus,
     pinRegion,setWalker,walkerPose:(time,reduced)=>walking?.pose(state,time,reduced),walkerInfo:()=>walking.info(state),walkerSense:()=>walking.sense(state,field.sightings(state.region),expedition(),objective()),
     stillwake:window.WilderStillwake?.create({state:()=>state,commit,regions,species,makeMember,story,duetPair}),
     hollows:window.WilderHollows?.create({state:()=>state,commit,regions,species,items}),

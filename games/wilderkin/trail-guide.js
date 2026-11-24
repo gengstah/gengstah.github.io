@@ -1,6 +1,6 @@
 // Atlas, collection, journal and station pages share the same canvas navigation.
 window.WilderPages = {
-  create({game,world,dex,row,member,image,go,back,render,notify,locate,root,fight,playTone,resolveBattle,travel,reset,atSite}) {
+  create({game,world,dex,row,member,image,go,back,render,notify,locate,root,fight,playTone,resolveBattle,fieldRecruited,travel,reset,atSite}) {
     const fair=window.WilderActivities, story=window.WilderStory;
     const caravans=window.WilderCaravans.pages({game,row,image,go,render,notify,locate});
     const walkers=window.WilderWalkingPartner.pages({game,row,image,go,render,notify,locate});
@@ -149,6 +149,7 @@ window.WilderPages = {
       const k=own(id),p=member(id),home=game.homes[id].find(i=>s().visited.includes(i))??game.homes[id][0];
       if(k.bonus && !s().stillwake?.revealed && !p)return guide();
       const controls=k.bonus?[nav("stillwake","The fourth sounding","Read the witnesses’ accounts.")]:[open("study",id,"Field observations"),home===s().region?wayTo("wild","tracks","Follow local tracks"):open("region",home,"Find its habitat",game.regions[home].name)];
+      if(!s().battle&&game.pools[s().region].includes(id)&&game.wildCall?.(id))controls.unshift(open("wild-scout",id,"Scout "+k.name+"’s call","Choose your lead for this encounter."));
       if(game.growthInfo(id))controls.unshift(open("growth",id,"Growth and disciplines",k.discipline?.name||"See training and forms."));
       const signature=window.WilderSparringSignatures?.byId(id);
       const family=window.WilderFamilyTechniques.forKin(id);
@@ -179,6 +180,7 @@ window.WilderPages = {
         "Each strike checks both of the target’s affinities. A weakness and a resistance cancel.");
     }
     function party(switching) {
+      const call=switching&&s().battle?.kind==="wild"?game.wildCall?.():null;
       const rows=game.team().map(p=>{
         const k=own(p.id),pass=window.WilderFamilyTechniques.forKin(p.id);
         const battle=s().battle,lead=switching?battle?.activeId:s().lead;
@@ -187,6 +189,8 @@ window.WilderPages = {
         if(f?.available){
           const saving=f.protected&&f.damage<f.normalDamage?" instead of "+f.normalDamage:"";
           detail=(f.protected?"Shell Escort · ":"")+f.damage+" damage"+saving+" · "+f.hpAfter+"/"+f.maxHp+" HP after reply · "+k.types.join(" / ");
+          const move=call?.options.find(o=>o.actor===p.id&&o.available);
+          if(move&&f.hpAfter>0)detail+=" · answers with "+move.name;
         }
         return row(switching?"swap":"open-kin",k.name,p.id,detail,
           {image:image(p.id),badge:p.id===lead?"LEAD":"",disabled:switching&&(!f?.available)});
@@ -233,8 +237,8 @@ window.WilderPages = {
       if (recipe) options.push(row("craft","Craft "+item.name,id,Object.entries(recipe).map(([m,n])=>game.items[m].name+" "+(s().bag[m]||0)+"/"+n).join(" · "),
         {disabled:!!s().battle||Object.entries(recipe).some(([m,n])=>(s().bag[m]||0)<n)}));
       if (item.use==="capture" && s().battle?.kind==="wild") {
-        const foe=s().battle.enemy;
-        options.push(row("capture","Cast a Kinweave",null,"Target must be at half health or lower.",{disabled:!s().bag[id]||!!member(foe.id)||foe.hp*2>foe.maxHp}));
+        const ready=game.captureStatus();
+        options.push(row("capture","Cast a Kinweave",null,ready.reason||"Offer 1 Kinweave.",{disabled:!ready.available}));
       }
       if(item.use==="meal")options.push(row("share-broth","Share with your party",null,"Enjoy between encounters.",{disabled:!!s().battle||!s().bag.broth||!game.team().some(p=>p.hp>0&&p.hp<p.maxHp)}));
       if (item.use==="heal"||item.use==="revive") for (const p of game.team()) {
@@ -320,9 +324,59 @@ window.WilderPages = {
         ...(s().region===0&&!atMill?[relay]:[]),
         nav("growth-ledger","Starter growth"),nav("mentoring","Camp mentorship"),nav("formations","Trail formations"),nav("bag","Prepare supplies"),nav("chronicle","Courier’s chronicle"),nav("bonds","Traveling companions"),nav("expedition","Check field commission")])]);
     }
-    function tracks() {
-      return page("Wild tracks",here().name,[heading("Choose a trail",game.pools[s().region].map(id=>localSpecies(id,"track"))),heading("Supplies",[nav("bag","Check satchel")])],
-        "Wild Lv. "+game.wildLevel(s().region)+" · "+s().bag.kinweave+" Kinweaves packed. Weaken a Wilderkin before casting the weave.");
+    function tracks(trailhead=false) {
+      const site=siteFor("wild"),atTracks=s().landmark==="wild",ids=game.pools[s().region];
+      const calls=ids.flatMap(id=>{
+        const call=game.wildCall?.(id);
+        if(!call)return [];
+        return [open("wild-scout",id,game.species[id].name+" · "+call.title,call.answer,{image:image(id,false)})];
+      });
+      const sections=[];
+      if(!atTracks)sections.push(heading("From here",[wayTo("wild","tracks","Walk to "+site.label)]));
+      if(calls.length)sections.push(heading("Scout a wild call",calls));
+      if(atTracks)sections.push(heading("Follow tracks into battle",ids.map(id=>localSpecies(id,"track"))));
+      sections.push(heading("Supplies",[nav("bag","Check satchel",s().bag.kinweave+" Kinweaves packed")]));
+      return page(trailhead?"Wild calls":"Wild tracks",here().name,sections,
+        calls.length?"Some wild kin ask your party for help. Aim a move at the field to offer a Kinweave at full health. You can also battle and offer at half health.":
+          "Wild Lv. "+game.wildLevel(s().region)+" · Lower an unfamiliar kin to half health to offer a Kinweave.",
+        trailhead?{src:"art/story/wild-calls.png",caption:site.label,landscape:true,height:168}:undefined);
+    }
+    function wildHelper(call) {
+      const h=window.WilderWildCalls.helper(game,call);
+      if(!h)return null;
+      const move=h.name+" knows "+h.skill+".";
+      if(h.traveling){
+        const rest=wayTo("camp","camp",h.healthy?"Rest a relay partner":"Rest "+h.name);
+        return {...rest,detail:move+(h.healthy?" A second conscious traveler must receive the pass.":" Restore its HP at camp.")};
+      }
+      if(h.owned)return open(s().team.length>=6?"enlist":"kin",h.id,"Bring "+h.name+" from reserve",move,{image:image(h.id)});
+      if(h.region===s().region)return open(game.wildCall(h.id)?"wild-scout":"kin",h.id,"Find "+h.name+" here",move,{image:image(h.id,false)});
+      return open("region",h.region,"Find "+h.name+" in "+game.regions[h.region].name,move+" Check the crossing on the atlas.",{image:image(h.id,false)});
+    }
+    function wildScout(id) {
+      const call=game.pools[s().region].includes(id)&&game.wildCall?.(id);
+      if(!call)return tracks();
+      const team=game.team(),lead=team.find(p=>p.id===s().lead&&p.hp>0)||team.find(p=>p.hp>0);
+      const k=game.species[id],atTracks=s().landmark==="wild",site=siteFor("wild");
+      const rows=team.map(p=>{
+        const o=call.options.find(o=>o.actor===p.id&&o.available);
+        return row("wild-lead",own(p.id).name,p.id,!p.hp?"Rest at camp":o?o.name+(o.partner?" · hand off to a reserve":"")+" can answer":"No matching field move",
+          {image:image(p.id),disabled:!p.hp||p.id===lead?.id,badge:p.id===lead?.id?"LEAD":""});
+      });
+      const answer=lead&&call.options.find(o=>o.actor===lead.id&&o.available);
+      const detail=!lead?"Rest at camp first.":own(lead.id).name+(answer?" can answer with "+answer.name+".":" leads · choose a matching kin below or battle.");
+      const next=atTracks?row("track","Approach "+k.name,id,detail,{disabled:!lead,tone:"primary"}):
+        row("wild-scout-walk","Walk to "+site.label,id,"Follow the tracks to "+k.name+".",{tone:"primary"});
+      const helper=wildHelper(call);
+      const sections=[{title:call.title,text:call.scene+" "+call.answer,rows:helper?[next,helper]:[next]}];
+      if(lead&&call.strike&&call.warning){
+        const strike=call.strike,warning=call.warning,opener=own(lead.id).name;
+        sections.push({title:"If "+opener+" attacks",text:strike.name+" deals "+strike.damage+" damage. "+
+          (strike.finishes?k.name+" falls before replying.":k.name+" answers with "+warning.name+" ("+warning.type+") for "+warning.damage+" damage.")});
+      }
+      sections.push(heading("Choose your field lead",rows));
+      return page(k.name+"’s tracks",here().name+"   /   WILD CALL",sections,
+        "Wild Lv. "+game.wildLevel(s().region)+" · "+s().bag.kinweave+" Kinweaves packed",{src:image(id,false),caption:k.types.join(" / ")});
     }
     function notebook() {
       const entries=game.notebook(),local=game.sightings();
@@ -500,7 +554,8 @@ window.WilderPages = {
         return open("growth",id,g.formName,g.baseName+"’s two camp disciplines",{image:"art/growth/"+g.formId+".png"});
       });
       const lodge=game.wardens.find(i=>!s().wardenLessons.includes(i))??0;
-      return page("What’s new in Wilderkin","FIELD DISPATCH   /   SECOND BELL",[
+      return page("What’s new in Wilderkin","FIELD DISPATCH   /   WILD CALLS",[
+        heading("Calls on the trail",[nav("wild-calls","Follow a wild call","Scout a local kin, pick a lead and aim its move at a field target.")]),
         heading("Warden exhibitions",[nav("second-bell","Enter the Second Bell","Scout a Warden’s published formation and challenge it with your traveling party.")]),
         heading("Neri Pike’s guard school",[nav("guard-school","Train a guard with Neri","Find Opalclasp in Mossbrook Vale or Cragroll in Cinderfall Ridge.")]),
         {title:"Battle forecasts",text:"Each ordinary skill shows the damage it deals or HP it restores, plus how much damage comes back. Switch kin shows each reserve’s HP after the reply and how much a prepared Shell Escort saves."},
@@ -522,7 +577,7 @@ window.WilderPages = {
           nav("stillwake","Investigate the fourth sounding","Follow an unlisted signal across the trail."),
           nav("circuit","Draft a loaner team","Try a three-bout course with a fresh squad.")]),
         heading("Adventure",[row("root",s().battle?"Return to your battle":"Explore the map",null,"",{tone:"primary"})])],
-        "When a companion falls, choose among your conscious reserves. Each one previews its best ordinary attack and the rival’s reply.");
+        "Read what a wild kin needs. A companion with the right skill can answer its call and earn an invitation.");
     }
     function help() {
       return page("Controls","TRAIL HANDBOOK",[
@@ -582,6 +637,8 @@ window.WilderPages = {
         case "crests":return crests();
         case "camp":return camp();
         case "tracks":return tracks();
+        case "wild-calls":return tracks(true);
+        case "wild-scout":return wildScout(value);
         case "request":return request(value);
         case "quests":return quests();
         case "games":return games();
@@ -627,6 +684,8 @@ window.WilderPages = {
         }
         case "growth-look":return setResult(game.growthAppearance(value,!game.growthInfo(value).classic));
         case "lead":return setResult(game.setLead(value));
+        case "wild-lead":return setResult(game.setLead(value));
+        case "wild-scout-walk":return locate("wild",{name:"wild-scout",value});
         case "use-item":return s().battle?resolveBattle(()=>game.useItem(a,b),{type:"Grove",kind:"item",name:game.items[a].name}):setResult(game.useItem(a,b));
         case "share-broth":return setResult(game.useItem("broth"));
         case "passage-file":return setResult(game.filePassage());
@@ -634,7 +693,11 @@ window.WilderPages = {
         case "craft":return setResult(game.craft(value));
         case "walk-kind":return locate(a,b);
         case "field-observe":return setResult(game.observe(a,b));
-        case "field-invite":return setResult(game.inviteField(value));
+        case "field-invite":{
+          const res=game.inviteField(value);
+          if(!res.ok)return setResult(res);
+          return fieldRecruited(value,res);
+        }
         case "expedition-choice":{
           const res=game.expeditionAction(value);
           if(res.ok&&s().battle){playTone("battle");return go("battle",null,"root");}

@@ -19,10 +19,11 @@
   ];
   let screen={name:"world",value:null}, history=[], player, route=[], arrival=null, tween=null, lastStep=0;
   let outcome=null, soundCtx, resolving=false, startingMove=false;
+  const awaitingCall=()=>game.state.battle?.kind==="wild"&&game.wildCall?.()?.waiting;
   const motion=matchMedia("(prefers-reduced-motion: reduce)");
   const ui=window.WilderCanvas.create(document.getElementById("game-canvas"),{
     action, key:keydown, tile:clickTile,
-    shortcuts:()=>screen.name==="replacement"?[{id:"nav",value:"battle",label:"Battle"}]:
+    shortcuts:()=>screen.name==="wild-offer"?[]:screen.name==="replacement"?[{id:"nav",value:"battle",label:"Battle"}]:
       shortcuts.filter(([id])=>id!=="bag"||!game.state.battle?.secondBell).map(([id,label,key])=>({id:"nav",value:id,label,key}))
   });
   const notify=text=>ui.toast(text);
@@ -41,7 +42,7 @@
   const hall=window.WilderSparring.create({...rentalControls,active:()=>screen.name==="sparring"});
   const replay=window.WilderSparringReview.create({...rentalControls,read:()=>hall.reviewRecord()});
   const pages=window.WilderPages.create({game,world,dex,row,member,image,go,back,render,notify,locate,root,
-    fight,playTone,resolveBattle,travel,reset,atSite:nearestSite});
+    fight,playTone,resolveBattle,fieldRecruited,travel,reset,atSite:nearestSite});
   function playTone(kind="click") {
     if (!game.state.sound) return;
     try {
@@ -60,7 +61,7 @@
     if (resolving) return;
     if(game.state.battle?.secondBell&&["bag","item"].includes(name))return notify("Your satchel stays at the lodge during the exhibition.");
     stopWalk();
-    if (["world","guard-school","second-bell"].includes(name) && game.state.battle) name="battle";
+    if (["world","guard-school","second-bell","wild-calls"].includes(name) && game.state.battle) name="battle";
     if (mode==="root") history=[];
     else if (mode==="push" && (name!==screen.name || value!==screen.value)) history.push(screen);
     screen={name,value};render();
@@ -85,9 +86,11 @@
     }else if(!replacement&&screen.name==="replacement"){
       screen={name:game.state.battle?"battle":"world",value:null};
     }
+    if(awaitingCall()&&screen.name!=="wild-offer"){screen={name:"wild-offer",value:null};history=[];}
     switch (screen.name) {
       case "world":model=worldModel();break;
       case "battle":model=battleModel();break;
+      case "wild-offer":model=wildOffer();break;
       case "replacement":model=replacementModel(replacement);break;
       case "outcome":model=outcomeModel();break;
       case "play":model=fair.model(screen.value);break;
@@ -101,7 +104,7 @@
     }
     if (!model) throw new Error("Unknown game screen: "+screen.name);
     score.scene(scene().biome,model.kind==="battle" || !!game.state.battle,game.state.music);
-    ui.show({kind:"page", ...model, id:model.viewId||screen.name+":"+(screen.value??""),back:["world","battle","replacement"].includes(screen.name)?null:{id:"back",label:"Back"}});
+    ui.show({kind:"page", ...model, id:model.viewId||screen.name+":"+(screen.value??""),back:["world","battle","replacement","wild-offer"].includes(screen.name)?null:{id:"back",label:"Back"}});
   }
   function partyDisplay(p,owned=true) {
     const k=spec(p.id,owned);
@@ -140,6 +143,7 @@
       status:game.canSave?"Saved on this device":"Session only · browser storage unavailable",
       sections:[{title:"On the trail",columns:2,rows:[
         row("interact",near ? near.label : "Local landmarks",null,near?"Interact here":"Walk to a place",{key:"E"}),
+        row("nav","Wild calls","wild-calls","Read the local tracks and choose who leads."),
         row("nav","Expedition","expedition","Regional commission",{key:"X"}),
         row("nav","The Missing Beat","chronicle","Finch’s journal",{key:"C"}),
         row("nav","Wildlife nearby","notebook","Follow a Wilderkin’s behavior",{key:"N"}),
@@ -155,6 +159,8 @@
     const b=game.state.battle;
     if (!b) return worldModel();
     const p=member(b.activeId),kin=spec(p.id),enemy=spec(b.enemy.id,false),intent=game.foeIntent(),wild=b.kind==="wild";
+    const call=wild?game.wildCall?.():null;
+    if(call?.waiting)return wildOffer();
     const lesson=game.guardTraining(b.activeId),chargedHit=intent.charged&&!intent.support&&intent.power>0;
     const escort=b.shellGuard===b.activeId;
     function exchangeLine(f,heals=false) {
@@ -186,14 +192,14 @@
     const pass=game.familyTechnique();
     if(pass)actions.unshift(row("nav",pass.name,"family-pass",pass.reason||"Choose a reserve · 1 beat",{disabled:!pass.available,tone:pass.available?"primary":undefined}));
     if (wild && !member(enemy.id)) {
-      const available=game.state.bag.kinweave || 0,f=game.ordinaryForecast?.("trail-feint");
+      const ready=game.captureStatus(),f=game.ordinaryForecast?.("trail-feint");
       actions.unshift(row("skill","Hold back","trail-feint",f?(f.reason||exchangeLine(f)+" · leaves at least 1 HP"):"Leave at least 1 HP",{disabled:f?!f.available:false}),
-        row("capture","Cast Kinweave",null,b.enemy.hp>b.enemy.maxHp/2?"Weaken to half health":available+" in satchel",
-          {disabled:!available || b.enemy.hp>b.enemy.maxHp/2}));
+        row("capture","Cast Kinweave",null,ready.reason||"1 Kinweave · "+game.state.bag.kinweave+" packed",{disabled:!ready.available}));
     }
     const title=b.secondBell?"Second Bell · Warden "+scene().warden:wild?"Wild encounter":b.kind==="expedition"?"Expedition patrol":"Warden "+scene().warden+"’s trial";
     const health=partyDisplay(b.enemy,false),conditions=game.conditions[b.condition];
     const warnings=[];
+    if(intent.warning)warnings.push(enemy.name+" is ready to use "+intent.skill.name+" · "+intent.skill.type+".");
     if (intent?.charged) warnings.push(enemy.name+" is preparing "+intent.skill.name+".");
     if (intent?.guarding) warnings.push(enemy.name+" is braced. A guarding strike breaks through.");
     if (b.enemy.beaconMarked) warnings.push("Beacon mark · your next ordinary attack pierces guard and deals 50% extra damage.");
@@ -204,10 +210,55 @@
     return {kind:"battle",title,kicker:scene().name+"   /   TURN "+b.turn,theme:scene().theme,ally:partyDisplay(p),foe:health,
       subtitle: b.remaining?.length ? (b.remaining.length+1)+" opponents remain" : scene().name,
       log:b.log.slice(b.turn>1?-2:-1).concat(warnings),
-      sections:[{title:"Choose a skill",columns:2,rows:skills},{title:"Field commands",columns:3,rows:actions},
+      sections:[...(call?[wildCommands(call)]:[]),{title:"Choose a skill",columns:2,rows:skills},{title:"Field commands",columns:3,rows:actions},
         ...(b.secondBell?[{title:"Published formation · Lv. "+b.secondBell.level,text:b.secondBell.roster.map(id=>spec(id,false).name).join(" → ")}]:[]),
         ...(conditions?[{title:conditions.name,text:conditions.description+(b.weather?" "+b.weather+" skills gain 20% damage.":"")}]:[]),
         ...(tactic?[{title:tactic.title,text:tactic.description+" "+tactic.counter}]:[])]};
+  }
+  function wildCommands(call) {
+    const lead=game.state.battle.activeId,rows=call.options.filter(o=>o.actor===lead).map(o=>{
+      const partner=o.partner?spec(o.partner).name:"";
+      return row("answer-call",o.name+(partner?" to "+partner:"")+" → "+call.target,o.skill+(o.partner?"|"+o.partner:""),
+        o.reason||(partner?"Hand off · 1 beat · no reply":"Answer the call · no damage or reply"),{disabled:!o.available,tone:"primary"});
+    });
+    let text=call.scene+" "+call.answer;
+    if(!rows.some(r=>!r.disabled)){
+      const reserve=call.options.find(o=>o.actor!==lead&&o.available&&game.switchForecast(o.actor)?.hpAfter>0);
+      if(reserve)rows.push(row("nav","Switch to "+spec(reserve.actor).name,"switch",reserve.name+" can answer. Preview the incoming hit."));
+      else if(!rows.length)text+=" Your party can still battle and offer a Kinweave at half health.";
+    }
+    return {title:call.title,text,rows};
+  }
+  function wildOffer() {
+    const b=game.state.battle,call=game.wildCall(),ready=game.captureStatus(),name=spec(b.enemy.id,false).name;
+    return {kind:"battle",title:name+" waits for you",kicker:scene().name+"   /   WILD CALL",theme:scene().theme,
+      ally:partyDisplay(member(b.activeId)),foe:partyDisplay(b.enemy,false),log:[call.response],
+      sections:[{title:"Answer the invitation",rows:[
+        row("capture","Offer a Kinweave",null,ready.reason||"Befriend "+name+" · 1 of "+game.state.bag.kinweave+" Kinweaves",{disabled:!ready.available,tone:"primary",key:"C"}),
+        row("release-call","Let "+name+" go",null,"Return to the trail and keep your Kinweave.",{key:"L"})]}]};
+  }
+  function recruitRows(id) {
+    const k=spec(id),p=member(id);
+    const rows=[row("open-kin","View "+k.name+"’s skills",id,k.types.join(" / "),{image:image(id)})];
+    if(!game.state.team.includes(id))rows.push(row("view","Choose a party slot","enlist|"+id,"Bring "+k.name+" out of reserve."));
+    else if(p.hp&&game.state.lead!==id)rows.push(row("lead","Make "+k.name+" lead",id,"Send "+k.name+" first in your next battle."));
+    const calls=game.pools[game.state.region].map(quarry=>game.wildCall?.(quarry)).filter(c=>c?.options.some(o=>o.actor===id&&o.available));
+    const next=calls.find(c=>c.pass==="beacon")||calls[0];
+    if(next){
+      const move=next.options.find(o=>o.actor===id&&o.available),name=spec(next.id,false).name;
+      rows.push(row("view","Follow "+name+"’s call","wild-scout|"+next.id,k.name+" can use "+move.name+" on "+next.target+".",{image:image(next.id,false)}));
+    }
+    if(!game.state.battle&&game.state.team.includes(id)){
+      const match=game.secondBell();
+      if(match?.eligible)rows.push(row("bell-preview","Try "+k.name+" at "+scene().lodge,id,
+        "Warden "+scene().warden+" opens with "+spec(match.opener,false).name+". Your team fights at full HP and returns to its trail HP."));
+    }
+    return rows;
+  }
+  function fieldRecruited(id,res) {
+    outcome={title:spec(id).name+" joined you",message:res.message,recruited:id,src:image(id),caption:spec(id).name,
+      guardPupil:["opalclasp","cragroll"].includes(id)?id:null};
+    playTone("reward");go("outcome",null,"root");
   }
   function outcomeModel() {
     if(outcome.secondBell)return {title:outcome.title,kicker:scene().lodge+"   /   SECOND BELL",subtitle:outcome.message,
@@ -215,7 +266,7 @@
       sections:[{title:"At the lodge",rows:[row("view","Return to the Second Bell desk","second-bell|"+game.state.region,"See your record at "+scene().lodge+".",{tone:"primary"}),
         row("root","Back to the trail")]}]};
     return {title:outcome.title,kicker:scene().name,subtitle:outcome.message,art:outcome.src?{src:outcome.src,caption:outcome.caption}:undefined,
-      sections:[{rows:[row("root","Back to the trail",null,"",{tone:"primary"}),
+      sections:[{rows:[...(outcome.recruited?recruitRows(outcome.recruited):[]),row("root","Back to the trail",null,"",{tone:"primary"}),
         ...(outcome.guardPupil?[row("view","Train with Neri Pike","guard-school|"+outcome.guardPupil,"Read the charged-hit lesson for "+spec(outcome.guardPupil).name+".")]:[]),
         ...(game.team().some(p=>p.hp<p.maxHp)?[row("walk-kind","Walk to camp","camp|camp","Rest the traveling party.")]:[]),
         ...(game.state.bag.broth&&game.team().some(p=>p.hp>0&&p.hp<p.maxHp)?[row("share-broth","Share Trailpot broth",null,game.state.bag.broth+" packed")]:[]),
@@ -240,7 +291,7 @@
       if (!res.ok) {render();notify(res.message);return;}
       if (fx) {
         if (fx.kind==="duet")score.answer();
-        playTone(fx.kind==="heal"||fx.kind==="item"?"care":"strike");
+        playTone(["heal","item","wild-call"].includes(fx.kind)?"care":"strike");
         await ui.animate({...fx,side:"ally"});
       }
       const now=game.state.battle;
@@ -266,10 +317,10 @@
       }
       if (now) {screen={name:"battle",value:null};history=[];render();return;}
       const crest=game.state.crests.length>oldCrests;
-      const titles={victory:"Battle won",defeat:"Back at camp",recruited:"A bond is formed",escaped:"Safe retreat"};
+      const titles={victory:"Battle won",defeat:"Back at camp",recruited:spec(oldEnemy,false).name+" joined you",escaped:b.wildCall?.answered?"Back on the trail":"Safe retreat"};
       const exhibition={victory:"Exhibition won",defeat:"Exhibition lost",escaped:"Exhibition withdrawn"};
       outcome={title:secondBell?(exhibition[res.kind]||"Exhibition complete"):crest?scene().crest+" earned":titles[res.kind]||"Encounter complete",message:res.message,secondBell,crest,expedition:kind==="expedition",
-        guardPupil:res.kind==="recruited"&&["opalclasp","cragroll"].includes(oldEnemy)?oldEnemy:null,
+        recruited:res.kind==="recruited"?oldEnemy:null,guardPupil:res.kind==="recruited"&&["opalclasp","cragroll"].includes(oldEnemy)?oldEnemy:null,
         src:crest?world.crestArt(game.state.region,true):res.kind==="recruited"?image(oldEnemy):null,
         caption:crest?scene().lodge:spec(oldEnemy,false).name};
       playTone(res.kind==="escaped"?"click":"reward");restorePlayer();
@@ -369,6 +420,12 @@
   function keydown(e) {
     if (e.altKey || e.ctrlKey || e.metaKey || e.type==="keyup") return false;
     if (resolving || ui.busy) return true;
+    if(screen.name==="wild-offer"){
+      const key=e.key.toLowerCase();
+      if(!e.repeat&&key==="c"&&game.captureStatus().available)action("capture");
+      else if(!e.repeat&&key==="l")action("release-call");
+      return !["arrowup","arrowdown","arrowleft","arrowright","pageup","pagedown","tab","enter"," "].includes(key);
+    }
     if(screen.name==="replacement"){
       const options=game.replacements()?.options;
       const slot=e.key.length===1?e.key.toUpperCase().charCodeAt(0)-65:-1;
@@ -397,6 +454,7 @@
   }
   function action(id,value) {
     if (resolving || ui.busy) return;
+    if(screen.name==="wild-offer"&&id!=="capture"&&id!=="release-call"){render();return;}
     if(screen.name==="replacement"){
       if(id!=="replace-fainted"){render();return;}
       const chosen=game.replaceFainted(value);
@@ -420,7 +478,17 @@
       case "interact":{const site=nearestSite();return site?visit(site):go("landmarks");}
       case "walk-site":return locate(Number(value));
       case "open-kin":return go("kin",value);
+      case "bell-preview":
+        if(screen.name==="outcome"&&outcome?.recruited===value)bell.act(id,value);
+        return;
       case "skill":return useSkill(value);
+      case "answer-call":{
+        const [skill,partner]=String(value).split("|"),b=game.state.battle,call=game.wildCall();
+        const move=call?.options.find(o=>o.actor===b.activeId&&o.skill===skill&&o.partner===partner);
+        if(!move?.available)return notify(move?.reason||"Choose the field move your lead can use.");
+        return resolveBattle(()=>game.answerWildCall(skill,partner),{kind:"wild-call",type:call.affinity||spec(b.activeId).type,
+          name:move.name,target:call.target,motif:call.motif,...(partner?{pass:call.pass,incomingKin:partyDisplay(member(partner))}:{})});
+      }
       case "family-pass":{
         const pass=game.familyTechnique();
         const target=pass?.targets.find(p=>p.id===value);
@@ -436,6 +504,7 @@
         return resolveBattle(()=>game.useDuet(value),{type:lead.type,partnerType:spec(value).type,partner:image(value),kind:"duet",name:option.name});
       }
       case "capture":return resolveBattle(()=>game.recruit(),{type:"Chime",kind:"capture",name:"Kinweave"});
+      case "release-call":return resolveBattle(()=>game.flee(),null);
       case "retreat":return resolveBattle(()=>game.flee(),null);
       case "swap":return resolveBattle(()=>game.swap(value),{type:spec(value).type,kind:"swap",name:spec(value).name});
       default:
@@ -451,6 +520,8 @@
   }
   function sharedScreen(hash) {
     if(game.replacements?.())return {name:"replacement",value:null};
+    if(awaitingCall())return {name:"wild-offer",value:null};
+    if(hash==="#wild-calls")return {name:game.state.battle?"battle":"wild-calls",value:null};
     if(hash==="#second-bell")return {name:game.state.battle?"battle":"second-bell",value:null};
     if(hash==="#guard-school")return {name:game.state.battle?"battle":"guard-school",value:null};
     if(hash==="#reedbank")return {name:"reedbank",value:null};
