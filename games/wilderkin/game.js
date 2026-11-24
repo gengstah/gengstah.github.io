@@ -35,6 +35,7 @@
     animate:fx=>{if(fx.kind==="duet")score.answer();return ui.animate(fx);}};
   const circuit=window.WilderTrials.create({...rentalControls,active:()=>screen.name==="circuit"});
   const reedbank=window.WilderReedbank.create({...rentalControls,active:()=>screen.name==="reedbank"});
+  const guardSchool=window.WilderGuardLessons.create({...rentalControls,locate,travel,fight,active:()=>screen.name==="guard-school"});
   const hall=window.WilderSparring.create({...rentalControls,active:()=>screen.name==="sparring"});
   const replay=window.WilderSparringReview.create({...rentalControls,read:()=>hall.reviewRecord()});
   const pages=window.WilderPages.create({game,world,dex,row,member,image,go,back,render,notify,locate,root,
@@ -56,7 +57,7 @@
   function go(name,value=null,mode="push") {
     if (resolving) return;
     stopWalk();
-    if (name==="world" && game.state.battle) name="battle";
+    if ((name==="world"||name==="guard-school") && game.state.battle) name="battle";
     if (mode==="root") history=[];
     else if (mode==="push" && (name!==screen.name || value!==screen.value)) history.push(screen);
     screen={name,value};render();
@@ -82,6 +83,7 @@
       case "play":model=fair.model(screen.value);break;
       case "circuit":model=circuit.model();break;
       case "reedbank":model=reedbank.model(screen.value);break;
+      case "guard-school":model=guardSchool.model(screen.value);break;
       case "sparring":model=hall.model(screen.value);break;
       case "sparring-review":model=replay.model(screen.value);break;
       default:model=pages.model(screen.name,screen.value);break;
@@ -100,6 +102,7 @@
     const firstQuest=outing&&{...outing,illustrations:["sprigkit","cindlet","dewfin"].map(id=>image(id,false))};
     const opening=state.region===0 && !state.crests.length && !window.WilderStory.chapterDone(state,0);
     const mill=state.region===0?area().sites.findIndex(site=>site.label==="Brookside Mill"):-1;
+    const mentor=area().sites.findIndex(site=>(site.kind||site.id)==="guard-school");
     const destination=state.destination,localHollow=game.hollows?.at(state.region);
     const pinned=destination===null?null:{kicker:"ATLAS PIN",title:game.regions[destination].name,description:destination===state.region?"You are here. Open the pin for the region’s landmarks.":game.access(destination).reason,id:"view",value:"region|"+destination};
     return {kind:"world",title:r.name,kicker:"THE MISSING BEAT   /   "+r.district+"   /   REGION "+String(state.region+1).padStart(3,"0")+" OF 150",
@@ -112,6 +115,7 @@
         row("nav","Expedition","expedition","Regional commission",{key:"X"}),
         row("nav","The Missing Beat","chronicle","Finch’s journal",{key:"C"}),
         row("nav","Wildlife nearby","notebook","Follow a Wilderkin’s behavior",{key:"N"}),
+        ...(mentor>=0?[row("walk-site","Meet Neri Pike",mentor,"Learn a field guard with a local kin.")]:[]),
         row("nav","Sparring Hall","sparring","Build a trio and battle",{key:"V"}),
         ...(mill>=0?[row("walk-site","Reedbank Relay",mill,"Walk to Brookside Mill for a practice handoff.")]:[]),
         ...(localHollow?[row("view",localHollow.title,"hollow|"+localHollow.id,"Side trail at the trailpost")]:[]),
@@ -122,19 +126,38 @@
     const b=game.state.battle;
     if (!b) return worldModel();
     const p=member(b.activeId),kin=spec(p.id),enemy=spec(b.enemy.id,false),intent=game.foeIntent(),wild=b.kind==="wild";
+    const lesson=game.guardTraining(b.activeId),chargedHit=intent.charged&&!intent.support&&intent.power>0;
+    const escort=b.shellGuard===b.activeId;
+    function exchangeLine(f,heals=false) {
+      return (heals?"Heal "+f.healing+" HP":"Deal "+f.damage)+(f.finishes?" · KO before reply":" · take "+f.returnDamage);
+    }
     const skills=kin.skills.map((s,i)=>{
       const mult=dex.effectiveness(s.type,enemy.types);
-      const detail=s.kind==="heal"?"Recover health":s.kind==="guard"?"Strike and brace":s.type+(mult>1?" · Advantage":mult<1?" · Resisted":"");
-      const special=game.skillPreview(s.id);
-      return row("skill",s.name,s.id,special?(special.reason||special.detail):detail,{tone:s.kind==="attack"?"primary":undefined,disabled:special?!special.available:s.kind==="heal" && p.hp>=p.maxHp,key:String(i+1)});
+      const special=game.skillPreview(s.id),f=game.ordinaryForecast?.(s.id);
+      let detail=f?(f.reason||exchangeLine(f,s.kind==="heal")):s.kind==="heal"?"Recover health":s.kind==="guard"?"Strike and brace":s.type;
+      if(s.kind==="attack"&&!special)detail+=mult>1?" · Advantage":mult<1?" · Resisted":"";
+      if(lesson?.guard===s.name){
+        const survivesReply=chargedHit&&f&&!f.finishes&&f.returnDamage>0&&f.returnDamage<p.hp;
+        let effect;
+        if(!lesson.learned){
+          effect=survivesReply?"Learns "+lesson.name:"Learning "+lesson.name;
+          if(chargedHit&&f?.finishes)effect="No training on a knockout";
+          else if(chargedHit&&f?.returnDamage>=p.hp)effect="Faints before learning";
+        }
+        else if(lesson.id==="shell")effect=escort?"Escort ready":"Prepares Shell Escort";
+        else if(!f?.finishes&&intent.call==="relay"&&b.remaining.length)effect="Stops Reserve relay";
+        else effect=survivesReply?"Exposes "+enemy.name:"Pincer Hold learned";
+        detail+=" · "+effect;
+      }
+      return row("skill",s.name,s.id,special?(special.reason||special.detail):detail,{tone:s.kind==="attack"?"primary":undefined,disabled:special?!special.available:f?!f.available:s.kind==="heal"&&p.hp>=p.maxHp,key:String(i+1)});
     });
     const duet=game.duets();
-    const actions=[row("nav","Trail duets","duets",duet.beats+" / "+duet.max+" beats",{key:"R",tone:duet.options.some(o=>o.available)?"primary":undefined}),row("nav","Switch kin","switch"),row("nav","Satchel","bag"),row("retreat","Retreat")];
+    const actions=[row("nav","Trail duets","duets",duet.beats+" / "+duet.max+" beats",{key:"R",tone:duet.options.some(o=>o.available)?"primary":undefined}),row("nav","Switch kin","switch",escort?"Shell Escort ready · preview protected entries":"Preview each incoming kin’s HP"),row("nav","Satchel","bag"),row("retreat","Retreat")];
     const pass=game.familyTechnique();
     if(pass)actions.unshift(row("nav",pass.name,"family-pass",pass.reason||"Choose a reserve · 1 beat",{disabled:!pass.available,tone:pass.available?"primary":undefined}));
     if (wild && !member(enemy.id)) {
-      const available=game.state.bag.kinweave || 0;
-      actions.unshift(row("skill","Hold back","trail-feint","Leave at least 1 HP"),
+      const available=game.state.bag.kinweave || 0,f=game.ordinaryForecast?.("trail-feint");
+      actions.unshift(row("skill","Hold back","trail-feint",f?(f.reason||exchangeLine(f)+" · leaves at least 1 HP"):"Leave at least 1 HP",{disabled:f?!f.available:false}),
         row("capture","Cast Kinweave",null,b.enemy.hp>b.enemy.maxHp/2?"Weaken to half health":available+" in satchel",
           {disabled:!available || b.enemy.hp>b.enemy.maxHp/2}));
     }
@@ -144,6 +167,7 @@
     if (intent?.charged) warnings.push(enemy.name+" is preparing "+intent.skill.name+".");
     if (intent?.guarding) warnings.push(enemy.name+" is braced. A guarding strike breaks through.");
     if (b.enemy.beaconMarked) warnings.push("Beacon mark · your next ordinary attack pierces guard and deals 50% extra damage.");
+    if (b.enemy.pincerOpening) warnings.push("Pincer Hold exposed "+enemy.name+". Your next ordinary attack breaks its guard and deals 50% more damage.");
     if (b.cover) warnings.push("Wattle cover · "+b.cover+" incoming "+(b.cover===1?"hit":"hits")+".");
     const tactic=game.wardenForecast?.();
     if(tactic?.active)warnings.push(tactic.title+" · "+tactic.counter);
@@ -157,6 +181,7 @@
   function outcomeModel() {
     return {title:outcome.title,kicker:scene().name,subtitle:outcome.message,art:outcome.src?{src:outcome.src,caption:outcome.caption}:undefined,
       sections:[{rows:[row("root","Back to the trail",null,"",{tone:"primary"}),
+        ...(outcome.guardPupil?[row("view","Train with Neri Pike","guard-school|"+outcome.guardPupil,"Read the charged-hit lesson for "+spec(outcome.guardPupil).name+".")]:[]),
         ...(game.team().some(p=>p.hp<p.maxHp)?[row("walk-kind","Walk to camp","camp|camp","Rest the traveling party.")]:[]),
         ...(game.state.bag.broth&&game.team().some(p=>p.hp>0&&p.hp<p.maxHp)?[row("share-broth","Share Trailpot broth",null,game.state.bag.broth+" packed")]:[]),
         row("nav",outcome.expedition?"Check commission":"Open journal",outcome.expedition?"expedition":"quests"),
@@ -192,6 +217,10 @@
         const reply=res.replySkill||intent?.skill;
         await ui.animate({type:reply?.type||"Neutral",kind:"attack",side:"foe",name:reply?.name});
       }
+      if(res.learnedGuard){
+        playTone("reward");
+        await ui.animate({kind:"learn",side:"ally",type:spec(activeId).type,name:res.learnedGuard+" learned"});
+      }
       if ((now && now.enemy!==originalFoe && !res.foeShifted) || res.kind==="victory" || res.kind==="defeat") {
         await ui.animate({type:"Neutral",kind:"defeat",side:res.kind==="defeat"?"ally":"foe",name:res.kind==="defeat"?spec(activeId).name:spec(oldEnemy,false).name});
       }
@@ -199,6 +228,7 @@
       const crest=game.state.crests.length>oldCrests;
       const titles={victory:"Battle won",defeat:"Back at camp",recruited:"A bond is formed",escaped:"Safe retreat"};
       outcome={title:crest?scene().crest+" earned":titles[res.kind]||"Encounter complete",message:res.message,crest,expedition:kind==="expedition",
+        guardPupil:res.kind==="recruited"&&["opalclasp","cragroll"].includes(oldEnemy)?oldEnemy:null,
         src:crest?world.crestArt(game.state.region,true):res.kind==="recruited"?image(oldEnemy):null,
         caption:crest?scene().lodge:spec(oldEnemy,false).name};
       playTone(res.kind==="escaped"?"click":"reward");restorePlayer();
@@ -257,7 +287,9 @@
     const kind=site.kind||site.id;
     if(kind==="sighting") return go("study",site.species);
     if(kind==="lantern-cup")return go("sparring","cup");
+    if(kind==="guard-school")return go("guard-school");
     game.visitSite(kind);
+    if(next&&typeof next==="object")return go(next.name,next.value);
     if (next) return go(next);
     const view={warden:"warden",camp:"camp",wild:"tracks",travel:"atlas",activities:"station"}[kind];
     go(view||"landmarks");
@@ -352,6 +384,7 @@
       case "retreat":return resolveBattle(()=>game.flee(),null);
       case "swap":return resolveBattle(()=>game.swap(value),{type:spec(value).type,kind:"swap",name:spec(value).name});
       default:
+        if (screen.name==="guard-school" && guardSchool.act(id,value)) return;
         if (screen.name==="reedbank" && reedbank.act(id,value)) return;
         if (screen.name==="circuit" && circuit.act(id,value)) return;
         if (screen.name==="sparring" && hall.act(id,value)) return;
@@ -361,6 +394,7 @@
     }
   }
   function sharedScreen(hash) {
+    if(hash==="#guard-school")return {name:game.state.battle?"battle":"guard-school",value:null};
     if(hash==="#reedbank")return {name:"reedbank",value:null};
     if(hash==="#lantern-cup")return {name:"sparring",value:"cup"};
     if(hash==="#updates")return {name:"updates",value:null};

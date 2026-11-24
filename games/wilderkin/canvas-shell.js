@@ -137,14 +137,14 @@
       const im=images.get(src);
       return im.complete && im.naturalWidth ? im : null;
     }
-    function picture(src,x,y,w,h,mode="contain",flip=false) {
+    function picture(src,x,y,w,h,mode="contain",flip=false,focusY=.5) {
       const im=source(src);
       if(!im || !w || !h)return;
       const iw=im.naturalWidth||im.width,ih=im.naturalHeight||im.height;
       if(!iw || !ih)return;
       const scale=mode==="cover"?Math.max(w/iw,h/ih):Math.min(w/iw,h/ih);
       const dw=Math.max(1,Math.round(iw*scale)),dh=Math.max(1,Math.round(ih*scale));
-      const dx=Math.round(x+(w-dw)/2),dy=Math.round(y+(h-dh)/2);
+      const dx=Math.round(x+(w-dw)/2),dy=Math.round(y+(h-dh)*focusY);
       c.save();c.beginPath();c.rect(x,y,w,h);c.clip();c.imageSmoothingEnabled=false;
       if(flip){c.translate(dx+dw,dy);c.scale(-1,1);c.drawImage(im,0,0,dw,dh);}
       else c.drawImage(im,dx,dy,dw,dh);
@@ -529,7 +529,7 @@
         }
       }
       if(a.landscape){
-        picture(src,x+1,y+1,w-2,h-2,"cover");
+        picture(src,x+1,y+1,w-2,h-2,"cover",false,a.focusY);
         for(let i=0;i<10;i++){
           const xx=x+w*((i*.114+pulse(t+i*170)*.007)%1);
           const yy=y+h*(.33+(i*.197)%0.6)+pulse(t+i*290)*3;
@@ -744,6 +744,20 @@
       const [ink,light]=affinity[a.type]||affinity.Neutral;
       const unit=clamp(tile/95,.62,1.6);
       c.save();
+      if(a.kind==="learn"){
+        const rise=reduced.matches?1:clamp(p*2,0,1);
+        const xx=src.x+sign*tile*.27,yy=src.y-tile*(.30+.12*rise),r=unit*9;
+        const shield=[[xx-r,yy-r*.7],[xx,yy-r],[xx+r,yy-r*.7],[xx+r*.75,yy+r*.4],[xx,yy+r],[xx-r*.75,yy+r*.4]];
+        poly(c,shield,"#694e32");star(c,xx,yy,r*.72,"#ffe29a");
+        if(!reduced.matches){
+          c.globalAlpha=Math.sin(pi*p);
+          for(let i=0;i<5;i++){
+            const angle=pi*(1.08+i*.2),radius=(11+14*p)*unit;
+            star(c,xx+Math.cos(angle)*radius,yy+Math.sin(angle)*radius,2.5*unit,"#ffe8ac");
+          }
+        }
+        c.restore();return;
+      }
       if(a.handoff){
         const still=reduced.matches;
         if(a.pass==="beacon"){
@@ -863,7 +877,7 @@
       const kind=effect.kind||"attack",speed=window.WilderGame?.state.animationSpeed||1;
       const side=effect.side==="foe"?"foe":"ally",view=model,portrait=effect.incoming||effect.incomingKin?.src;
       const passing=kind==="swap"&&(effect.pass==="beacon"||effect.pass==="slipstream")&&portrait&&model.kind==="battle";
-      const duration=reduced.matches?(passing?190:95):(passing?640:({heal:610,capture:820,defeat:460,swap:350,item:600,duet:850}[kind]||550))/speed;
+      const duration=reduced.matches?(passing||kind==="learn"?190:95):(passing?640:({heal:610,capture:820,defeat:460,swap:350,item:600,duet:850,learn:760}[kind]||550))/speed;
       let resolve;
       const promise=new Promise(done=>{resolve=done;});
       const token={...effect,kind,side,duration,started:performance.now(),promise};

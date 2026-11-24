@@ -582,6 +582,8 @@
         ][index] || {h:p.tree[1],H:p.tree[4],r:p.roofs[0][1],R:p.roofs[0][3],c:p.roofs[1][1],C:p.roofs[1][3]});
       }
       if(kind==='camper')Object.assign(colors,{h:'#816951',H:'#d8b68a',r:'#4d6e77',R:'#8aa9a6',k:'#735139',c:'#b8966e',C:'#cbae85',p:'#66716a'});
+      if(kind==='neri')Object.assign(colors,{h:'#335c4c',H:'#83a584',r:'#8e4235',R:'#d87b50',
+        k:'#403b37',f:'#8c583e',F:'#bb835a',c:'#a85239',C:'#d88a55',p:'#454d4c'});
       oval(c,p.turf[4],9,21,6,1);
       personPattern.forEach((row,y)=>{
         [...row].forEach((symbol,x)=>{
@@ -599,6 +601,12 @@
       if(kind==='warden'&&index===1) {
         rect(c,'#424d4d',5,5,9,3);
         rect(c,'#a6c1b1',6,5,2,2);rect(c,'#b4c9ba',11,5,2,2);
+      }
+      if(kind==='neri'){
+        rect(c,'#beafa1',5,7,2,1);rect(c,'#beafa1',12,6,1,2);
+        oval(c,'#594531',13,15,4,5);oval(c,'#c59555',13,15,3,4);
+        for(const y of [13,15,17])rect(c,'#8b663b',11,y,5,1);
+        rect(c,'#e2bd7c',12,12,1,6);rect(c,'#e2bd7c',14,13,1,5);
       }
       if(facing==='up'&&kind==='player') {
         rect(c,colors.X,6,13,7,5);rect(c,'#a57b4f',7,12,5,5);rect(c,'#d3a56d',7,12,5,2);
@@ -743,6 +751,8 @@
   if(window.WilderAtlas) {
     [[7,7],[8,8],[14,7]].forEach(([x,y],i)=>regions[i].sites.push(site('activities',x,y,'Field station')));
     regions[0].sites.push(site('lantern-cup',13,8,'Lantern Gate'));
+    regions[0].sites.push(site('guard-school',16,6,'Neri Pike'));
+    regions[1].sites.push(site('guard-school',4,8,'Neri Pike'));
     window.WilderAtlas.regions.slice(3).forEach((meta,j)=>regions.push(expeditionRegion(meta,j+3)));
   }
   const steps=[[0,-1],[1,0],[0,1],[-1,0]];
@@ -1217,6 +1227,11 @@
     if(gate) {
       const x=gate.x*TILE+8,y=gate.y*TILE+8;
       place(map,lanternGate(),x,y);hot(gate,x-14,y-26,x+15,y+1);
+    }
+    const medic=at('guard-school');
+    if(medic){
+      const x=medic.x*TILE+8,y=medic.y*TILE+9;
+      place(map,explorer(index,'neri','down'),x,y);hot(medic,x-8,y-21,x+9,y+1);
     }
     map.objects.sort((a,b)=>a.z-b.z);
     for(const s of [...region.sites,region.spawn])map.blocked.delete(s.y*COLS+s.x);

@@ -101,6 +101,7 @@
   const walking=window.WilderWalkingPartner?.create({species,regions});
   const growth=window.WilderGrowth;
   const coaches=window.WilderWardens;
+  const guardSchool=window.WilderGuardSchool;
 
   function newGame() {
     return {
@@ -108,7 +109,7 @@
       lead: starters[0], crests: [], met: [], seen: starters.slice(), battle: null, firstOuting:window.WilderOpening?"new":"closed",
       team: starters.slice(), visited: [0], quests: {}, clears: {}, rests: 0,
       sound: true, wins: 0, bag:{reed:5,sap:5,ore:2,kinweave:4,balm:3,tonic:1,sparkseed:1,broth:0},reports:[],
-      surveys:{},localWins:{},licenses:[],passes:[],crafted:{},landmark:null,forageReady:true,wardenLessons:[],relayClears:[],
+      surveys:{},localWins:{},licenses:[],passes:[],crafted:{},landmark:null,forageReady:true,wardenLessons:[],relayClears:[],trainedGuards:[],
       stillwake:window.WilderStillwake?.restore(null)||{},
       story:story.restore(null),refit:0,animationSpeed:1,music:1,growth:growth?.restore(null)||{},
       fieldwork:field?.restore(null)||{},caravan:window.WilderCaravans?.restore(null,[])||{},
@@ -145,6 +146,9 @@
       || !saved.party.every(p => validFighter(p) && integer(p.xp, 0, xpNeeded(p.level) - 1))
       || unique(saved.party.map(p => p.id)).length !== saved.party.length) return null;
     fresh.party = saved.party;
+    if (Array.isArray(saved.trainedGuards)) {
+      fresh.trainedGuards=fresh.party.filter(p=>saved.trainedGuards.includes(p.id)&&guardSchool?.forKin(p.id)).map(p=>p.id);
+    }
     fresh.firstOuting=window.WilderOpening?.restore(saved.firstOuting)??"closed";
     fresh.stillwake=window.WilderStillwake?.restore(saved.stillwake,fresh.party)||{};
     fresh.growth=growth?.restore(saved.growth)||{};
@@ -228,10 +232,13 @@
         lastPart:["strike","guard","care","switch"].includes(battle.lastPart)?battle.lastPart:null,
         opening:battle.opening===true,
         familyUsed:battle.familyUsed===true,
+        shellGuard:battle.shellGuard===battle.activeId && fresh.trainedGuards.includes(battle.activeId) &&
+          guardSchool?.forKin(battle.activeId)?.id==="shell" ? battle.activeId : null,
         cover:integer(battle.cover,0,2)?battle.cover:0,reserveHp:[],
         log: battle.log.filter(entry => typeof entry === "string").slice(-8)
       };
       const rest=fresh.battle.remaining;
+      if (battle.enemy.pincerOpening!==true || !fresh.trainedGuards.some(id=>guardSchool.forKin(id)?.id==="pincer")) delete fresh.battle.enemy.pincerOpening;
       if (!fresh.battle.familyUsed || battle.enemy.beaconMarked!==true) delete fresh.battle.enemy.beaconMarked;
       if(fresh.battle.familyUsed && !fresh.battle.enemy.beaconMarked && rest.length===battle.remaining?.length &&
         integer(battle.beaconReserve,0,rest.length-1)) fresh.battle.beaconReserve=battle.beaconReserve;
@@ -433,7 +440,7 @@
     const message=label+" "+species[enemy.id].name+" takes the field.";
     if (!state.seen.includes(enemy.id)) state.seen.push(enemy.id);
     state.battle={kind,activeId:ready.id,enemy,remaining:ids.slice(1),turn:1,
-      commissioned:null,bonus:null,weather:null,condition:null,lastAttack:null,beats:1,lastPart:null,opening:false,familyUsed:false,cover:0,reserveHp:[],...options,log:[message]};
+      commissioned:null,bonus:null,weather:null,condition:null,lastAttack:null,beats:1,lastPart:null,opening:false,familyUsed:false,shellGuard:null,cover:0,reserveHp:[],...options,log:[message]};
     return commit("battle",message);
   }
 
@@ -553,7 +560,26 @@
     return Math.max(1,Math.floor(hit*guardFactor*(covered ? .4 : 1)));
   }
 
-  function counterattack(firstMessage, guardFactor=1) {
+  function guardTraining(id) {
+    const lesson=usingLoaners ? null : guardSchool?.forKin(id);
+    return lesson ? {...lesson,learned:state.trainedGuards.includes(id)} : null;
+  }
+
+  function guardPractice(id,foeId,region) {
+    if(state.battle || usingLoaners || !validRegion(region) || !pools[region].includes(foeId))return null;
+    const trainee=member(id),lesson=guardTraining(id);
+    if(!trainee || !lesson)return null;
+    const guard=ownedKin(id).skills.find(s=>s.kind==="guard");
+    if(!guard)return null;
+    return {maxHp:hpAt(foeId,regions[region].wildLevel),guardDamage:damage(guard.power,trainee.level,guard.type,{id:foeId})};
+  }
+
+  function changeFront(battle,id) {
+    battle.shellGuard=null;
+    battle.activeId=id;
+  }
+
+  function counterattack(firstMessage, guardFactor=1, lesson=null) {
     const battle = state.battle;
     const { enemy } = battle;
     const enemySpecies = species[enemy.id];
@@ -564,7 +590,23 @@
     if(!interrupted&&!intent.support&&battle.cover>0)battle.cover--;
     active.hp -= dealt;
     let reply = intent.support?"":interrupted?enemySpecies.name+" lost its charged response.":enemySpecies.name + " used " + skill.name + " for " + dealt + " damage.";
-    const response=applyCoaching(false);
+    const survivedCharge=active.hp>0 && intent.charged && dealt>0;
+    const learnedGuard=lesson && survivedCharge && !lesson.learned ? lesson.name : null;
+    if (lesson && survivedCharge) {
+      if (learnedGuard) {
+        state.trainedGuards.push(active.id);
+        reply+=" "+ownedKin(active.id).name+" learned "+lesson.name+"!";
+        if (lesson.id==="shell") {
+          battle.shellGuard=active.id;
+          reply+=" Roll Brace will cover the next ordinary switch.";
+        }
+      }
+      if (lesson.id==="pincer") {
+        enemy.pincerOpening=true;
+        reply+=" Pincer Block exposed "+enemySpecies.name+" for the next strike.";
+      }
+    }
+    const response=applyCoaching(false,lesson?.learned && lesson.id==="pincer");
     if(response?.message)reply+=(reply?" ":"")+response.message;
     if (active.hp === 0) {
       const next = team().find(p => p.hp > 0);
@@ -575,12 +617,13 @@
         state.party.forEach(p => { p.hp = p.maxHp; });
         return commit("defeat", "Your party ran out of strength. You returned to the trailhead, where your companions recovered to full health.");
       }
-      battle.activeId = next.id;
+      changeFront(battle,next.id);
       reply += " " + ownedKin(active.id).name + " needs a rest. " + ownedKin(next.id).name + " stepped in.";
     }
     battle.turn++;
     battle.log = [...battle.log, firstMessage, reply].slice(-8);
     const outcome=commit("turn", firstMessage + " " + reply);
+    if (learnedGuard) outcome.learnedGuard=learnedGuard;
     return intent.support?{...outcome,skipCounterFx:true,foeShifted:!!response?.shifted,replySkill:skill}:outcome;
   }
 
@@ -588,7 +631,12 @@
     return coaches?.lesson(state,regions[i],i)||null;
   }
   function wardenForecast() {
-    return coaches?.forecast(state,regions[state.region],state.region)||null;
+    const forecast=coaches?.forecast(state,regions[state.region],state.region)||null;
+    if (forecast?.kind==="relay" && state.battle.remaining.length) {
+      const lesson=guardTraining(state.battle.activeId);
+      if (lesson?.id==="pincer" && lesson.learned) forecast.counter+=" Pincer Block can also hold their front in place.";
+    }
+    return forecast;
   }
   function nextFoe(b) {
     const incoming=makeMember(b.remaining.shift(),b.enemy.level);
@@ -606,9 +654,9 @@
     if(outgoing.beaconMarked)b.beaconReserve=b.remaining.length;
     b.remaining.push(outgoing.id);b.reserveHp.push(outgoing.hp);
   }
-  function applyCoaching(knockedOut) {
+  function applyCoaching(knockedOut,pincer=false) {
     if(!state.battle?.coach)return null;
-    return coaches.respond({state,region:regions[state.region],dex,species,member,team,rotate:rotateFoe,knockedOut});
+    return coaches.respond({state,region:regions[state.region],dex,species,member,team,rotate:rotateFoe,knockedOut,pincer});
   }
   function earnBeat(part) {
     const b=state.battle;
@@ -656,11 +704,13 @@
     if (!battle) return {beats:0,max:3,opening:false,hint:"Meet a wild Wilderkin to try a duet.",options:[]};
     const lead=member(battle.activeId),intent=foeIntent();
     const beacon=battle.enemy.beaconMarked===true;
+    const pincer=battle.enemy.pincerOpening===true;
     const hint=(beacon?"Beacon mark: next ordinary strike bypasses guard and gains 50% damage. ":
+      pincer?"Pincer Hold: next ordinary strike bypasses guard and gains 50% damage. ":
       battle.opening?"Foe exposed: next attack skill bypasses guard and gains 50% damage. ":"")+
       (battle.lastPart?"Last part: "+battle.lastPart+". Change parts to earn a beat.":"Your first skill or switch earns a beat.")+
       " Parts: strike, guard, care, switch.";
-    return {beats:battle.beats,max:3,opening:battle.opening||beacon,hint,
+    return {beats:battle.beats,max:3,opening:battle.opening||beacon||pincer,hint,
       options:team().filter(p=>p.id!==lead.id).map(p=>duetOption(lead,p,intent))};
   }
 
@@ -677,7 +727,7 @@
     b.enemy.hp-=option.damage;
     lead.hp+=option.healLead;partner.hp+=option.healPartner;
     if (option.opens) b.opening=true;
-    if (option.switchLead) b.activeId=partnerId;
+    if (option.switchLead) changeFront(b,partnerId);
     let message=ownedKin(lead.id).name+" and "+ownedKin(partnerId).name+" used "+option.name+" for "+option.damage+" damage.";
     if (option.healLead||option.healPartner) message+=" Restored "+option.healLead+" / "+option.healPartner+" HP.";
     if (option.opens) message+=" The foe is exposed!";
@@ -753,11 +803,41 @@
     if(skill.id==="wattle-ward")b.cover=2;
     if(skill.id==="briar-seam"||skill.id==="turn-the-lock"&&!plan.shift)b.opening=true;
     if(plan.healing)member(plan.target).hp+=plan.healing;
-    if(skill.id==="cinder-handoff"){lead.hp-=plan.tax;b.activeId=plan.target;}
+    if(skill.id==="cinder-handoff"){lead.hp-=plan.tax;changeFront(b,plan.target);}
     if(plan.shift)rotateFoe();
     const message=note+plan.effect;
     const outcome=b.enemy.hp===0?winBattle(message):counterattack(message,plan.guard);
     return {...outcome,foeShifted:Boolean(plan.shift)||!!outcome.foeShifted,skipCounterFx:!plan.guard||!!outcome.skipCounterFx,replySkill:plan.replySkill};
+  }
+
+  const trailFeint={id:"trail-feint",name:"Hold back",kind:"feint"};
+
+  function ordinaryForecast(id) {
+    const b=state.battle;
+    if(!b)return null;
+    const active=member(b.activeId),user=ownedKin(active.id),enemy=b.enemy;
+    const skill=id===trailFeint.id && b.kind==="wild"?trailFeint:user.skills.find(s=>s.id===id);
+    if(!skill || skill.trained)return null;
+    const intent=foeIntent(),guard=skill.kind==="guard";
+    const guardFactor=guard ? (b.condition==="ledge" ? .33 : .5) : 1;
+    const exposed=skill.kind==="attack" && Boolean(b.opening||enemy.beaconMarked||enemy.pincerOpening);
+    const braced=intent.guarding && !exposed,repeated=b.condition==="echo" && b.lastAttack===id;
+    let hit=0,healing=0,reason="";
+    if(skill.kind==="feint"){
+      hit=Math.min(enemy.hp-1,Math.ceil(enemy.maxHp/4));
+      if(!hit)reason="This Wilderkin is ready to befriend.";
+    }else if(skill.kind==="heal"){
+      healing=Math.min(active.maxHp-active.hp,Math.ceil(active.maxHp/3));
+      if(!healing)reason=user.name+" is already at full health.";
+    }else{
+      const base=damage(skill.power,active.level,skill.type,enemy);
+      const braceEffect=braced ? (guard ? (b.condition==="ledge" ? 1.65 : 1.4) : .55) : 1;
+      const raw=base*braceEffect*(repeated ? .75 : 1)*(exposed ? 1.5 : 1);
+      hit=Math.min(enemy.hp,Math.max(1,Math.round(raw)));
+    }
+    const finishes=hit===enemy.hp;
+    const returnDamage=(reason || finishes) ? 0 : Math.min(active.hp+healing,returnHit(active,guardFactor,intent));
+    return {available:!reason,reason,skill,damage:hit,healing,returnDamage,finishes,guardFactor,exposed,braced,repeated};
   }
 
   function useSkill(id) {
@@ -765,56 +845,71 @@
     if (!battle) return error("There is no active encounter.");
     const active = member(battle.activeId);
     const user = ownedKin(active.id);
-    if (id === "trail-feint" && battle.kind === "wild") {
-      const foe = battle.enemy;
-      const hit = Math.min(foe.hp - 1, Math.ceil(foe.maxHp / 4));
-      if (!hit) return error("This Wilderkin is ready to befriend.");
+    const plan=ordinaryForecast(id);
+    if(!plan){
+      const special=user.skills.find(s=>s.id===id && s.trained);
+      return special?trainedTurn(special,active):error("Choose a skill your active companion knows.");
+    }
+    if(!plan.available)return error(plan.reason);
+    const {skill,damage:hit,healing,exposed,braced,repeated}=plan;
+    if (skill.kind==="feint") {
       earnBeat("strike");
-      foe.hp -= hit;
+      battle.enemy.hp -= hit;
       return counterattack(user.name + " held back, dealing " + hit + " damage.");
     }
-    const skill = user.skills.find(s => s.id === id);
-    if (!skill) return error("Choose a skill your active companion knows.");
-    if(skill.trained)return trainedTurn(skill,active);
     if (skill.kind === "heal") {
-      if (active.hp === active.maxHp) return error(user.name + " is already at full health.");
       earnBeat("care");
-      const regained = Math.min(active.maxHp - active.hp, Math.ceil(active.maxHp / 3));
-      active.hp += regained;
+      active.hp += healing;
       if(!usingLoaners&&state.growth.dewfin&&active.id==="dewfin"&&id==="dew-bath")state.growth.dewfin.demonstrated=true;
-      return counterattack(user.name + " used " + skill.name + " and recovered " + regained + " HP.");
+      return counterattack(user.name + " used " + skill.name + " and recovered " + healing + " HP.");
     }
     const enemy = battle.enemy;
     earnBeat(skill.kind==="guard"?"guard":"strike");
-    const exposed=(battle.opening||enemy.beaconMarked===true) && skill.kind==="attack";
     if (exposed) {
       battle.opening=false;
       delete enemy.beaconMarked;
+      delete enemy.pincerOpening;
     }
-    const braced=foeIntent().guarding && !exposed;
-    const base=damage(skill.power,active.level,skill.type,enemy);
-    const repeated=battle.condition==="echo" && battle.lastAttack===id;
-    const braceEffect=braced ? (skill.kind==="guard" ? (battle.condition==="ledge" ? 1.65 : 1.4) : .55) : 1;
-    const hit=Math.min(enemy.hp,Math.max(1,Math.round(base*braceEffect*(repeated ? .75 : 1)*(exposed?1.5:1))));
     battle.lastAttack=id;
     enemy.hp -= hit;
     const multiplier = dex.effectiveness(skill.type, species[enemy.id].types);
     const pairing = multiplier > 1 ? " Elemental advantage!" : multiplier < 1 ? " The target resisted." : "";
-    const message = user.name + " used " + skill.name + " for " + hit + " damage." + pairing + (exposed?" Struck the opening!":"") + (repeated ? " Echo dulled the repeat." : "") + (braced ? skill.kind==="guard" ? " Broke its guard!" : " It braced for the strike." : "");
+    let message = user.name + " used " + skill.name + " for " + hit + " damage." + pairing + (exposed?" Struck the opening!":"") + (repeated ? " Echo dulled the repeat." : "") + (braced ? skill.kind==="guard" ? " Broke its guard!" : " It braced for the strike." : "");
+    const lesson=skill.kind==="guard" ? guardTraining(active.id) : null;
+    if (lesson?.learned && lesson.id==="shell" && !battle.shellGuard) {
+      battle.shellGuard=active.id;
+      message+=" Roll Brace will cover the next ordinary switch.";
+    }
     if (enemy.hp === 0) return winBattle(message);
     if(!usingLoaners&&state.growth.sprigkit&&active.id==="sprigkit"&&id==="brush-dash"&&foeIntent().charged)state.growth.sprigkit.demonstrated=true;
-    return counterattack(message,skill.kind==="guard" ? (battle.condition==="ledge" ? .33 : .5) : 1);
+    return counterattack(message,plan.guardFactor,lesson);
+  }
+
+  function switchForecast(id) {
+    const battle=state.battle;
+    if (!battle) return null;
+    const p=member(id);
+    const reason=battle.activeId===id ? "This companion is already in the field." :
+      !state.team.includes(id)||!p?.hp ? "Choose a companion with some health remaining." : "";
+    const covered=!reason && !usingLoaners && battle.shellGuard===battle.activeId;
+    const normalFactor=battle.condition==="gale" ? .25 : .5;
+    const factor=covered ? .25 : normalFactor;
+    const intent=foeIntent();
+    const damage=reason ? 0 : Math.min(p.hp,returnHit(p,factor,intent));
+    const normalDamage=reason ? 0 : Math.min(p.hp,returnHit(p,normalFactor,intent));
+    return {available:!reason,reason,protected:covered,damage,normalDamage,hpAfter:(p?.hp||0)-damage,maxHp:p?.maxHp||0,factor};
   }
 
   function swap(id) {
     const battle = state.battle;
     if (!battle) return setLead(id);
-    if (battle.activeId === id) return error("This companion is already in the field.");
-    if (!state.team.includes(id) || !member(id)?.hp) return error("Choose a companion with some health remaining.");
+    const plan=switchForecast(id);
+    if (!plan.available) return error(plan.reason);
     earnBeat("switch");
-    battle.activeId = id;
+    changeFront(battle,id);
     battle.lastAttack=null;
-    return counterattack("You called in "+ownedKin(id).name+".",battle.condition==="gale" ? .25 : .5);
+    const message="You called in "+ownedKin(id).name+"."+(plan.protected?" Roll Brace covered the switch.":"");
+    return counterattack(message,plan.factor);
   }
 
   function familyTechnique() {
@@ -848,7 +943,7 @@
     battle.lastPart=null;
     battle.lastAttack=null;
     if (battle.coach) battle.coach.action="switch";
-    battle.activeId=target.id;
+    changeFront(battle,target.id);
     if (technique.id==="beacon") {
       battle.enemy.beaconMarked=true;
       message+=species[battle.enemy.id].name+" is exposed to the next ordinary strike. ";
@@ -1198,7 +1293,7 @@
   }
   window.WilderGame = {
     firstOuting:window.WilderOpening?.create({state:()=>state,commit,setLead,sightings:()=>field?.sightings(state.region)||[]}),
-    wardenLesson,wardenForecast,
+    wardenLesson,wardenForecast,guardTraining,guardPractice,switchForecast,ordinaryForecast,
     passageReport,filePassage,
     pinRegion,setWalker,walkerPose:(time,reduced)=>walking?.pose(state,time,reduced),walkerInfo:()=>walking.info(state),walkerSense:()=>walking.sense(state,field.sightings(state.region),expedition(),objective()),
     stillwake:window.WilderStillwake?.create({state:()=>state,commit,regions,species,makeMember,story,duetPair}),

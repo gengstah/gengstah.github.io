@@ -239,5 +239,12 @@
     forKin:id=>familyPasses[designs.get(id)?.shape] || null,
     byId:id=>id===beacon.id?beacon:id===slipstream.id?slipstream:null
   };
+  const guardRoles = {
+    armadillo:{id:"shell",family:"Armadillo",name:"Shell Escort",guard:"Roll Brace",
+      summary:"Roll Brace sets up a protected switch. Call in a teammate and it takes only a quarter of the incoming hit."},
+    crab:{id:"pincer",family:"Crab",name:"Pincer Hold",guard:"Pincer Block",
+      summary:"Pincer Block exposes a charging rival for the next ordinary attack. Against a Warden’s Reserve relay, it holds that rival in place."}
+  };
+  window.WilderGuardSchool = {forKin:id=>guardRoles[designs.get(id)?.shape] || null};
   window.WilderKinDex = {expand, encounterPools, effectiveness, types, abilities, spriteUrl};
 })();

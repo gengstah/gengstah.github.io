@@ -89,7 +89,7 @@
       description:prefix+(c.wait?"In "+c.wait+" turn"+(c.wait===1?"":"s")+". ":"")+desc,
       counter:(c.code==="cadence"?"Previous action: "+(b.coach.last||"none (guard to open)")+". ":"")+c.counter};
   }
-  function respond({state:s,region:r,dex,species,member,team,rotate,knockedOut}) {
+  function respond({state:s,region:r,dex,species,member,team,rotate,knockedOut,pincer}) {
     const b=s.battle,t=b.coach,c=cue(r,b);if(!c)return null;
     const part=t.action||"duet",last=t.last,active=member(b.activeId);
     t.last=part;t.action=null;t.screen=Math.max(0,t.screen-1);t.charge=false;
@@ -100,10 +100,13 @@
         read=part==="guard";
         if(!knockedOut){if(read)b.opening=true;else t.screen=2;}
         message=read?"The guard catches the screen as it opens.":"The crew braces its front for two responses.";break;
-      case "relay":
-        read=part==="switch";
+      case "relay":{
+        const trapped=pincer && !knockedOut && b.remaining.length>0;
+        read=part==="switch"||trapped;
         if(!read&&!knockedOut) {if(b.remaining.length){rotate();shifted=true;}else t.screen=1;}
-        message=read?"Your change closes the exchange lane.":shifted?"The crew relays its wounded front to the back. "+species[b.enemy.id].name+" takes over.":"The rear line holds.";break;
+        message=trapped?"Pincer Block holds "+species[b.enemy.id].name+" in place. The reserve stays back.":
+          read?"Your change closes the exchange lane.":shifted?"The crew relays its wounded front to the back. "+species[b.enemy.id].name+" takes over.":"The rear line holds.";break;
+      }
       case "aid":{
         read=part==="care";
         if(!knockedOut){
@@ -121,7 +124,7 @@
         read=part==="guard"||part==="switch";
         if(!read&&!knockedOut){
           const roster=team(),index=roster.indexOf(active),next=[...roster.slice(index+1),...roster.slice(0,index)].find(p=>p.hp>0);
-          if(next){b.activeId=next.id;message=species[next.id].name+" is moved to your front.";}
+          if(next){b.shellGuard=null;b.activeId=next.id;message=species[next.id].name+" is moved to your front.";}
         }
         message=message||"Your front holds its place at the gate.";break;
       }
