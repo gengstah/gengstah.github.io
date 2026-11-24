@@ -88,12 +88,14 @@
   }
   function worldModel() {
     const state=game.state,r=scene(),obj=game.objective(),near=nearestSite();
+    const outing=game.firstOuting.offer();
+    const firstQuest=outing&&{...outing,illustrations:["sprigkit","cindlet","dewfin"].map(id=>image(id,false))};
     const opening=state.region===0 && !state.crests.length && !window.WilderStory.chapterDone(state,0);
     const destination=state.destination,localHollow=game.hollows?.at(state.region);
     const pinned=destination===null?null:{kicker:"ATLAS PIN",title:game.regions[destination].name,description:destination===state.region?"You are here. Open the pin for the region’s landmarks.":game.access(destination).reason,id:"view",value:"region|"+destination};
     return {kind:"world",title:r.name,kicker:"THE MISSING BEAT   /   "+r.district+"   /   REGION "+String(state.region+1).padStart(3,"0")+" OF 150",
       subtitle:r.description,region:state.region,player:samplePlayer,party:game.team().map(p=>partyDisplay(p)),
-      objective:pinned||(opening?{title:"Open Finch’s first dispatch",description:"The Mossbrook bell has skipped a beat. Read the note Finch carried during the flood.",id:"view",value:"scene|chapter-1"}
+      objective:pinned||firstQuest||(opening?{title:"Open Finch’s first dispatch",description:"The Mossbrook bell has skipped a beat. Read the note Finch carried during the flood.",id:"view",value:"scene|chapter-1"}
         :{title:obj.title,description:obj.description,id:"nav",value:"objective"}),
       status:game.canSave?"Saved on this device":"Session only · browser storage unavailable",
       sections:[{title:"On the trail",columns:2,rows:[

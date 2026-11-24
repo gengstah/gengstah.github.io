@@ -6,6 +6,7 @@ window.WilderPages = {
     const walkers=window.WilderWalkingPartner.pages({game,row,image,go,render,notify,locate});
     const hollows=window.WilderHollows.pages({game,row,go,render,notify,locate});
     const mystery=window.WilderStillwake.pages({game,row,go,render,notify,locate});
+    const outing=window.WilderOpening.pages({game,row,image,go,notify,locate});
     const own=id=>game.kin(id,{owned:true});
     const starterIds=["sprigkit","cindlet","dewfin"];
     let selectedGrowth=null,growthMoment=0;
@@ -390,8 +391,10 @@ window.WilderPages = {
       } else {
         sections.push({title:moment.speaker||"Field notes",text:moment.text});
         const choices=moment.choices.length?moment.choices:[{id:"",label:moment.step===moment.total?"File this dispatch":"Continue"}];
-        sections.push(heading(moment.choices.length?"Finch’s reply":"Dispatch · "+moment.step+" / "+moment.total,
-          choices.map(c=>row("story-step",c.label,id+"|"+c.id,"",{disabled:!!s().battle,tone:"primary"}))));
+        const answers=choices.map(c=>row("story-step",c.label,id+"|"+c.id,"",{disabled:!!s().battle,tone:"primary"}));
+        if(moment.jump)answers.push(row("story-jump",moment.jump.label,id,"",{disabled:!!s().battle}));
+        if(moment.step>1)answers.push(open("transcript",id,"Read conversation so far"));
+        sections.push(heading(moment.choices.length?"Finch’s reply":"Dispatch · "+moment.step+" / "+moment.total,answers));
         if(moment.lockedChoices.length) sections.push(heading("Other endings",moment.lockedChoices.map(c=>info(c.label,c.requirement))));
       }
       return page(record.title,kindLabels[record.kind]+"   /   "+game.regions[record.region].name,sections,
@@ -458,6 +461,8 @@ window.WilderPages = {
       return page("What’s new in Wilderkin","FIELD DISPATCH   /   GROWTH & LODGES",[
         heading("Meet the grown forms",forms),
         heading("On the trail",[
+          ...(game.firstOuting.offer()?[nav("first-outing","Choose your first trail partner","Walk to a Mossbell sighting together.")]:[]),
+          nav("chronicle","Read Finch’s dispatches","Jump to your next reply or read every line."),
           open("crest",lodge,"Read Warden "+game.regions[lodge].warden+"’s lesson",game.wardenLesson(lodge).title),
           nav("notebook","Study nearby wildlife","Read the signs and approach a wild kin."),
           nav("passage","Take the naturalist’s route","File wildlife reports from Reedline Landing onward."),
@@ -481,6 +486,7 @@ window.WilderPages = {
         case "walker":return walkers.model(value);
         case "growth-ledger":return growthLedger();
         case "updates":return updates();
+        case "first-outing":return outing.model();
         case "growth":return growthPage(value);
         case "growth-reveal":{
           const g=game.growthInfo(value),k=own(value);
@@ -581,14 +587,16 @@ window.WilderPages = {
         case "request-step":return setResult(game.questAction(value));
         case "travel":return travel(Number(value));
         case "story-kind":filter.storyKind=value;filter.storyPage=0;return render();
-        case "story-step":{
-          const res=game.storyStep(a,b||undefined);if(!res.ok)return notify(res.message);playTone("click");return render();
+        case "story-step":
+        case "story-jump":{
+          const res=game.storyStep(a,b||undefined,id==="story-jump"?"jump":undefined);
+          if(!res.ok)return notify(res.message);playTone("click");return render();
         }
         case "sound":return setResult(game.setSound(!s().sound));
         case "speed":return setResult(game.cycleAnimationSpeed());
         case "music":return setResult(game.cycleMusic());
         case "reset-save":return reset();
-        default:return caravans.act(id,value)||walkers.act(id,value)||hollows.act(id,value)||mystery.act(id,value);
+        default:return outing.act(id,value)||caravans.act(id,value)||walkers.act(id,value)||hollows.act(id,value)||mystery.act(id,value);
       }
     }
     return {model,act,typeKey,hollowKey:(e,id)=>hollows.key(e,id),reset(){filter=settings();}};

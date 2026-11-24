@@ -326,13 +326,19 @@
     }
     function questBox(q,x,y,w) {
       if(!q)return 0;
-      const compact=w<400,sz=compact?33:43,tx=x+sz+26,tw=Math.max(70,w-sz-47);
+      const compact=w<400,sz=q.illustrations?(compact?56:74):(compact?33:43),tx=x+sz+26,tw=Math.max(70,w-sz-47);
       c.font=getFont(22,"title",650);const titles=wrap(c,q.title,tw);
       c.font=getFont(13,"body",500);const lines=q.description?wrap(c,q.description,tw):[];
       const h=28+titles.length*22+lines.length*18+13;
       const hit=control({...q,label:q.title},x,y,w,h);
       rect(c,x,y,w,h,highlighted(hit)?"#f6e4b4":"#f8edce","#bda770");
-      rect(c,x,y,4,h,"#b99047");picture("ui/quest.png",x+12,y+(h-sz)/2,sz,sz);
+      rect(c,x,y,4,h,"#b99047");
+      if(q.illustrations){
+        const d=Math.round(sz*.58),top=y+(h-sz)/2;
+        picture(q.illustrations[0],x+10,top,d,d);
+        picture(q.illustrations[1],x+14+sz-d,top+3,d,d);
+        picture(q.illustrations[2],x+12+(sz-d)/2,top+sz-d,d,d);
+      }else picture("ui/quest.png",x+12,y+(h-sz)/2,sz,sz);
       label(c,q.kicker||"CURRENT QUEST",tx,y+9,10,"#836832","mono",700);
       const dy=paragraph(c,titles,tx,y+23,22,22,C.ink,"title",650);
       paragraph(c,lines,tx,y+25+dy,13,18,"#655e44");

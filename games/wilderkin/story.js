@@ -637,15 +637,18 @@
       base.choices=options.filter(c=>!c.needs || c.needs(state)).map(c=>({id:c.id,label:c.label}));
       base.lockedChoices=options.filter(c=>c.needs && !c.needs(state)).map(c=>({label:c.label,requirement:c.hint}));
     }
+    const linesToStop=lines.length-1-step;
+    if (linesToStop>1) base.jump={lines:linesToStop,label:picked?"Jump to closing line":"Jump to my next reply"};
     return base;
   }
 
-  function advance(state,id,choiceId) {
+  function advance(state,id,choiceId,mode) {
     const current=scene(state,id);
     const error=message=>({ok:false,kind:"error",message});
     if (!current) return error("No dispatch has that name.");
     if (current.status==="complete") return error("That account is already recorded.");
     if (current.status==="locked") return error(current.requirement);
+    if (mode==="jump" && (!current.jump || choiceId!=null)) return error("Continue or choose your reply here.");
     if (current.choices.length && !current.choices.some(c=>c.id===choiceId)) return error("Choose an answer before continuing.");
     if (!current.choices.length && choiceId!=null && choiceId!=="") return error("Continue reading this line first.");
     const def=definitions[id];
@@ -659,7 +662,7 @@
       r.done=true;
       return {ok:true,kind:"story-complete",message:def.kind==="ending" ? ending(state) : def.title+" recorded."};
     }
-    r.step++;
+    r.step+=mode==="jump" ? current.jump.lines : 1;
     return {ok:true,kind:"dialogue",message:scene(state,id).text};
   }
 

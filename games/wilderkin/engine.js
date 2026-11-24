@@ -104,7 +104,7 @@
   function newGame() {
     return {
       version: 3, region: 0, positions: {}, party: starters.map(id => makeMember(id, 5)),
-      lead: starters[0], crests: [], met: [], seen: starters.slice(), battle: null,
+      lead: starters[0], crests: [], met: [], seen: starters.slice(), battle: null, firstOuting:window.WilderOpening?"new":"closed",
       team: starters.slice(), visited: [0], quests: {}, clears: {}, rests: 0,
       sound: true, wins: 0, bag:{reed:5,sap:5,ore:2,kinweave:4,balm:3,tonic:1,sparkseed:1,broth:0},reports:[],
       surveys:{},localWins:{},licenses:[],passes:[],crafted:{},landmark:null,forageReady:true,wardenLessons:[],
@@ -143,6 +143,7 @@
       || !saved.party.every(p => validFighter(p) && integer(p.xp, 0, xpNeeded(p.level) - 1))
       || unique(saved.party.map(p => p.id)).length !== saved.party.length) return null;
     fresh.party = saved.party;
+    fresh.firstOuting=window.WilderOpening?.restore(saved.firstOuting)??"closed";
     fresh.stillwake=window.WilderStillwake?.restore(saved.stillwake,fresh.party)||{};
     fresh.growth=growth?.restore(saved.growth)||{};
     fresh.animationSpeed=[1,2,3].includes(saved.animationSpeed)?saved.animationSpeed:1;
@@ -1066,9 +1067,9 @@
     return commit("pass","Permanent admission earned at "+regions[pass.region].name+"!");
   }
 
-  function storyStep(id,choiceId) {
+  function storyStep(id,choiceId,mode) {
     if (state.battle) return error("Finish this encounter before speaking.");
-    const outcome=story.advance(state,id,choiceId);
+    const outcome=story.advance(state,id,choiceId,mode);
     if (outcome.ok) save();
     return outcome;
   }
@@ -1124,6 +1125,7 @@
     return reply;
   }
   window.WilderGame = {
+    firstOuting:window.WilderOpening?.create({state:()=>state,commit,setLead,sightings:()=>field?.sightings(state.region)||[]}),
     wardenLesson,wardenForecast,
     passageReport,filePassage,
     pinRegion,setWalker,walkerPose:(time,reduced)=>walking?.pose(state,time,reduced),walkerInfo:()=>walking.info(state),walkerSense:()=>walking.sense(state,field.sightings(state.region),expedition(),objective()),

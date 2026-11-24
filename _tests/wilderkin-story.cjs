@@ -179,3 +179,57 @@ test("both authored responses for every chapter, field lesson and personal erran
     }
   }
 });
+
+test("jumping reaches the same reply, closing line and transcript as reading each line in all 55 dispatches",()=>{
+  const fast=newState(),manual=newState();
+  for(const s of [fast,manual]) {
+    progressWorld(s,29);
+    s.crests=atlas.routes.map(r=>r.end);
+  }
+  for (const {id} of story.catalog(fast).sort((a,b)=>Number(a.kind==="ending")-Number(b.kind==="ending"))) {
+    let turns=0;
+    while(story.scene(fast,id).status!=="complete" && turns++<25) {
+      const page=story.scene(fast,id);
+      assert.notEqual(page.status,"locked",id);
+      const snapshot=clone(fast);
+      if(page.jump) {
+        assert.equal(page.choices.length,0);
+        assert.ok(page.jump.lines>=2);
+        assert.ok(!story.advance(fast,id,"a","jump").ok);
+        assert.deepEqual(clone(fast),snapshot);
+        assert.ok(story.advance(fast,id,undefined,"jump").ok);
+        for(let n=0;n<page.jump.lines;n++)assert.ok(story.advance(manual,id).ok);
+        const stop=story.scene(fast,id);
+        assert.ok(stop.choices.length || stop.step===stop.total);
+        assert.notEqual(stop.status,"complete");
+      } else {
+        assert.ok(!story.advance(fast,id,undefined,"jump").ok);
+        assert.deepEqual(clone(fast),snapshot);
+        const choice=page.choices.at(-1)?.id;
+        assert.ok(story.advance(fast,id,choice).ok);
+        assert.ok(story.advance(manual,id,choice).ok);
+      }
+      fast.story=story.restore(clone(fast.story));
+      assert.deepEqual(clone(fast),clone(manual),id);
+      assert.deepEqual(clone(story.transcript(fast,id)),clone(story.transcript(manual,id)),id);
+    }
+    assert.equal(story.scene(fast,id).status,"complete",id);
+  }
+});
+
+test("jump cannot accept a job, fulfill a field task, file a final line or start a locked or completed record",()=>{
+  const s=newState();
+  for(const id of ["ending","bond-nessa-1","__proto__"])assert.ok(!story.advance(s,id,undefined,"jump").ok);
+  assert.deepEqual(clone(s.story.records),{});
+  progressWorld(s,3);
+  s.surveys[atlas.routes[3].start]=0;
+  assert.ok(!story.advance(s,"bond-nessa-1",undefined,"jump").ok);
+  assert.equal(story.advance(s,"bond-nessa-1","accept").kind,"accepted");
+  const accepted=clone(s);
+  assert.ok(!story.advance(s,"bond-nessa-1",undefined,"jump").ok);
+  assert.deepEqual(clone(s),accepted);
+  read(s,"chapter-1");
+  const filed=clone(s);
+  assert.ok(!story.advance(s,"chapter-1",undefined,"jump").ok);
+  assert.deepEqual(clone(s),filed);
+});
