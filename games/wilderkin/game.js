@@ -166,6 +166,7 @@
     notify("A new ledger opens in Mossbrook Vale.");
   }
   function render() {
+    if(trailUpdatePending)return;
     let model;
     const replacement=game.replacements?.();
     if(replacement&&screen.name!=="replacement"){
@@ -174,6 +175,7 @@
       screen={name:game.state.battle?"battle":"world",value:null};
     }
     if(awaitingCall()&&screen.name!=="wild-offer"){screen={name:"wild-offer",value:null};history=[];}
+    else if(screen.name==="wild-offer"&&!awaitingCall()){screen={name:game.state.battle?"battle":"world",value:null};history=[];}
     switch (screen.name) {
       case "world":model=worldModel();break;
       case "battle":model=battleModel();break;
@@ -431,7 +433,11 @@
     resolving=true;
     try {
       const res=fn();
-      if (!res.ok) {render();notify(res.message);return;}
+      if(!res.ok){
+        if(res.code==="changed")trailUpdatePending=true;
+        else{render();notify(res.message);}
+        return;
+      }
       if (fx) {
         if (fx.kind==="duet")score.answer();
         playTone(["heal","item","wild-call"].includes(fx.kind)?"care":"strike");

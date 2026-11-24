@@ -10,7 +10,8 @@ const clone=v=>JSON.parse(JSON.stringify(v)),tick=()=>new Promise(resolve=>setIm
 function boot(hash,save=null,prepare){
   let model,input,time=0;const frames=[],listeners={};
   const localStorage={getItem:k=>k==="wilderkin.trail.v3"?save:null,setItem:(_,v)=>{save=v;}};
-  const w={localStorage,location:{hash},addEventListener:(event,fn)=>{listeners[event]=fn;},
+  const w={localStorage,location:{hash},Event,setTimeout,dispatchEvent:event=>listeners[event.type]?.(event),
+    addEventListener:(event,fn)=>{listeners[event]=fn;},
     WilderKinArt:{sprite:id=>"sprite:"+id},WilderScore:{create:()=>({scene(){},answer(){}})},
     WilderCanvas:{create:(_,handlers)=>{input=handlers;return {show:m=>{model=m;},animate:()=>Promise.resolve(),toast(){},invalidate(){}};}}};
   function canvas(){
@@ -22,7 +23,7 @@ function boot(hash,save=null,prepare){
   const ctx=vm.createContext({window:w,document:{getElementById:canvas,createElement:canvas,hidden:false},performance:{now:()=>time},
     matchMedia:()=>({matches:true}),requestAnimationFrame:cb=>frames.push(cb)});
   for(const [file,script] of scripts){if(file==="game.js")prepare?.(w.WilderGame);script.runInContext(ctx);}
-  return {g:w.WilderGame,model:()=>model,save:()=>save,key:key=>input.key({key}),hash:value=>{w.location.hash=value;listeners.hashchange();},
+  return {g:w.WilderGame,model:()=>model,save:()=>save,externalSave:raw=>{save=raw;},key:key=>input.key({key}),hash:value=>{w.location.hash=value;listeners.hashchange();},
     click(id,value){const rows=model.sections.flatMap(s=>s.rows||[]);const found=rows.find(r=>r.id===id&&(value===undefined||value===r.value));
       assert.ok(found&&!found.disabled,id+" / "+value+" on "+model.title);input.action(found.id,found.value);},
     walk(){for(let i=0;frames.length&&i<300;i++){time+=130;frames.shift()(time);}assert.equal(frames.length,0);}
@@ -127,4 +128,20 @@ test("peaceful invitations open the same companion controls, and a full party of
   assert.ok(!a.g.state.team.includes("mossbell"));a.click("view","enlist|mossbell");
   assert.equal(a.model().sections[0].rows.length,6);a.click("assign","mossbell|dewfin");
   assert.ok(a.g.state.team.includes("mossbell"));assert.ok(!a.g.state.team.includes("dewfin"));
+});
+
+
+test("a stale Kinweave throw returns to the newer trail after the other tab released the waiting kin",async()=>{
+  const first=boot("#wild-calls",null,g=>{
+    ok(g.setLead("dewfin"));ok(g.startBattle("wild","mossbell"));ok(g.answerWildCall("bubble-jet"));
+  });
+  assert.equal(first.model().id,"wild-offer:");
+  const second=boot("#wild-calls",first.save());
+  second.click("release-call");await tick();assert.equal(second.g.state.battle,null);
+  const saved=second.save();first.externalSave(saved);
+  first.click("capture");await tick();
+  assert.equal(first.model().id,"world:");
+  assert.equal(first.save(),saved);assert.equal(first.g.state.battle,null);
+  assert.ok(!first.g.state.party.some(k=>k.id==="mossbell"));
+  assert.equal(first.g.state.bag.kinweave,second.g.state.bag.kinweave);
 });
