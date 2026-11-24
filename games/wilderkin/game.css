@@ -288,3 +288,51 @@ dialog.wide{width:min(690px,calc(100% - 24px))}
 }
 @media(max-width:380px){.world-button{font-size:0;line-height:0;padding:9px}.world-button .icon{width:17px;height:17px}.header-inner,.shell{width:calc(100% - 16px)}.main-nav a{padding-inline:5px}.guide-card-info{flex-wrap:wrap}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important}}
+
+/* Field guide, atlas and station controls */
+.trail-shortcuts,.affinities,.journal-tabs,.page-turn{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.trail-shortcuts{justify-content:flex-end}
+.affinities{gap:4px}
+.type-tag i{width:6px;height:6px;background:currentColor;transform:rotate(45deg);margin:0 2px}
+.type-tag[data-type=Vane]{color:#34736a;background:#d8ece3}
+.type-tag[data-type=Arc]{color:#735515;background:#f7eab6}
+.type-tag[data-type=Loam]{color:#795337;background:#eddbc2}
+.type-tag[data-type=Rime]{color:#356a82;background:#daeef5}
+.type-tag[data-type=Gloam]{color:#684578;background:#eaddf1}
+.type-tag[data-type=Chime]{color:#844863;background:#f4dfea}
+.type-tag[data-type=Alloy]{color:#4c5c69;background:#e1e6e9}
+.catalog-controls{display:flex;align-items:end;flex-wrap:wrap;gap:12px;margin:10px 0 16px}
+.select-field{display:grid;gap:3px;color:var(--muted);font-size:12px;font-weight:650}
+.select-field select,.select-field input{min-height:37px;max-width:100%;font:500 14px var(--sans);background:var(--paper);color:var(--ink);border:1px solid #a8b39a;border-radius:4px;padding:6px 9px}
+.search-field{flex:1;min-width:150px}.catalog-controls select:focus-visible,.catalog-controls input:focus-visible{outline:2px solid #9d792e;outline-offset:2px}
+.atlas-controls select{max-width:285px}.listing-count{font-size:12px;color:var(--muted);margin-bottom:8px}
+.card-note{display:block;text-align:left;color:var(--muted);font-size:12px;padding:0 16px 11px}
+.page-turn{justify-content:center;margin:16px 0 0;font-size:13px}
+.journal-tabs{gap:3px;border:1px solid var(--border);background:#e8ecdc;border-radius:5px;padding:3px}
+.journal-tab{border:0;background:none;font-size:14px;padding:7px 11px;border-radius:3px}
+.journal-tab[aria-pressed=true]{background:var(--forest);color:var(--paper)}
+.journal-list>.location-button,.journal-list>.journal-entry{background:var(--paper)}
+.journal-entry strong,.journal-entry small{display:block}.journal-entry strong{font:600 23px var(--pixel)}
+#journal-list .location-button{min-height:64px}
+#journal-list .location-button strong{font-size:23px}
+#region-preview{image-rendering:pixelated;width:100%;height:auto;border:2px solid var(--forest);border-radius:5px;margin-bottom:8px}
+.switch-list .location-button>.sprite{width:44px;height:44px;object-fit:contain}
+.guide-card .guide-card-info{flex-wrap:wrap}
+@media(max-width:740px){
+  .page-heading:has(.trail-shortcuts){flex-wrap:wrap}
+  .trail-shortcuts .paper-button{margin:0;padding:7px 10px;font-size:12px;line-height:1.3}
+  .trail-shortcuts .icon{width:15px;height:15px}
+  .trail-shortcuts{justify-content:flex-start}
+  .catalog-controls{gap:7px}.select-field{min-width:0;max-width:100%}.atlas-controls .select-field{width:100%}
+  .select-field select,.select-field input{width:100%;font-size:16px}
+  .battle-tools{flex-wrap:wrap}.card-note{padding:0 10px 8px}
+}
+.battle-actions{grid-template-columns:repeat(var(--moves,3),minmax(0,1fr))}
+@media(max-width:540px){.battle-actions:has(>:nth-child(4)){grid-template-columns:1fr 1fr}}
+.passage{display:flex;align-items:center;gap:12px;margin:14px 0;padding:10px 13px;border:1px solid #b6c5a8;border-radius:5px;background:#edf1df}
+.passage strong,.passage small{display:block}.passage strong{font:600 21px var(--pixel)}.passage small{font-size:13px;color:var(--muted)}
+.passage img{width:48px;height:48px}
+.battle-scene .ally:not([data-species=sprigkit]):not([data-species=dewfin]):not([data-species=glimmeray]):not([data-species=coalmoth]){transform:scaleX(-1)}
+.battle-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.battle-stat-grid .kin-line{flex-wrap:wrap}
+.battle-stat-grid .kin-line strong,.skill-button strong{overflow-wrap:anywhere}

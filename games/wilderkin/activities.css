@@ -1,0 +1,45 @@
+.fair-game{padding:18px 20px;color:var(--ink);outline:0}
+.fair-game .fair-instructions{margin:0 0 14px;color:var(--ink);font-size:14px;line-height:1.5}
+.fair-board{padding:13px;border:1px solid #bac6aa;border-radius:5px;background:#edf1df}
+.fair-gauge{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:5px 0 10px;font-size:12px;color:#4a5b46}
+.fair-gauge strong{text-align:right;color:#2a4735}
+.fair-buttons{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.fair-key{display:inline-flex;align-items:center;justify-content:center;gap:3px;min-height:36px;border:1px solid #9ba98d;border-radius:4px;padding:5px 10px;background:#fffcf0;color:#294431;box-shadow:0 2px #bcc6ac;font:650 13px/1.25 var(--sans)}
+.fair-key:hover:enabled{background:#e7edcd;border-color:#6c895a}
+.fair-key.primary{background:var(--forest);color:#fffbea;border-color:var(--forest)}
+.fair-key.quiet{background:transparent;box-shadow:none;font-size:12px}
+.fair-tiles{display:grid;grid-template-columns:repeat(var(--columns),minmax(0,1fr));gap:4px;margin:7px auto;max-width:340px}
+.fair-tiles .fair-key,.fair-tile{padding:4px 2px;min-width:0;min-height:34px;font:650 18px/1 var(--pixel);text-align:center}
+.fair-tile{display:grid;align-content:center;border:1px solid #c9d1bc;border-radius:3px;background:#e1e9cf}
+.fair-key.lit,.fair-tile.lit{color:#61481a;background:#f4d88f;border-color:#ac9058}
+.fair-key.solved,.fair-key.aligned,.fair-key.green{background:#c9ddb4;color:#314b30}
+.fair-key.blue{background:#c7dee4;color:#325769}
+.fair-tile.player{background:#3e614d;color:#fff7cf}
+.fair-tile.rock{background:#a9b69c;color:#5c6d57}
+.fair-tile.pass,.fair-tile.gap{background:#f9f7e8;color:#547650}
+.fair-tile.clue{background:#e2e6d7;color:#455940;min-height:30px;font:650 14px var(--mono)}
+.fair-hint,.fair-notice{font-size:13px;line-height:1.4}
+.fair-notice:not(:empty){margin:12px 0 2px;font-weight:600;color:#405c3f}
+.fair-pile,.fair-word,.fair-card{padding:12px;text-align:center;color:#8d562e;font:650 24px var(--pixel);overflow-wrap:anywhere}
+.fair-card{background:#fffbe8;box-shadow:2px 4px #b6bea6;width:60px;margin:12px auto;border:1px solid #96a58b;border-radius:4px}
+.fair-vessels,.fair-vessels>div{display:flex;gap:10px;align-items:center;justify-content:center}
+.fair-vessels>div{flex-direction:column;font-size:12px}
+.fair-vessel{height:52px;width:43px;border:2px solid #7b9184;border-top:0;border-radius:0 0 9px 9px;background:linear-gradient(to top,#7bb6bd var(--fill),#f8f8e8 var(--fill))}
+.fair-history{margin:10px 0 0;padding-left:20px;font-size:12px;max-height:130px;overflow-y:auto}
+.fair-history li{margin:4px 0}.fair-history b{display:inline-block;margin-left:5px}
+.fair-flight{max-width:200px;margin:auto}.fair-flight .fair-tiles{margin:3px 0}
+.fair-wire{display:block;height:138px;width:100%;margin:auto}
+.fair-wire line{stroke:#6a8060;stroke-width:2.3}
+.fair-wire line.crossed{stroke:#b2b9a1;stroke-dasharray:3 3}
+.fair-wire circle{fill:#f7f5df;stroke:#7d9372;stroke-width:1.3}
+.fair-wire circle.here{fill:#e5bc68}
+.fair-wire text{text-anchor:middle;font:700 7px var(--mono);fill:#283f31}
+.fair-bells{width:100%;min-height:28px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
+.fair-bells i{display:block;height:12px;font:600 10px var(--mono);background:#d0a968;color:#453421;border:1px solid #a48750;border-radius:2px}
+.fair-tiles .fair-key:has(.fair-bells){flex-direction:column;gap:5px;font:600 12px var(--sans)}
+.fair-water{position:relative;height:42px;margin:14px 4px;background:repeating-linear-gradient(0deg,#6ba2a9 0 5px,#82b8b9 5px 9px);border:2px solid #608784}
+.fair-school{position:absolute;left:var(--bank);top:0;bottom:0;width:26%;background:#e2bb6b;border-inline:2px dashed #786537}
+.fair-float{position:absolute;top:0;bottom:0;left:0;width:4px;background:#263e32;box-shadow:0 0 0 1px #fff8cb;animation:fair-cast 4s linear infinite}
+@keyframes fair-cast{0%,100%{left:0}50%{left:100%}}
+.fair-outcome{text-align:center;font:650 25px var(--pixel);margin:4px}
+@media(max-width:480px){.fair-game{padding:13px}.fair-board{padding:10px}.fair-key{min-height:38px}.fair-tiles .fair-key{min-height:35px}.fair-gauge{gap:6px}}

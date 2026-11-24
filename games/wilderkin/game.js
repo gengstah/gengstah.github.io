@@ -8,15 +8,12 @@
   const dialog = el("game-dialog");
   const directions = { up: [0,-1], down: [0,1], left: [-1,0], right: [1,0] };
   const keys = { w:"up", s:"down", a:"left", d:"right", ArrowUp:"up", ArrowDown:"down", ArrowLeft:"left", ArrowRight:"right" };
-  const descriptions = [
-    "A sleepy woodland village on the banks of the Mossbrook.",
-    "Lanterns light the trails through a ridge of copper and ember.",
-    "A moonlit river winds between silver trees and an ancient shrine."
-  ];
+  const dex = window.WilderKinDex;
   const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
   const icon = name => `<svg class="icon" aria-hidden="true"><use href="#i-${name}"/></svg>`;
-  const sprite = (id, extra = "") => `<img class="sprite ${extra}" data-species="${id}" src="art/${id}.png" alt="">`;
-  const tag = type => `<span class="type-tag" data-type="${type}">${icon(type.toLowerCase())}${type}</span>`;
+  const sprite = (id, extra = "") => `<img class="sprite ${extra}" data-species="${id}" src="${dex.spriteUrl(id)}" alt="">`;
+  const tag = type => `<span class="type-tag" data-type="${type}"><i></i>${type}</span>`;
+  const tags = kin => `<span class="affinities">${kin.types.map(tag).join("")}</span>`;
   const number = value => String(value).padStart(2,"0");
   const esc = text => String(text).replace(/[&<>"']/g, char => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[char]);
   const state = () => game.state;
@@ -25,7 +22,7 @@
   const member = id => state().party.find(p => p.id === id);
   const siteKind = site => site.kind || site.id;
   const hasCrest = i => state().crests.includes(i);
-  const crestArt = i => `ui/crest-${i}${hasCrest(i) ? "" : "-locked"}.png`;
+  const crestArt = i => world.crestArt(i, hasCrest(i));
   const button = (action, label, primary = false, value = "") =>
     `<button class="${primary ? "solid-button" : "paper-button"}" data-action="${action}" data-value="${value}">${label}</button>`;
   let currentView = "adventure";
@@ -38,6 +35,11 @@
   let lastFrame = 0;
   let lastStep = 0;
   let expanded = false;
+  const menus = window.WilderMenus.create({
+    el, icon, sprite, tags, number, esc, button, health, crestArt, bodyDialog,
+    refresh, feedback, playTone, openBattle, questCard
+  });
+  const {openWorld, openKin, openQuest, openCrest, renderGuide, renderJournal} = menus;
 
   function playTone(kind = "click") {
     if (!state().sound) return;
@@ -80,7 +82,7 @@
     const kin = game.species[p.id];
     return `<button class="kin-row" data-action="kin" data-value="${p.id}" data-type="${kin.type}" aria-label="View ${kin.name}, level ${p.level}, ${p.hp} of ${p.maxHp} health">
       <span class="thumb">${sprite(p.id)}</span><span class="kin-info"><span class="kin-line"><strong>${kin.name}</strong><span class="level">Lv. ${p.level}</span></span>
-      ${tag(kin.type)}${health(p)}</span></button>`;
+      ${tags(kin)}${health(p)}</span></button>`;
   }
 
   function questCard() {
@@ -90,15 +92,16 @@
 
   function refresh() {
     const s = state();
-    el("region-number").textContent = "REGION " + number(s.region + 1);
+    el("region-number").textContent = "REGION " + number(s.region + 1) + " / " + game.regions.length;
     el("region-title").textContent = region().name;
-    el("region-description").textContent = descriptions[s.region];
+    el("region-description").textContent = region().description;
     el("quest-name").textContent = game.objective().title;
     el("quest-description").textContent = game.objective().description;
-    el("party-count").textContent = s.party.length + " / 6";
-    el("party-list").innerHTML = s.party.map(partyRow).join("");
-    el("crest-count").textContent = s.crests.length + " / 3";
-    el("crest-list").innerHTML = game.regions.map((r,i) => `<button class="crest-button" data-action="crest" data-value="${i}" aria-label="${r.crest}, ${hasCrest(i) ? "earned" : "unearned"}"><img src="${crestArt(i)}" alt=""><span>${r.crest}</span></button>`).join("");
+    el("party-count").textContent = s.team.length + " / 6";
+    el("party-list").innerHTML = game.team().map(partyRow).join("");
+    el("crest-count").textContent = s.crests.length + " / " + game.wardens.length;
+    const first = Math.min(Math.floor(s.crests.length / 3) * 3, game.wardens.length - 3);
+    el("crest-list").innerHTML = game.wardens.slice(first, first + 3).map(i => { const r = game.regions[i]; return `<button class="crest-button" data-action="crest" data-value="${i}" aria-label="${r.crest}, ${hasCrest(i) ? "earned" : "unearned"}"><img src="${crestArt(i)}" alt=""><span>${r.crest}</span></button>`; }).join("");
     const sound = el("sound-button");
     sound.setAttribute("aria-label", s.sound ? "Turn sound off" : "Turn sound on");
     sound.setAttribute("aria-pressed", String(s.sound));
@@ -109,22 +112,6 @@
     if (currentView === "field-guide") renderGuide();
     if (currentView === "journal") renderJournal();
     updatePrompt();
-  }
-
-  function renderGuide() {
-    const s = state();
-    const cards = Object.values(game.species).map((kin,i) => {
-      const seen = s.seen.includes(kin.id);
-      return `<button class="guide-card ${seen ? "" : "unknown"}" data-action="kin" data-value="${kin.id}">
-        <span class="illustration" data-type="${seen ? kin.type : ""}"><span class="guide-entry-number">NO. ${number(i+1)}</span>${sprite(kin.id)}</span>
-        <span class="guide-card-info"><strong>${seen ? kin.name : "Unknown kin"}</strong>${seen ? tag(kin.type) : '<span class="unseen">UNDISCOVERED</span>'}</span></button>`;
-    });
-    el("field-guide").innerHTML = `<div class="page-heading"><div><p class="eyebrow">${icon("guide")} ${s.seen.length} OF 6 DISCOVERED</p><h1 id="guide-title">Field guide</h1><p class="subtitle">Meet the Wilderkin of the Warden Trail and learn their skills.</p></div></div><div class="guide-grid">${cards.join("")}</div>`;
-  }
-
-  function renderJournal() {
-    el("journal").innerHTML = `<div class="page-heading"><div><p class="eyebrow">${icon("journal")} THE WARDEN TRAIL</p><h1 id="journal-title">Trail journal</h1><p class="subtitle">Your trials, their Wardens, and the crests you carry.</p></div></div>
-      <div class="journal-grid"><div class="journal-list">${game.regions.map((r,i) => `<button class="journal-entry" data-action="crest" data-value="${i}"><img src="${crestArt(i)}" alt=""><span><span class="detail-label">${hasCrest(i) ? "CREST EARNED" : i <= state().crests.length ? "TRIAL AVAILABLE" : "TRAIL LOCKED"}</span><h2>${r.crest}</h2><p>Warden ${r.warden} · ${r.lodge}</p></span>${icon("chevron")}</button>`).join("")}</div>${questCard()}</div>`;
   }
 
   function showView() {
@@ -158,60 +145,8 @@
     openDialog(title,`<div class="dialog-body">${content}</div>`,wide);
   }
 
-  function openKin(id) {
-    const kin = game.species[id];
-    if (!kin) return;
-    const p = member(id);
-    if (!state().seen.includes(id)) {
-      const home = game.regions.find(r => r.wild === id);
-      bodyDialog("Unknown Wilderkin",`<p>Travel to ${home.name} and explore its wild clearing to make this discovery.</p>`);
-      return;
-    }
-    const detail = p ? `<p class="level">Lv. ${p.level} · ${p.level === 30 ? "Maximum level" : p.xp+" / "+game.xpNeeded(p.level)+" XP"}</p>${health(p)}` : '<p>Weaken this Wilderkin in a wild encounter to befriend it.</p>';
-    const action = p && !state().battle && state().lead !== id && p.hp > 0 ? button("lead","Make party leader",true,id) : "";
-    const lead = state().lead === id ? '<span class="detail-label">PARTY LEADER</span>' : "";
-    bodyDialog(kin.name,`<div class="detail-top"><div class="illustration" data-type="${kin.type}">${sprite(id)}</div><div>${tag(kin.type)}${detail}</div></div><p>${kin.description}</p>
-      <h3>Skills</h3><dl class="skill-list">${kin.skills.map(skill => `<div><dt>${skill.name}</dt><dd>${skill.description}</dd></div>`).join("")}</dl>${action || lead ? `<div class="dialog-actions">${action}${lead}</div>` : ""}`);
-  }
-
-  function openCrest(i) {
-    const r = game.regions[i];
-    if (!r) return;
-    const earned = hasCrest(i);
-    const locked = i > state().crests.length;
-    const text = earned ? `Warden ${r.warden} awarded you this crest at ${r.lodge}.` : `Win Warden ${r.warden}’s trial at ${r.lodge} in ${r.name}.`;
-    const action = locked ? "" : i === state().region ? button("locate","Visit "+r.lodge,true,"warden") : button("travel","Travel to "+r.name,true,String(i));
-    bodyDialog(r.crest,`<div class="crest-detail"><img src="${crestArt(i)}" alt=""><div><span class="detail-label">${earned ? "CREST EARNED" : locked ? "TRAIL LOCKED" : "AVAILABLE TRIAL"}</span><p>${text}</p></div></div>${locked ? `<p>Earn the ${game.regions[i-1].crest} first.</p>` : `<div class="dialog-actions">${action}</div>`}`);
-  }
-
-  function openQuest() {
-    const q = game.objective();
-    const target = state().crests.length;
-    let action;
-    if (target < game.regions.length) {
-      action = target === state().region ? button("locate","Walk to "+region().lodge,true,"warden") : button("world","Open world map",true);
-    } else {
-      action = button("world","Explore the regions",true);
-    }
-    bodyDialog(q.title,`<div class="crest-detail"><img src="ui/quest.png" alt=""><p>${q.description}</p></div><div class="dialog-actions">${action}</div>`);
-  }
-
-  function openWorld() {
-    const options = game.regions.map((r,i) => {
-      const locked = i > state().crests.length;
-      const here = i === state().region;
-      const status = here ? "You are here" : locked ? "Requires the "+game.regions[i-1].crest : "Trail open";
-      return `<button class="region-option" data-action="travel" data-value="${i}" ${locked ? "disabled" : ""}><canvas data-preview="${i}" width="384" height="208" aria-hidden="true"></canvas><span><strong>${r.name}</strong><small>${status}</small></span>${icon(locked ? "lock" : here ? "pin" : "arrow")}</button>`;
-    });
-    bodyDialog("World map",`<div class="region-list">${options.join("")}</div><div class="dialog-actions">${button("locations","Local landmarks "+icon("sign"))}</div>`);
-    dialog.querySelectorAll("[data-preview]").forEach(preview => {
-      const i = Number(preview.dataset.preview);
-      world.draw(preview,i,{ ...world.regions[i].spawn, questActive:false },0);
-    });
-  }
-
   function openLocations() {
-    const purpose = {camp:"Rest and recover your party’s health",warden:"Meet Warden "+region().warden,wild:"Seek a wild Wilderkin",travel:"Travel between regions"};
+    const purpose = {activities:"Meet local patrons and play field games",camp:"Rest and recover your party’s health",warden:"Meet Warden "+region().warden,wild:"Seek a wild Wilderkin",travel:"Travel between regions"};
     bodyDialog("Local landmarks",`<div class="location-list">${area().sites.map((s,i) => `<button class="location-button" data-action="locate" data-value="${i}"><span><strong>${s.label}</strong><small>${purpose[siteKind(s)] || "Visit this landmark"}</small></span>${icon("arrow")}</button>`).join("")}</div>`);
   }
 
@@ -219,16 +154,16 @@
     bodyDialog("How to play",`<dl class="help-list">
       <div><dt>Explore the map</dt><dd>Use the arrow keys or WASD to walk. You can also click or tap a spot to walk there.</dd></div>
       <div><dt>Visit a landmark</dt><dd>Click a building, signpost, or wild clearing. On the keyboard, approach it and press <kbd>E</kbd>. The world map lists local landmarks.</dd></div>
-      <div><dt>Battle with your party</dt><dd>Choose one skill each turn. Ember is strong against Grove, Grove against Tide, and Tide against Ember. Rest at a cottage to heal.</dd></div>
-      <div><dt>Befriend wild kin</dt><dd>Reduce a wild creature to half health or lower, then choose Befriend to invite it into your party.</dd></div>
-      <div><dt>Follow the Warden Trail</dt><dd>Earn each Warden’s crest to open the next region. Your browser saves your adventure as you play.</dd></div>
+      <div><dt>Battle with your party</dt><dd>Choose one skill each turn. An attack checks both of the defender’s affinities. See the affinity chart in the field guide. Rest at a cottage to heal.</dd></div>
+      <div><dt>Befriend wild kin</dt><dd>Select tracks in a wild clearing. Use Hold back to weaken a Wilderkin without knocking it out, then Befriend at half health. Your first six travel together. Call reserves from the field guide.</dd></div>
+      <div><dt>Follow the Warden Trail</dt><dd>Earn crests to open routes. Some crossings need a befriended Wilderkin with a field ability. The world map names a nearby carrier. Play field games and take local requests at field stations.</dd></div>
       </dl><div class="dialog-actions">${button("close","Back to game",true)}<button class="text-button" data-action="reset-confirm">Start a new adventure</button></div>`);
   }
 
   function openWarden() {
     const greeting = game.meetWarden();
     refresh();
-    bodyDialog("Warden "+region().warden,`<div class="npc">${sprite("warden-"+state().region)}<blockquote>“${esc(greeting.message)}”</blockquote></div><div class="dialog-actions">${button("battle-start","Accept the trial",true,"warden")}${button("close","Maybe later")}</div>`);
+    bodyDialog("Warden "+region().warden,`<div class="npc"><img class="sprite" src="${world.wardenArt(state().region)}" alt=""><blockquote>“${esc(greeting.message)}”</blockquote></div><div class="dialog-actions">${button("battle-start","Accept the trial",true,"warden")}${button("close","Maybe later")}</div>`);
     playTone("start");
   }
 
@@ -236,14 +171,15 @@
     if (state().battle) return openBattle();
     switch (siteKind(site)) {
       case "warden": return openWarden();
-      case "wild": return startBattle("wild");
+      case "wild": return menus.openTracks(site);
+      case "activities": return menus.openStation();
       case "travel": return openWorld();
       case "camp": return bodyDialog(site.label,`<p>A fire crackles inside. Rest here to restore every companion to full health.</p><div class="dialog-actions">${button("rest","Rest your party",true)}${button("close","Keep exploring")}</div>`);
     }
   }
 
-  function startBattle(kind) {
-    const outcome = game.startBattle(kind);
+  function startBattle(kind, track) {
+    const outcome = game.startBattle(kind, track);
     if (outcome.kind === "dialogue") return openWarden();
     if (!outcome.ok) return feedback(outcome.message);
     playTone("start");
@@ -259,14 +195,19 @@
     const kin = game.species[active.id];
     const isWild = battle.kind === "wild";
     const title = isWild ? "Wild encounter" : "Warden "+region().warden+"’s trial";
-    const stat = p => `<div><span class="kin-line"><strong>${game.species[p.id].name}</strong><small class="level">Lv. ${p.level}</small></span>${tag(game.species[p.id].type)}${health(p)}</div>`;
-    const scene = `<div class="battle-stat-grid">${stat(active)}${stat(foe)}</div><div class="battle-scene" style="background-image:url('ui/battle-${state().region}.png')">${sprite(active.id,"ally")}${sprite(foe.id,"enemy")}</div>`;
-    const actionSet = kin.skills.map(skill => `<button class="skill-button" data-action="skill" data-value="${skill.id}" title="${skill.description}" ${skill.kind === "heal" && active.hp === active.maxHp ? "disabled" : ""}><strong>${skill.name}</strong><small>${skill.kind === "heal" ? "Recover HP" : skill.kind === "guard" ? "Strike + guard" : skill.type+" attack"}</small></button>`).join("");
+    const stat = p => `<div><span class="kin-line"><strong>${game.species[p.id].name}</strong><small class="level">Lv. ${p.level}</small></span>${tags(game.species[p.id])}${health(p)}</div>`;
+    const scene = `<div class="battle-stat-grid">${stat(active)}${stat(foe)}</div><div class="battle-scene" style="background-image:url('ui/battle-${region().theme}.png')">${sprite(active.id,"ally")}${sprite(foe.id,"enemy")}</div>`;
+    const matchup = type => {
+      const modifier = dex.effectiveness(type,game.species[foe.id].types);
+      return modifier > 1 ? type+" · Strong" : modifier < 1 ? type+" · Resisted" : type+" attack";
+    };
+    const actionSet = kin.skills.map(skill => `<button class="skill-button" data-action="skill" data-value="${skill.id}" title="${skill.description}" ${skill.kind === "heal" && active.hp === active.maxHp ? "disabled" : ""}><strong>${skill.name}</strong><small>${skill.kind === "heal" ? "Recover HP" : skill.kind === "guard" ? "Strike + guard" : matchup(skill.type)}</small></button>`).join("");
     const canRecruit = isWild && !member(foe.id) && foe.hp <= foe.maxHp / 2;
-    const tools = `<div class="battle-tools"><button data-action="battle-switch">Switch kin</button>${isWild && !member(foe.id) ? `<button data-action="befriend" title="Befriend at half health or lower" ${canRecruit ? "" : "disabled"}>Befriend${canRecruit ? "" : " (½ HP)"}</button>` : ""}<button data-action="leave-battle">Retreat</button></div>`;
-    const switchList = `<div class="switch-list">${state().party.map(p => `<button class="switch-option" data-action="swap" data-value="${p.id}" ${p.id === active.id || !p.hp ? "disabled" : ""}>${sprite(p.id)}<span><strong>${game.species[p.id].name}</strong><small>${p.hp}/${p.maxHp} HP · ${game.species[p.id].type}</small></span>${icon("arrow")}</button>`).join("")}<button class="text-button" data-action="battle">Back to skills</button></div>`;
-    const warning = battle.turn % 3 === 0 ? `<p class="charged">${game.species[foe.id].name} is preparing ${game.species[foe.id].skills[0].name}.</p>` : "";
-    openDialog(title,`${scene}<div class="battle-copy"><div class="battle-log" aria-live="polite">${battle.log.slice(battle.turn > 1 ? -2 : -1).map(line => `<p>${esc(line)}</p>`).join("")}${warning}</div>${switching ? switchList : `<div class="battle-actions">${actionSet}</div>${tools}`}</div>`,true);
+    const tools = `<div class="battle-tools"><button data-action="battle-switch">Switch kin</button>${isWild && !member(foe.id) ? '<button data-action="skill" data-value="trail-feint" title="Deal gentle damage, leaving at least 1 HP">Hold back</button>' : ""}${isWild && !member(foe.id) ? `<button data-action="befriend" title="Befriend at half health or lower" ${canRecruit ? "" : "disabled"}>Befriend${canRecruit ? "" : " (½ HP)"}</button>` : ""}<button data-action="leave-battle">Retreat</button></div>`;
+    const switchList = `<div class="switch-list">${game.team().map(p => `<button class="switch-option" data-action="swap" data-value="${p.id}" ${p.id === active.id || !p.hp ? "disabled" : ""}>${sprite(p.id)}<span><strong>${game.species[p.id].name}</strong><small>${p.hp}/${p.maxHp} HP · ${game.species[p.id].type}</small></span>${icon("arrow")}</button>`).join("")}<button class="text-button" data-action="battle">Back to skills</button></div>`;
+    const intent = game.foeIntent();
+    const warning = intent.charged ? `<p class="charged">${game.species[foe.id].name} is preparing ${intent.skill.name} (${intent.skill.type}).</p>` : "";
+    openDialog(title,`${scene}<div class="battle-copy">${!isWild && region().requiredCrests >= 3 ? `<p class="detail-label">Warden party · ${battle.remaining.length+1} remaining</p>` : ""}<div class="battle-log" aria-live="polite">${battle.log.slice(battle.turn > 1 ? -2 : -1).map(line => `<p>${esc(line)}</p>`).join("")}${warning}</div>${switching ? switchList : `<div class="battle-actions" style="--moves:${Math.min(4,kin.skills.length)}">${actionSet}</div>${tools}`}</div>`,true);
   }
 
   function battleAction(fn, animation) {
@@ -286,10 +227,10 @@
     const won = outcome.kind === "victory";
     const recruited = outcome.kind === "recruited";
     let title = { victory:"Battle won!", recruited:"A new companion!", escaped:"Back on the trail", defeat:"Back at the trailhead" }[outcome.kind];
-    if (newCrest) title = state().crests.length === 3 ? "Trailkeeper of the Wilds!" : region().crest+" earned!";
+    if (newCrest) title = state().crests.length === game.wardens.length ? "Trailkeeper of the Wilds!" : region().crest+" earned!";
     playTone(won || recruited ? "reward" : "rest");
     const image = newCrest ? `<img class="reward-art" src="${crestArt(state().region)}" alt="">` : recruited ? sprite(enemy,"reward-art") : "";
-    const next = newCrest && state().crests.length < 3 ? button("world","Open world map") : "";
+    const next = newCrest && state().crests.length < game.wardens.length ? button("world","Open world map") : "";
     bodyDialog(title,`${image}<p>${esc(outcome.message)}</p><div class="dialog-actions">${button("close","Keep exploring",true)}${next}</div>`);
   }
 
@@ -345,7 +286,7 @@
 
   function draw(time) {
     if (currentView !== "adventure") return;
-    const interpolated = { ...player, questActive:!hasCrest(state().region) };
+    const interpolated = { ...player, questActive:Boolean(region().warden) && !hasCrest(state().region) };
     if (tween && !reduceMotion.matches) {
       const amount = Math.max(0,Math.min(1,(time-tween.time)/100));
       interpolated.x = tween.x + (player.x-tween.x)*amount;
@@ -460,13 +401,16 @@
   }
 
   const actions = {
+    ...menus.actions,
+    track:id => startBattle("wild", id),
+    station:() => state().battle ? openBattle() : menus.openStation(),
     sound() {
       game.setSound(!state().sound);
       refresh();
       if (state().sound) playTone();
     },
     close:() => dialog.close(),
-    help:openHelp, world:openWorld, locations:openLocations, quest:openQuest, kin:openKin,
+    help:openHelp, world:() => openWorld(), locations:openLocations, quest:openQuest, kin:openKin,
     crest:value => openCrest(Number(value)), expand:toggleExpanded, interact, locate, travel:value => travel(Number(value)),
     lead(id) {
       const outcome = game.setLead(id);
