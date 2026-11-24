@@ -5,7 +5,7 @@ const {readFileSync} = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
-const scripts = ["atlas","bestiary","activities","campaign","story","world","engine"].map(name => {
+const scripts = ["atlas","bestiary","activities","campaign","story","duets","caravans","fieldwork","walking-partner","hollows","trials","world","engine"].map(name => {
   const filename=path.join(__dirname,"../games/wilderkin",name+".js");
   return new vm.Script(readFileSync(filename,"utf8"),{filename});
 });
@@ -31,6 +31,20 @@ function load(save,extra=[]) {
 const copy = obj=>JSON.parse(JSON.stringify(obj));
 function ok(outcome) {assert.ok(outcome.ok,outcome.message);}
 const baseParty = () => [["sprigkit",32],["cindlet",28],["dewfin",30]].map(([id,maxHp])=>({id,level:5,maxHp,hp:maxHp,xp:4}));
+
+test("atlas pins and playback preferences survive a reload without changing trail access",()=>{
+  const loaded=load(),g=loaded.game;
+  assert.ok(!g.access(149).open);
+  ok(g.pinRegion(149,"track"));ok(g.pinRegion(2,"save"));ok(g.pinRegion(149,"save"));
+  assert.ok(!g.access(149).open);assert.deepEqual(copy(g.state.pins),[149,2]);
+  ok(g.cycleMusic());ok(g.cycleAnimationSpeed());
+  const old=load(loaded.save()).game;
+  assert.equal(old.state.destination,149);assert.equal(old.state.music,2);assert.equal(old.state.animationSpeed,2);
+  ok(old.pinRegion(149,"remove"));assert.equal(old.state.destination,null);assert.deepEqual(copy(old.state.pins),[2]);
+  assert.equal(old.pinRegion(150,"save").ok,false);
+  const restored=load(JSON.stringify({...g.state,pins:[false,-3,2,2,900],destination:149,music:100,animationSpeed:0})).game.state;
+  assert.deepEqual(copy(restored.pins),[2]);assert.equal(restored.destination,null);assert.equal(restored.animationSpeed,1);
+});
 
 test("legacy in-flight battles and permanent old achievements migrate into a separate save",()=>{
   for(const version of [1,2]) {

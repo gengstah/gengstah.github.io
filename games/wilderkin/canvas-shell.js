@@ -206,7 +206,7 @@
     }
     function button(row,x,y,w,h=40,area="content",cb) {
       const hit=control(row,x,y,w,h,area,cb),hot=highlighted(hit);
-      const primary=row.tone==="primary",danger=row.tone==="danger";
+      const primary=!row.disabled&&row.tone==="primary",danger=!row.disabled&&row.tone==="danger";
       const fill=row.disabled?"#e6e7dc":primary?(hot?"#416e50":C.forest):hot?"#edf2dc":danger?"#f7e6dc":C.sheet;
       rect(c,x,y,w,h,fill,primary?C.forest:hot?C.moss:C.line);
       const ink=row.disabled?"#7e887b":primary?"#fff7d8":danger?C.red:C.ink;
@@ -332,7 +332,7 @@
       const hit=control({...q,label:q.title},x,y,w,h);
       rect(c,x,y,w,h,highlighted(hit)?"#f6e4b4":"#f8edce","#bda770");
       rect(c,x,y,4,h,"#b99047");picture("ui/quest.png",x+12,y+(h-sz)/2,sz,sz);
-      label(c,"CURRENT QUEST",tx,y+9,10,"#836832","mono",700);
+      label(c,q.kicker||"CURRENT QUEST",tx,y+9,10,"#836832","mono",700);
       const dy=paragraph(c,titles,tx,y+23,22,22,C.ink,"title",650);
       paragraph(c,lines,tx,y+25+dy,13,18,"#655e44");
       return h;
@@ -366,9 +366,9 @@
     function drawRow(row,x,y,w,h,t,compact=false) {
       if(!row)return;
       const hit=control(row,x,y,w,h),hot=highlighted(hit);
-      const primary=row.tone==="primary",muted=row.disabled||row.tone==="muted";
+      const primary=!row.disabled&&row.tone==="primary",muted=row.disabled||row.tone==="muted";
       let fill=primary?C.forest:hot?"#edf2df":muted?"#eeefe4":C.sheet;
-      if(row.tone==="danger")fill="#f5e4db";
+      if(!row.disabled&&row.tone==="danger")fill="#f5e4db";
       rect(c,x,y,w,h,fill,hot?C.moss:primary?C.forest:C.line);
       if(hot)rect(c,x,y,3,h,C.gold);
       const art=row.image||row.src;
@@ -449,7 +449,12 @@
       }
       if(s.draw){
         const h=s.height||145;
-        c.save();c.beginPath();c.rect(x,sy,w,h);c.clip();s.draw(c,x,sy,w,h,t);c.restore();sy+=h+8;
+        c.save();c.beginPath();c.rect(x,sy,w,h);c.clip();s.draw(c,x,sy,w,h,reduced.matches?0:t);c.restore();
+        for(const spot of s.hotspots?.(x,sy,w,h)||[]){
+          const hit=control(spot,spot.x,spot.y,spot.w,spot.h);
+          if(highlighted(hit)){c.save();c.strokeStyle=C.moss;c.lineWidth=2;c.strokeRect(spot.x+1,spot.y+1,spot.w-2,spot.h-2);c.restore();}
+        }
+        sy+=h+8;
       }
       if(s.meter){
         const m=s.meter;rect(c,x,sy,w,32,"#77a8a6",C.moss);rect(c,x+w*clamp(m.low/100,0,1),sy+2,w*(m.high-m.low)/100,28,C.gold);
@@ -618,6 +623,14 @@
         picture(p.src||p.image,point.x+dx-size/2,point.y+dy-size/2,size,size,"contain",flip);
         c.restore();
       }
+      if(active?.kind==="duet" && active.partner){
+        const partnerSize=tile*.71, xx=points.ally.x+tile*.64, yy=points.ally.y+tile*.19;
+        c.save();
+        c.globalAlpha=reduced.matches?1:Math.min(1,elapsed*7,(1-elapsed)*8);
+        picture(active.partner,xx-partnerSize/2,yy-partnerSize/2,partnerSize,partnerSize,"contain",!["sprigkit","glimmeray","dewfin","coalmoth"].some(id=>active.partner==="art/"+id+".png"));
+        c.restore();
+        impact({...active,type:active.partnerType,kind:"attack"},elapsed,{ally:{x:xx,y:yy},foe:points.foe},tile*.77);
+      }
       if(active){
         impact(active,elapsed,points,tile);
         if(active.name){
@@ -645,7 +658,7 @@
       const unit=clamp(tile/95,.62,1.6);
       c.save();
       if(reduced.matches){
-        const target=a.kind==="attack"||a.kind==="capture"?dst:src;
+        const target=["attack","duet","capture"].includes(a.kind)?dst:src;
         ellipse(c,target.x,target.y,tile*.46,tile*.45,null,ink,2);
         c.restore();return;
       }
@@ -731,7 +744,8 @@
     }
     function animate(effect={}) {
       if(fx)return fx.promise;
-      const kind=effect.kind||"attack",duration=reduced.matches?95:({heal:610,capture:820,defeat:460,swap:350,item:600}[kind]||550);
+      const kind=effect.kind||"attack",speed=window.WilderGame?.state.animationSpeed||1;
+      const duration=reduced.matches?95:({heal:610,capture:820,defeat:460,swap:350,item:600,duet:850}[kind]||550)/speed;
       let resolve;
       const promise=new Promise(done=>{resolve=done;});
       const token={...effect,kind,side:effect.side==="foe"?"foe":"ally",duration,started:performance.now(),promise};

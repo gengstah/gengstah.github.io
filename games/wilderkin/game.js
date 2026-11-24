@@ -11,7 +11,7 @@
   const shortcuts=[
     ["world","Explore","E"],["expedition","Expedition","X"],["quests","Quests","Q"],["chronicle","Story","C"],
     ["bag","Satchel","B"],["guide","Field guide","G"],["party","Party","P"],["atlas","Atlas","M"],["games","Field games","F"],
-    ["station","Field station",""],["landmarks","Landmarks",""],["settings","Settings","?"]
+    ["notebook","Field notebook","N"],["circuit","Loaner Circuit","L"],["walker","Walking partner","T"],["hollows","Hidden hollows","H"],["station","Field station",""],["landmarks","Landmarks",""],["settings","Settings","?"]
   ];
   let screen={name:"world",value:null}, history=[], player, route=[], arrival=null, tween=null, lastStep=0;
   let outcome=null, soundCtx, resolving=false, startingMove=false;
@@ -21,15 +21,19 @@
     shortcuts:()=>shortcuts.map(([id,label,key])=>({id:"nav",value:id,label,key}))
   });
   const notify=text=>ui.toast(text);
+  const audioContext=()=>{
+    const Audio=window.AudioContext||window.webkitAudioContext;
+    return Audio?(soundCtx ||= new Audio()):null;
+  };
+  const score=window.WilderScore.create({context:audioContext});
   const fair=window.WilderCanvasGames.create({game,row,notify,go,render});
+  const circuit=window.WilderTrials.create({game,row,image,go,render,notify,playTone,animate:fx=>{if(fx.kind==="duet")score.answer();return ui.animate(fx);},active:()=>screen.name==="circuit"});
   const pages=window.WilderPages.create({game,world,dex,row,member,image,go,back,render,notify,locate,root,
     fight,playTone,resolveBattle,travel,reset,atSite:nearestSite});
   function playTone(kind="click") {
     if (!game.state.sound) return;
     try {
-      const Audio=window.AudioContext||window.webkitAudioContext;
-      if (!Audio) return;
-      soundCtx ||= new Audio();
+      if (!audioContext()) return;
       if (soundCtx.state==="suspended") soundCtx.resume().catch(()=>{});
       const notes={click:[523],battle:[349,466,587],strike:[220,165],care:[440,554,659],reward:[392,494,587,784],step:[330]};
       (notes[kind]||notes.click).forEach((f,i)=>{
@@ -67,10 +71,12 @@
       case "battle":model=battleModel();break;
       case "outcome":model=outcomeModel();break;
       case "play":model=fair.model(screen.value);break;
+      case "circuit":model=circuit.model();break;
       default:model=pages.model(screen.name,screen.value);break;
     }
     if (!model) throw new Error("Unknown game screen: "+screen.name);
-    ui.show({kind:"page", ...model, id:screen.name+":"+(screen.value??""),back:screen.name==="world"||screen.name==="battle"?null:{id:"back",label:"Back"}});
+    score.scene(scene().biome,model.kind==="battle" || !!game.state.battle,game.state.music);
+    ui.show({kind:"page", ...model, id:model.viewId||screen.name+":"+(screen.value??""),back:screen.name==="world"||screen.name==="battle"?null:{id:"back",label:"Back"}});
   }
   function partyDisplay(p) {
     const k=spec(p.id);
@@ -79,15 +85,19 @@
   function worldModel() {
     const state=game.state,r=scene(),obj=game.objective(),near=nearestSite();
     const opening=state.region===0 && !state.crests.length && !window.WilderStory.chapterDone(state,0);
+    const destination=state.destination,localHollow=game.hollows?.at(state.region);
+    const pinned=destination===null?null:{kicker:"ATLAS PIN",title:game.regions[destination].name,description:destination===state.region?"You are here. Open the pin for the region’s landmarks.":game.access(destination).reason,id:"view",value:"region|"+destination};
     return {kind:"world",title:r.name,kicker:"THE MISSING BEAT   /   "+r.district+"   /   REGION "+String(state.region+1).padStart(3,"0")+" OF 150",
       subtitle:r.description,region:state.region,player:samplePlayer,party:game.team().map(partyDisplay),
-      objective:opening?{title:"Open Finch’s first dispatch",description:"The Mossbrook bell has skipped a beat. Read the note Finch carried during the flood.",id:"view",value:"scene|chapter-1"}
-        :{title:obj.title,description:obj.description,id:"nav",value:"objective"},
+      objective:pinned||(opening?{title:"Open Finch’s first dispatch",description:"The Mossbrook bell has skipped a beat. Read the note Finch carried during the flood.",id:"view",value:"scene|chapter-1"}
+        :{title:obj.title,description:obj.description,id:"nav",value:"objective"}),
       status:game.canSave?"Saved on this device":"Session only · browser storage unavailable",
       sections:[{title:"On the trail",columns:2,rows:[
         row("interact",near ? near.label : "Local landmarks",null,near?"Interact here":"Walk to a place",{key:"E"}),
         row("nav","Expedition","expedition","Regional commission",{key:"X"}),
         row("nav","The Missing Beat","chronicle","Finch’s journal",{key:"C"}),
+        row("nav","Wildlife nearby","notebook","Follow a Wilderkin’s behavior",{key:"N"}),
+        ...(localHollow?[row("view",localHollow.title,"hollow|"+localHollow.id,"Side trail at the trailpost")]:[]),
         row("nav","Field station","station","Requests and local games"),
       ]}]};
   }
@@ -100,7 +110,8 @@
       const detail=s.kind==="heal"?"Recover health":s.kind==="guard"?"Strike and brace":s.type+(mult>1?" · Advantage":mult<1?" · Resisted":"");
       return row("skill",s.name,s.id,detail,{tone:s.kind==="attack"?"primary":undefined,disabled:s.kind==="heal" && p.hp>=p.maxHp,key:String(i+1)});
     });
-    const actions=[row("nav","Switch kin","switch"),row("nav","Satchel","bag"),row("retreat","Retreat")];
+    const duet=game.duets();
+    const actions=[row("nav","Trail duets","duets",duet.beats+" / "+duet.max+" beats",{key:"R",tone:duet.options.some(o=>o.available)?"primary":undefined}),row("nav","Switch kin","switch"),row("nav","Satchel","bag"),row("retreat","Retreat")];
     if (wild && !member(enemy.id)) {
       const available=game.state.bag.kinweave || 0;
       actions.unshift(row("skill","Hold back","trail-feint","Leave at least 1 HP"),
@@ -141,6 +152,7 @@
       const res=fn();
       if (!res.ok) {render();notify(res.message);return;}
       if (fx) {
+        if (fx.kind==="duet")score.answer();
         playTone(fx.kind==="heal"||fx.kind==="item"?"care":"strike");
         await ui.animate({...fx,side:"ally"});
       }
@@ -173,7 +185,7 @@
     player={x:p.x,y:p.y,facing:"down"};game.setPosition(p.x,p.y);
   }
   function samplePlayer() {
-    const pos={...player,questActive:!!scene().warden&&!game.state.crests.includes(game.state.region)};
+    const pos={...player,sightings:game.sightings(),follower:game.walkerPose(performance.now(),motion.matches),questActive:!!scene().warden&&!game.state.crests.includes(game.state.region)};
     if (tween && !motion.matches) {
       const ratio=Math.min(1,Math.max(0,(performance.now()-tween.time)/115));
       pos.x=tween.x+(player.x-tween.x)*ratio;pos.y=tween.y+(player.y-tween.y)*ratio;
@@ -182,7 +194,7 @@
   }
   function nearestSite() {
     if (!player) return null;
-    return area().sites.map(site=>({site,d:Math.abs(site.x-player.x)+Math.abs(site.y-player.y)})).filter(s=>s.d<=1).sort((a,b)=>a.d-b.d)[0]?.site;
+    return [...area().sites,...game.sightings()].map(site=>({site,d:Math.abs(site.x-player.x)+Math.abs(site.y-player.y)})).filter(s=>s.d<=1).sort((a,b)=>a.d-b.d)[0]?.site;
   }
   function move(dir,now) {
     if (!dir || game.state.battle || screen.name!=="world") return false;
@@ -209,6 +221,7 @@
   }
   function visit(site,next) {
     const kind=site.kind||site.id;
+    if(kind==="sighting") return go("study",site.species);
     game.visitSite(kind);
     if (next) return go(next);
     const view={warden:"warden",camp:"camp",wild:"tracks",travel:"atlas",activities:"station"}[kind];
@@ -231,12 +244,14 @@
     requestAnimationFrame(walkTick);
   }
   function locate(kind,next) {
-    const site=typeof kind==="number"?area().sites[kind]:area().sites.find(s=>(s.kind||s.id)===kind);
+    const site=typeof kind==="number"?area().sites[kind]:area().sites.find(s=>(s.kind||s.id)===kind)||game.sightings().find(s=>s.id===kind);
     if (site) walk(site,site,next);
   }
   function clickTile(x,y) {
     if (resolving || screen.name!=="world") return;
-    const site=world.siteAt(game.state.region,x,y);walk(site||{x,y},site);
+    const site=world.sightingAt(game.sightings(),x,y)||world.siteAt(game.state.region,x,y);
+    if(!site && window.WilderWalkingPartner.hit(game.walkerPose(performance.now(),true),x,y))return go("walker");
+    walk(site||{x,y},site);
   }
   function travel(i) {
     const res=game.travel(i);
@@ -246,6 +261,8 @@
   function keydown(e) {
     if (e.altKey || e.ctrlKey || e.metaKey || e.type==="keyup") return false;
     if (resolving || ui.busy) return true;
+    if (screen.name==="circuit" && circuit.key(e)) return true;
+    if (screen.name==="hollow" && pages.hollowKey(e,screen.value)) return true;
     if (screen.name==="search" && pages.typeKey(e)) return true;
     const key=e.key.length===1?e.key.toLowerCase():e.key;
     if (screen.name==="world" && keys[key]) {
@@ -254,6 +271,7 @@
       return true;
     }
     if (screen.name==="world" && key==="e") {if (!e.repeat) action("interact");return true;}
+    if (screen.name==="battle" && key==="r") {if(!e.repeat) go("duets");return true;}
     if (screen.name==="battle" && /^[1-4]$/.test(key)) {
       const skill=spec(game.state.battle.activeId).skills[Number(key)-1];if (skill && !e.repeat) useSkill(skill.id);return true;
     }
@@ -275,15 +293,23 @@
       case "walk-site":return locate(Number(value));
       case "open-kin":return go("kin",value);
       case "skill":return useSkill(value);
+      case "duet":{
+        const option=game.duets().options.find(o=>o.partnerId===value);
+        if(!option?.available)return notify(option?.reason);
+        const lead=spec(game.state.battle.activeId);
+        return resolveBattle(()=>game.useDuet(value),{type:lead.type,partnerType:spec(value).type,partner:image(value),kind:"duet",name:option.name});
+      }
       case "capture":return resolveBattle(()=>game.recruit(),{type:"Chime",kind:"capture",name:"Kinweave"});
       case "retreat":return resolveBattle(()=>game.flee(),null);
       case "swap":return resolveBattle(()=>game.swap(value),{type:spec(value).type,kind:"swap",name:spec(value).name});
       default:
+        if (screen.name==="circuit" && circuit.act(id,value)) return;
         if (fair.act(id,value)) return;
         return pages.act(id,value);
     }
   }
   restorePlayer();
   if (game.state.battle) screen={name:"battle",value:null};
+  else if(circuit.hasInvitation()) screen={name:"circuit",value:null};
   render();
 })();

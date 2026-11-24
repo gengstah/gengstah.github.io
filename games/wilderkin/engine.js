@@ -94,6 +94,8 @@
   const validRegion = index => Number.isInteger(index) && index >= 0 && index < regions.length;
   const integer = (value, min, max) => Number.isInteger(value) && value >= min && value <= max;
   const unique = values => Array.from(new Set(values));
+  const field=window.WilderFieldwork?.create({species,pools,regions});
+  const walking=window.WilderWalkingPartner?.create({species,regions});
 
   function newGame() {
     return {
@@ -102,7 +104,10 @@
       team: starters.slice(), visited: [0], quests: {}, clears: {}, rests: 0,
       sound: true, wins: 0, bag:{reed:5,sap:5,ore:2,kinweave:4,balm:3,tonic:1,sparkseed:1},
       surveys:{},localWins:{},licenses:[],passes:[],crafted:{},landmark:null,forageReady:true,
-      story:story.restore(null),refit:0
+      story:story.restore(null),refit:0,animationSpeed:1,music:1,
+      fieldwork:field?.restore(null)||{},caravan:window.WilderCaravans?.restore(null,[])||{},
+      circuit:window.WilderTrials?.restore(null)??null,pins:[],destination:null,
+      walking:walking?.restore(null,[])||{},hollows:window.WilderHollows?.restore(null)||{}
     };
   }
 
@@ -133,6 +138,15 @@
       || !saved.party.every(p => validFighter(p) && integer(p.xp, 0, xpNeeded(p.level) - 1))
       || unique(saved.party.map(p => p.id)).length !== saved.party.length) return null;
     fresh.party = saved.party;
+    fresh.animationSpeed=[1,2,3].includes(saved.animationSpeed)?saved.animationSpeed:1;
+    fresh.music=[0,1,2].includes(saved.music)?saved.music:saved.sound===false?0:1;
+    fresh.fieldwork=field?.restore(saved.fieldwork)||{};
+    fresh.caravan=window.WilderCaravans?.restore(saved.caravan,fresh.party)||{};
+    fresh.circuit=window.WilderTrials?.restore(saved.circuit)??null;
+    fresh.pins=unique((Array.isArray(saved.pins)?saved.pins:[]).filter(validRegion));
+    fresh.destination=fresh.pins.includes(saved.destination)?saved.destination:null;
+    fresh.walking=walking?.restore(saved.walking,fresh.party)||{};
+    fresh.hollows=window.WilderHollows?.restore(saved.hollows)||{};
     fresh.team = unique((Array.isArray(saved.team) ? saved.team : fresh.party.map(p => p.id))
       .filter(id => enrolled(id, fresh.party))).slice(0, 6);
     if (!fresh.team.length) fresh.team = starters.slice();
@@ -196,6 +210,9 @@
         weather: Object.hasOwn(dex.types,battle.weather) ? battle.weather : null,
         condition:Object.hasOwn(campaign.conditions,battle.condition)?battle.condition:null,
         lastAttack:typeof battle.lastAttack==="string"?battle.lastAttack:null,
+        beats:integer(battle.beats,0,3)?battle.beats:1,
+        lastPart:["strike","guard","care","switch"].includes(battle.lastPart)?battle.lastPart:null,
+        opening:battle.opening===true,
         log: battle.log.filter(entry => typeof entry === "string").slice(-8)
       };
     }
@@ -205,8 +222,10 @@
 
   let state = loadGame();
   let canSave = true;
+  let usingLoaners=false;
 
   function save() {
+    if(usingLoaners) return;
     try {
       window.localStorage.setItem(SAVE_KEY, JSON.stringify(state));
       canSave = true;
@@ -284,6 +303,7 @@
     const old = state.positions[state.region];
     if (old && old.x === x && old.y === y) return true;
     state.landmark = null;
+    walking?.step(state,old,{x,y});
     state.positions[state.region] = { x, y };
     save();
     return true;
@@ -364,7 +384,7 @@
     const message=label+" "+species[enemy.id].name+" takes the field.";
     if (!state.seen.includes(enemy.id)) state.seen.push(enemy.id);
     state.battle={kind,activeId:ready.id,enemy,remaining:ids.slice(1),turn:1,
-      commissioned:null,bonus:null,weather:null,condition:null,lastAttack:null,...options,log:[message]};
+      commissioned:null,bonus:null,weather:null,condition:null,lastAttack:null,beats:1,lastPart:null,opening:false,...options,log:[message]};
     return commit("battle",message);
   }
 
@@ -410,6 +430,7 @@
     if (remaining.length) {
       const id = remaining.shift();
       state.battle.enemy = makeMember(id,enemy.level);
+      state.battle.opening=false;
       if (!state.seen.includes(id)) state.seen.push(id);
       if (state.battle.condition==="shelter") {
         const p=member(activeId),hp=Math.min(p.maxHp-p.hp,Math.ceil(p.maxHp*.12));
@@ -420,6 +441,10 @@
       state.battle.turn++;
       state.battle.log = [...state.battle.log, message, reply].slice(-8);
       return commit("turn", reply);
+    }
+    if(kind==="circuit") {
+      state.battle=null;
+      return result("victory",message+" The bout is yours.");
     }
     const xp = kind==="warden" ? Math.ceil(xpNeeded(enemy.level)*.85) : Math.ceil(xpNeeded(enemy.level)*(kind==="expedition" ? .18 : .12));
     const levels=[];
@@ -442,6 +467,7 @@
     const region = regions[state.region];
     if (kind === "warden" && !state.crests.includes(state.region)) {
       state.crests.push(state.region);
+      walking?.remember(state,"crest",state.region);
       message += " You earned the " + region.crest + "! " + region.farewell;
     }
     message += " " + species[activeId].name + " gained " + activeGain + " XP.";
@@ -464,14 +490,18 @@
     return {skill,charged,guarding,power:skill.power+(charged ? rhythm + (laterTrial ? 2 : 0) : 0)};
   }
 
+  function returnHit(defender,guardFactor,intent=foeIntent()) {
+    const hit=damage(intent.power,state.battle.enemy.level,intent.skill.type,defender);
+    return Math.max(1,Math.floor(hit*guardFactor));
+  }
+
   function counterattack(firstMessage, guardFactor=1) {
     const battle = state.battle;
     const { enemy } = battle;
     const enemySpecies = species[enemy.id];
     const active = member(battle.activeId);
-    const {skill, power} = foeIntent();
-    const hit = damage(power, enemy.level, skill.type, active);
-    const dealt = Math.min(active.hp, Math.max(1,Math.floor(hit*guardFactor)));
+    const intent=foeIntent(),skill=intent.skill;
+    const dealt=Math.min(active.hp,returnHit(active,guardFactor,intent));
     active.hp -= dealt;
     let reply = enemySpecies.name + " used " + skill.name + " for " + dealt + " damage.";
     if (active.hp === 0) {
@@ -491,6 +521,76 @@
     return commit("turn", firstMessage + " " + reply);
   }
 
+  function earnBeat(part) {
+    const b=state.battle;
+    if (part!==b.lastPart) b.beats=Math.min(3,b.beats+1);
+    b.lastPart=part;
+  }
+
+  function duetPair(id,partnerId) {
+    if (id===partnerId || !validSpecies(id) || !validSpecies(partnerId)) return null;
+    return window.WilderDuets.score(species[id].type,species[partnerId].type);
+  }
+
+  function duetOption(lead,partner,intent) {
+    const battle=state.battle,foe=battle.enemy;
+    const score=duetPair(lead.id,partner.id);
+    const {name,role,cost}=score;
+    const projectedStrike=fighter=>{
+      const kin=species[fighter.id],skill=kin.skills.find(s=>s.kind==="attack"&&s.type===kin.type);
+      return damage(skill.power,fighter.level,skill.type,foe);
+    };
+    const brace=intent.guarding && role!=="rush" ? .55 : 1;
+    const combined=projectedStrike(lead)+projectedStrike(partner);
+    const damageDone=Math.min(foe.hp-(role==="lure"?1:0),Math.max(1,Math.round(combined*.82*score.strength*brace)));
+    const restore=p=>role==="mend" ? Math.min(p.maxHp-p.hp,Math.ceil(p.maxHp/4)) : 0;
+    const healLead=restore(lead),healPartner=restore(partner),switchLead=role==="relay";
+    const defender=switchLead?partner:lead,defenderName=species[defender.id].name;
+    const falls=damageDone===foe.hp,opens=role==="mark"&&!falls;
+    const returnDamage=falls?0:Math.min(defender.hp+restore(defender),returnHit(defender,score.counter,intent));
+    const reason=!partner.hp ? species[partner.id].name+" needs to recover." :
+      battle.beats<cost ? "Needs "+(cost-battle.beats)+" more "+(cost-battle.beats===1?"beat.":"beats.") : "";
+    const details=[damageDone+" damage"];
+    if (role==="lure") details.push("leaves at least 1 HP");
+    if (role==="mend") details.push("restore "+healLead+" / "+healPartner+" HP to leader / partner");
+    if (switchLead) details.push(defenderName+" takes the lead");
+    if (opens) details.push("expose foe for next attack");
+    const knockedOut=!falls && returnDamage>=defender.hp+restore(defender);
+    details.push(falls?"foe falls before its reply":defenderName+" takes "+returnDamage+" in reply"+(knockedOut?" and faints":""));
+    return {partnerId:partner.id,name,type:species[partner.id].type,role:score.label,cost,available:!reason,
+      reason,preview:details.join(" · "),damage:damageDone,returnDamage,healLead,healPartner,switchLead,opens,counter:score.counter};
+  }
+
+  function duets() {
+    const battle=state.battle;
+    if (!battle) return {beats:0,max:3,opening:false,hint:"Meet a wild Wilderkin to try a duet.",options:[]};
+    const lead=member(battle.activeId),intent=foeIntent();
+    const hint=(battle.opening?"Foe exposed: next attack skill bypasses guard and gains 50% damage. ":"")+
+      (battle.lastPart?"Last part: "+battle.lastPart+". Change parts to earn a beat.":"Your first skill or switch earns a beat.")+
+      " Parts: strike, guard, care, switch.";
+    return {beats:battle.beats,max:3,opening:battle.opening,hint,
+      options:team().filter(p=>p.id!==lead.id).map(p=>duetOption(lead,p,intent))};
+  }
+
+  function useDuet(partnerId) {
+    const b=state.battle;
+    if (!b) return error("There is no active encounter.");
+    const option=duets().options.find(o=>o.partnerId===partnerId);
+    if (!option) return error("Choose a duet with another traveling companion.");
+    if (!option.available) return error(option.reason);
+    const lead=member(b.activeId),partner=member(partnerId);
+    b.beats-=option.cost;b.lastPart=null;b.lastAttack=null;
+    b.enemy.hp-=option.damage;
+    lead.hp+=option.healLead;partner.hp+=option.healPartner;
+    if (option.opens) b.opening=true;
+    if (option.switchLead) b.activeId=partnerId;
+    let message=species[lead.id].name+" and "+species[partnerId].name+" used "+option.name+" for "+option.damage+" damage.";
+    if (option.healLead||option.healPartner) message+=" Restored "+option.healLead+" / "+option.healPartner+" HP.";
+    if (option.opens) message+=" The foe is exposed!";
+    if (option.switchLead) message+=" "+species[partnerId].name+" takes the lead.";
+    return b.enemy.hp===0?winBattle(message):counterattack(message,option.counter);
+  }
+
   function useSkill(id) {
     const battle = state.battle;
     if (!battle) return error("There is no active encounter.");
@@ -500,6 +600,7 @@
       const foe = battle.enemy;
       const hit = Math.min(foe.hp - 1, Math.ceil(foe.maxHp / 4));
       if (!hit) return error("This Wilderkin is ready to befriend.");
+      earnBeat("strike");
       foe.hp -= hit;
       return counterattack(user.name + " held back, dealing " + hit + " damage.");
     }
@@ -507,21 +608,25 @@
     if (!skill) return error("Choose a skill your active companion knows.");
     if (skill.kind === "heal") {
       if (active.hp === active.maxHp) return error(user.name + " is already at full health.");
+      earnBeat("care");
       const regained = Math.min(active.maxHp - active.hp, Math.ceil(active.maxHp / 3));
       active.hp += regained;
       return counterattack(user.name + " used " + skill.name + " and recovered " + regained + " HP.");
     }
     const enemy = battle.enemy;
-    const braced=foeIntent().guarding;
+    earnBeat(skill.kind==="guard"?"guard":"strike");
+    const exposed=battle.opening && skill.kind==="attack";
+    if (exposed) battle.opening=false;
+    const braced=foeIntent().guarding && !exposed;
     const base=damage(skill.power,active.level,skill.type,enemy);
     const repeated=battle.condition==="echo" && battle.lastAttack===id;
     const braceEffect=braced ? (skill.kind==="guard" ? (battle.condition==="ledge" ? 1.65 : 1.4) : .55) : 1;
-    const hit=Math.min(enemy.hp,Math.max(1,Math.round(base*braceEffect*(repeated ? .75 : 1))));
+    const hit=Math.min(enemy.hp,Math.max(1,Math.round(base*braceEffect*(repeated ? .75 : 1)*(exposed?1.5:1))));
     battle.lastAttack=id;
     enemy.hp -= hit;
     const multiplier = dex.effectiveness(skill.type, species[enemy.id].types);
     const pairing = multiplier > 1 ? " Elemental advantage!" : multiplier < 1 ? " The target resisted." : "";
-    const message = user.name + " used " + skill.name + " for " + hit + " damage." + pairing + (repeated ? " Echo dulled the repeat." : "") + (braced ? skill.kind==="guard" ? " Broke its guard!" : " It braced for the strike." : "");
+    const message = user.name + " used " + skill.name + " for " + hit + " damage." + pairing + (exposed?" Struck the opening!":"") + (repeated ? " Echo dulled the repeat." : "") + (braced ? skill.kind==="guard" ? " Broke its guard!" : " It braced for the strike." : "");
     if (enemy.hp === 0) return winBattle(message);
     return counterattack(message,skill.kind==="guard" ? (battle.condition==="ledge" ? .33 : .5) : 1);
   }
@@ -531,6 +636,7 @@
     if (!battle) return setLead(id);
     if (battle.activeId === id) return error("This companion is already in the field.");
     if (!state.team.includes(id) || !member(id)?.hp) return error("Choose a companion with some health remaining.");
+    earnBeat("switch");
     battle.activeId = id;
     battle.lastAttack=null;
     return counterattack("You called in "+species[id].name+".",battle.condition==="gale" ? .25 : .5);
@@ -545,13 +651,41 @@
     if (member(enemy.id)) return error(name + " is already in your party.");
     if (enemy.hp * 2 > enemy.maxHp) return error("Bring " + name + " to half health or lower to befriend it.");
     if (!state.bag.kinweave) return error("Your Kinweaves are gone. Craft another with two reeds and one sun sap.");
+    state.battle = null;
+    return befriend(enemy.id,enemy.level);
+  }
+
+  function befriend(id,level) {
     state.bag.kinweave--;
     state.forageReady=true;
-    state.party.push(makeMember(enemy.id, enemy.level));
-    const joinsTeam = state.team.length < 6;
-    if (joinsTeam) state.team.push(enemy.id);
-    state.battle = null;
-    return commit("recruited", "The Kinweave opens. "+name + (joinsTeam ? " joined your traveling party!" : " joined your reserve! Visit the field guide to call it into your party."));
+    state.party.push(makeMember(id,level));
+    if(!state.seen.includes(id)) state.seen.push(id);
+    const joinsTeam=state.team.length<6;
+    if(joinsTeam) state.team.push(id);
+    return commit("recruited","The Kinweave opens. "+species[id].name+(joinsTeam?" joined your traveling party!":" joined your reserve!"));
+  }
+
+  function observe(id,action) {
+    const res=field.observe(state,id,action);
+    if(res.kind==="field-note") walking?.remember(state,"note",id);
+    if(res.kind==="field-note" && count(state.surveys[state.region])<campaign.length(state.region)) {
+      const recorded=pools[state.region].filter(kin=>state.fieldwork[kin]?.complete).length;
+      if(recorded<=2) res.message+=" The station accepts your wildlife report."+finishLeg();
+    }
+    if(res.ok) save();
+    return res;
+  }
+  function inviteField(id) {
+    const ready=field.canInvite(state,id);
+    return ready.ok?befriend(id,regions[state.region].wildLevel):ready;
+  }
+  function cycleAnimationSpeed() {
+    state.animationSpeed=state.animationSpeed%3+1;
+    return commit("setting","Battle animations at "+state.animationSpeed+"× speed.");
+  }
+  function cycleMusic() {
+    state.music=(state.music+1)%3;
+    return commit("setting",["Music off.","Quiet music.","Full music."][state.music]);
   }
 
   function flee() {
@@ -641,7 +775,7 @@
     p.hp+=regained;
     state.bag[id]--;
     const message=items[id].name+" restored "+regained+" HP to "+species[p.id].name+".";
-    if (state.battle) return counterattack(message);
+    if (state.battle) {earnBeat("care");return counterattack(message);}
     return commit("item",message);
   }
 
@@ -756,13 +890,59 @@
     return commit("reset", "A fresh adventure begins in Mossbrook Vale.");
   }
 
+  // Loaner bouts run the exact campaign combat rules against an isolated roster.
+  // Only the course controller persists the result, after the temporary context ends.
+  function withLoaners(snapshot,callback) {
+    if(usingLoaners) throw new Error("A loaner bout is already resolving.");
+    const original=state;
+    const temporary={...newGame(),region:snapshot.region,party:snapshot.party,team:snapshot.team,lead:snapshot.lead,battle:snapshot.battle};
+    usingLoaners=true;
+    state=temporary;
+    try {
+      const start=(ids,level,label,conditions={})=>beginEncounter("circuit",ids,level,label,conditions);
+      const answer=callback(start);
+      if(answer && typeof answer.then==="function") throw new Error("A loaner turn must finish synchronously.");
+      snapshot.party=temporary.party;
+      snapshot.battle=temporary.battle;
+      return answer;
+    } finally {
+      state=original;
+      usingLoaners=false;
+    }
+  }
+  function saveCircuit(record) {
+    if(usingLoaners) throw new Error("Finish the loaner turn before recording its result.");
+    state.circuit=record;save();
+  }
+  function pinRegion(i,action) {
+    if(!validRegion(i))return error("Select a region in the atlas.");
+    if(action==="remove"){
+      state.pins=state.pins.filter(index=>index!==i);
+      if(state.destination===i)state.destination=null;
+      return commit("pin","Removed the pin from "+regions[i].name+".");
+    }
+    if(action==="untrack"){state.destination=null;return commit("pin","Your main objective is on the map again.");}
+    if(!state.pins.includes(i))state.pins.push(i);
+    if(action==="track")state.destination=i;
+    return commit("pin",regions[i].name+(action==="track"?" is your tracked destination.":" pinned in the atlas."));
+  }
+  function setWalker(value) {
+    const reply=walking.select(state,value);if(reply.ok) save();
+    return reply;
+  }
   window.WilderGame = {
+    pinRegion,setWalker,walkerPose:(time,reduced)=>walking?.pose(state,time,reduced),walkerInfo:()=>walking.info(state),walkerSense:()=>walking.sense(state,field.sightings(state.region),expedition(),objective()),
+    hollows:window.WilderHollows?.create({state:()=>state,commit,regions,species,items}),
+    withLoaners,saveCircuit,loaner:(id,level)=>validSpecies(id)&&integer(level,1,MAX_LEVEL)?makeMember(id,level):null,
+    caravan:window.WilderCaravans?.create({state:()=>state,commit,hpAt,regions,species,items}),
+    sightings:(i=state.region)=>field?.sightings(i)||[],study:id=>field.study(state,id),
+    notebook:()=>field.notebook(state),canInvite:id=>field.canInvite(state,id),observe,inviteField,cycleAnimationSpeed,cycleMusic,
     get state() { return state; },
     get canSave() { return canSave; },
     items,conditions:campaign.conditions,visitSite,gather,craft,useItem,expedition,expeditionAction,license,claimLicense,
     gamePass,unlockGame,storyStep,trialAccess,wildLevel:i=>regions[i]?.wildLevel,
     species, regions, wardens, homes, pools, access, team, enlist, foeIntent, maxLevel:MAX_LEVEL,
     awardGame, questAction, xpNeeded, objective, setPosition, travel, setLead,
-    heal, meetWarden, startBattle, useSkill, swap, recruit, flee, setSound, reset
+    heal, meetWarden, startBattle, useSkill, duetPair, duets, useDuet, swap, recruit, flee, setSound, reset
   };
 })();

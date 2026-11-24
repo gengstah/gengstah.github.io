@@ -1220,6 +1220,71 @@
     if(px>=b.x1&&px<=b.x2&&py>=b.y1&&py<=b.y2)return true;
     return map.kind[py*W+px]!==WATER;
   }
+  // Choose from the connected component of the arrival tile. A clearing separated by
+  // water or scenery can never strand a player looking for a field notebook entry.
+  function sightingTiles(index,count) {
+    const region=regions[index],queue=[region.spawn],seen=new Set([region.spawn.y*COLS+region.spawn.x]);
+    for(let i=0;i<queue.length;i++) {
+      const p=queue[i];
+      for(const [dx,dy] of steps) {
+        const x=p.x+dx,y=p.y+dy,key=y*COLS+x;
+        if(!seen.has(key)&&walkable(index,x,y)){seen.add(key);queue.push({x,y});}
+      }
+    }
+    const distance=(a,b)=>Math.abs(a.x-b.x)+Math.abs(a.y-b.y);
+    const wild=region.sites.find(s=>s.id==="wild")||region.spawn;
+    const candidates=queue.filter(p=>p.x>0&&p.x<COLS-1&&p.y>1&&p.y<ROWS-1&&
+      !region.sites.some(s=>distance(p,s)<2)&&distance(p,region.spawn)>1);
+    const chosen=[];
+    while(chosen.length<count) {
+      let best=null,bestScore=-Infinity;
+      for(const p of candidates) {
+        if(chosen.includes(p))continue;
+        const spacing=chosen.length?Math.min(...chosen.map(s=>distance(p,s))):0;
+        const neighbors=steps.filter(([dx,dy])=>walkable(index,p.x+dx,p.y+dy)).length;
+        const distanceToWild=distance(p,wild),trace=(index*37+p.y*13+p.x*17)%43;
+        const score=5*Math.min(spacing,9)+neighbors-distanceToWild*1.2+trace*.025;
+        if(score>bestScore){best=p;bestScore=score;}
+      }
+      if(!best)break;
+      chosen.push(best);
+    }
+    return chosen;
+  }
+  function sightingAt(sightings,x,y) {
+    return sightings.find(s=>s.x===x&&s.y===y)||sightings.find(s=>s.x===x&&s.y-1===y);
+  }
+  function paintWild(c,site,t) {
+    const x=site.x*TILE+8,y=site.y*TILE+10,n=(site.seed||0)%19;
+    const phase=t?Math.sin(t*(site.motion==="call"?3:1.6)+n):0;
+    const fly=site.motion==="wind",walk=site.motion==="crossing";
+    const dx=walk||fly?Math.round(phase*2):0;
+    const dy=fly?2+Math.round((1+phase)*1.5):Math.round(Math.max(0,phase)*1.5);
+    const img=window.WilderFieldwork.sprite(site.species);
+    rect(c,"#526a56",x-6,y-1,13,2);
+    if(img.complete&&img.naturalWidth)c.drawImage(img,x-10+dx,y-19-dy,20,20);
+    // The little gold tracking corners also identify a sighting before its sprite has decoded.
+    rect(c,"#443f34",x-13,y-19,5,2);rect(c,"#443f34",x-13,y-19,2,5);
+    rect(c,"#ffe09b",x-12,y-18,3,1);rect(c,"#ffe09b",x-12,y-18,1,3);
+    rect(c,"#443f34",x+8,y-2,5,2);rect(c,"#443f34",x+11,y-5,2,5);
+    rect(c,"#ffe09b",x+9,y-2,3,1);rect(c,"#ffe09b",x+11,y-4,1,3);
+    if(site.motion==="call"&&phase>.25){rect(c,"#e7c573",x+7,y-21,2,3);rect(c,"#e7c573",x+6,y-19,2,1);}
+  }
+  function paintFollower(c,p,t) {
+    const x=Math.round(p.x*TILE+8),y=Math.round(p.y*TILE+10);
+    const stride=t?Math.sin(Math.PI*p.progress):0;
+    const bob=p.gait==="glide"?2+(t?Math.round(Math.sin(t*2)):0):p.gait==="step"?Math.round(2*stride):0;
+    const img=window.WilderFieldwork.sprite(p.id),size=19;
+    rect(c,"#587057",x-6,y-1,13,2);
+    if(img.complete&&img.naturalWidth) {
+      c.save();c.translate(x,y-bob);
+      if(p.dx>0)c.scale(-1,1);
+      c.drawImage(img,-10,-18,size,size);c.restore();
+    }
+    // Teal trail ribbon distinguishes a companion from the gold marks around a wild kin.
+    rect(c,"#36574e",x+3,y-6-bob,5,2);rect(c,"#9fd4af",x+4,y-6-bob,3,1);
+    rect(c,"#36574e",x+7,y-5-bob,2,2);
+  }
   function draw(canvas,index,player,frame=0) {
     const map=regionMap(index);
     if(!canvas||!map)return;
@@ -1240,15 +1305,16 @@
     const pos=player||regions[index].spawn;
     const px=Math.round(pos.x*TILE+8),py=Math.round(pos.y*TILE+10);
     const character=explorer(style,'player',pos.facing||pos.dir);
-    let drawn=false;
+    const moving=[{z:py,paint:()=>c.drawImage(character,px-Math.floor(character.width/2),py-character.height)}];
+    if(pos.follower)moving.push({z:pos.follower.y*TILE+8,paint:()=>paintFollower(c,pos.follower,t)});
+    for(const s of pos.sightings||[])moving.push({z:s.y*TILE+9,paint:()=>paintWild(c,s,t)});
+    moving.sort((a,b)=>a.z-b.z);
+    let next=0;
     for(const o of map.objects) {
-      if(!drawn&&o.z>py) {
-        c.drawImage(character,px-Math.floor(character.width/2),py-character.height);
-        drawn=true;
-      }
+      while(next<moving.length&&o.z>moving[next].z)moving[next++].paint();
       c.drawImage(o.img,o.x,o.y);
     }
-    if(!drawn)c.drawImage(character,px-Math.floor(character.width/2),py-character.height);
+    while(next<moving.length)moving[next++].paint();
     if(pos.questActive!==false) {
       const s=regions[index].sites.find(s=>s.id==='warden');
       if(s)questMarker(c,s.x*TILE+17,s.y*TILE-26,frame);
@@ -1277,5 +1343,5 @@
     }
     return best;
   }
-  window.WilderWorld={regions,walkable,draw,hitTile,siteAt,wardenArt,crestArt};
+  window.WilderWorld={regions,walkable,draw,hitTile,siteAt,sightingAt,sightingTiles,wardenArt,crestArt};
 })();
