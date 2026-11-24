@@ -73,7 +73,7 @@
     const rival=coaches.find(c=>c.id===card.coach);
     return {card,name:rival.name,rosters:[{ids:card.ids,gear:card.gear},{ids:rival.team.slice(),gear:{...rival.gear}}]};
   }
-  function create({game,sim,row,image,show,live,playFromPractice,readSetup}){
+  function create({game,sim,row,image,show,live,playFromPractice,readSetup,openFinder,notify}){
     const species=game.species,kit=window.WilderSparringGear;
     const catalog=Object.values(species).filter(k=>!k.bonus).sort((a,b)=>a.name.localeCompare(b.name));
     const standard=id=>typeof id==="string"&&Object.hasOwn(species,id)&&!species[id].bonus;
@@ -85,7 +85,12 @@
     const gearLabel=(id,gear)=>kit.byId(gear[id])?.name||"No gear";
     const kinCard=(id,gear,badge)=>({label:name(id),detail:species[id].types.join(" / ")+" · "+gearLabel(id,gear),image:image(id),badge});
     const path=part=>part?route+":"+part:route;
-    const mark=()=>{try{window.localStorage.setItem(saveKey,JSON.stringify(draft));}catch{/* Session-only play. */}};
+    const stored=()=>{try{return window.localStorage?.getItem(saveKey)??null;}catch{return null;}};
+    let finderVersion=0,diskSnapshot=stored();
+    function mark(){
+      finderVersion++;
+      try{const raw=JSON.stringify(draft);window.localStorage.setItem(saveKey,raw);diskSnapshot=raw;}catch{/* Session-only play. */}
+    }
     let cache=null;
     function report(){
       const key=JSON.stringify([draft.coach,draft.ids,draft.gear]);
@@ -129,18 +134,51 @@
       return {title:k.name,kicker:"SCOUT TABLE   /   REGISTRATION",art:{src:image(id)},subtitle:k.types.join(" / ")+" · "+sim.maxHp(id)+" HP at level 20.",
         sections:[group("Registration slot",[
           link("Choose a different kin",path("catalog:"+slot+":0"),"Browse all "+catalog.length+" loaners.",{tone:"primary"}),
+          ...(openFinder?[select("finder","Find a partner",slot,"Compare duet partners against "+coach().name+"’s registered four.")]:[]),
           link("Choose gear",path("gear:"+slot),gearLabel(id,draft.gear)),link("Back to your four",route)]),
           group("Ordinary moves",k.skills.filter(s=>!s.trained).map(s=>({label:s.name,detail:s.description}))),
           ...(k.emberArt?[{title:k.emberArt.name,text:k.emberArt.description}]:[])]};
     }
+    function setMember(slot,id){
+      if(id!==draft.ids[slot])delete draft.gear[draft.ids[slot]];
+      draft.ids[slot]=id;mark();
+    }
+    function findPartner(slot,catalogPage=null){
+      if(!openFinder)return;
+      const refresh=()=>{
+        const raw=stored();if(raw===diskSnapshot)return false;
+        draft=load();diskSnapshot=raw;return true;
+      };
+      refresh();if(draft.phase!=="register"){show(route);return;}
+      const original=draft.ids.slice(),rival=coach(),version=++finderVersion;
+      const seed=catalogPage===null?{}:window.WilderPartnerSearch?.searchSeed(query)||{query};
+      openFinder({...seed,anchor:original[slot===0?1:0],slot,team:original,gear:{...draft.gear},foes:rival.team.slice(),
+        foeGear:{...rival.gear},label:rival.name+" · practice slot "+(slot+1),
+        back:()=>{refresh();if(version===finderVersion)finderVersion++;
+          show(draft.phase==="register"?path(catalogPage===null?"member:"+slot:"catalog:"+slot+":"+catalogPage):route);},
+        apply(next){
+          if(refresh()||version!==finderVersion||draft.phase!=="register"){
+            if(version===finderVersion)finderVersion++;
+            notify?.("This practice registration has changed. Return to review your four.");return false;
+          }
+          if(!standard(next)||draft.ids.some((id,i)=>i!==slot&&id===next)){
+            notify?.("Choose a kin outside the other three registered slots.");return false;
+          }
+          setMember(slot,next);show(path("member:"+slot));return true;
+        }});
+    }
     function catalogPage(slot,page){
-      const hits=catalog.filter(k=>k.name.toLowerCase().includes(query));const pages=Math.max(1,Math.ceil(hits.length/pageSize));
+      const hits=catalog.filter(k=>[k.name,...k.types,k.emberArt?.name,window.WilderSparringSignatures?.byId(k.id)?.name,...k.skills.map(m=>m.name)]
+        .some(term=>term?.toLowerCase().includes(query)));const pages=Math.max(1,Math.ceil(hits.length/pageSize));
       page=Math.max(0,Math.min(page,pages-1));
       const move=n=>path("catalog:"+slot+":"+n);
+      const finder=openFinder?[select("find-catalog","Find a duet partner for "+name(draft.ids[slot===0?1:0]),slot+"|"+page,
+        query?"Use this search in Partner Finder.":"Compare loaners by their duet and matchup.")]:[];
       return {title:"Choose a registered kin",kicker:"LOANER CATALOG   /   "+(page+1)+" OF "+pages,sections:[group("Find a kin",[
-        select("search",query?"Search · "+query:"Search by name",slot,"Enter all or part of a name."),...(query?[select("clear","Clear search",slot)]:[])]),
-        group(hits.length+(hits.length===1?" loaner":" loaners"),hits.slice(page*pageSize,(page+1)*pageSize).map(k=>select("choose",k.name,slot+"|"+k.id,k.types.join(" / "),
-          {image:image(k.id),badge:draft.ids.includes(k.id)?"Registered":"",disabled:draft.ids.includes(k.id)})),2),
+        select("search",query?"Search · "+query:"Search kin, type or skill",slot,"Enter a name, skill or affinity."),...(hits.length?finder:[]),...(query?[select("clear","Clear search",slot)]:[])]),
+        group(hits.length+(hits.length===1?" loaner":" loaners"),hits.length?hits.slice(page*pageSize,(page+1)*pageSize).map(k=>select("choose",k.name,slot+"|"+k.id,k.types.join(" / "),
+          {image:image(k.id),badge:draft.ids.includes(k.id)?"Registered":"",disabled:draft.ids.includes(k.id)})):
+          [{label:"No matching kin",detail:"Try another name, affinity or skill."},...finder],hits.length?2:1),
         group("Catalog pages",[...(page?[link("Previous",move(page-1))]:[]),...(page+1<pages?[link("Next",move(page+1))]:[]),link("Back to "+name(draft.ids[slot]),path("member:"+slot))],2)]};
     }
     function gearPage(slot){
@@ -266,13 +304,14 @@
         }
         const [index,speciesId]=String(value).split("|"),slot=Number(index);
         if(!Number.isInteger(slot)||slot<0||slot>3)return true;
+        if(id==="finder"||id==="find-catalog"){findPartner(slot,id==="find-catalog"?Math.max(0,Number(speciesId)||0):null);return true;}
         if(id==="search"||id==="clear"){
           if(id==="clear")query="";
-          else {const text=window.prompt?.("Search the loaner catalog",query);if(typeof text!=="string")return true;query=text.trim().toLowerCase().slice(0,80);}
+          else {const text=window.prompt?.("Search loaners by kin, affinity or skill",query);if(typeof text!=="string")return true;query=text.trim().toLowerCase().slice(0,80);}
           show(path("catalog:"+slot+":0"));return true;
         }
         if(id==="choose"&&standard(speciesId)&&!draft.ids.includes(speciesId)){
-          delete draft.gear[draft.ids[slot]];draft.ids[slot]=speciesId;mark();show(route);
+          setMember(slot,speciesId);show(route);
         }
         if(id==="equip"){
           const who=draft.ids[slot];

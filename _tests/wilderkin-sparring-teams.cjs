@@ -1,7 +1,7 @@
 const {test}=require("node:test");
 const assert=require("node:assert/strict");
 const fs=require("node:fs"),path=require("node:path"),vm=require("node:vm");
-const files=["atlas","bestiary","activities","campaign","story","duets","stillwake","sparring-battle","sparring-teams","engine"].map(id=>{
+const files=["atlas","bestiary","activities","campaign","story","duets","stillwake","sparring-gear","sparring-battle","sparring-teams","partner-search","sparring","engine"].map(id=>{
   const file=path.join(__dirname,"../games/wilderkin",id+".js");
   return new vm.Script(fs.readFileSync(file,"utf8"),{filename:file});
 });
@@ -13,10 +13,78 @@ function room() {
   let saved=module.restore(null,{species:game.species});
   const b=module.create({game,row:(id,label,value,detail,extra)=>({id,label,value,detail,...extra}),
     image:(id,owned)=>{assert.equal(owned,false);return "original:"+id;},go:(name,value)=>{assert.equal(name,"sparring");ui.view=value;},
-    render:()=>{},notify:t=>ui.notices.push(t),onStart:()=>ui.ready++,read:()=>saved,write:p=>{saved={...saved,...p};}});
+    render:()=>{},notify:t=>ui.notices.push(t),onStart:()=>ui.ready++,openFinder:context=>{ui.finder=context;},
+    read:()=>saved,write:p=>{saved={...saved,...p};}});
   return {b,game,ui,win,read:()=>saved};
 }
 function controls(page) {return page.sections.flatMap(s=>[...(s.rows||[]),...(s.grid?.cells||[])]);}
+test("Hall partner selection changes the intended slot, keeps the opponent and surviving equipment, and supports both sides",()=>{
+  const {b,game,ui,read}=room(),campaign=JSON.stringify(game.state);
+  b.act("spar-team-equip","left:0:last-stitch");b.act("spar-team-equip","left:2:mender-wrap");
+  b.act("spar-team-equip","right:0:opening-pennant");b.act("spar-team-equip","right:1:relay-bell");
+  const before=copy(read()),home=b.partnerContext("left",0,{anchor:"dewfin"});
+  assert.equal(home.anchor,"dewfin");assert.equal(home.slot,0);
+  assert.deepEqual(copy(home.team),before.left);assert.deepEqual(copy(home.foes),before.right);
+  assert.deepEqual(copy(home.gear),before.gear.left);assert.deepEqual(copy(home.foeGear),before.gear.right);
+  for(const illegal of ["dewfin","stillwake","missing",null])assert.equal(home.apply(illegal),false);
+  assert.deepEqual(copy(read()),before);
+  assert.equal(b.partnerContext("left",0).apply("sprigkit"),true);assert.deepEqual(copy(read()),before);
+  assert.equal(home.apply("marshcurl"),true);assert.equal(ui.view,"edit:left:team");
+  assert.deepEqual(copy(read()),{...before,left:["marshcurl","cindlet","dewfin"],gear:{...before.gear,left:{dewfin:"mender-wrap"}}});
+  const display=controls(b.page("edit:right:member:1")).find(r=>r.id==="spar-team-finder");
+  b.act(display.id,display.value);const guest=ui.finder;
+  assert.equal(guest.anchor,"mossbell");assert.equal(guest.slot,1);assert.deepEqual(copy(guest.foes),copy(read().left));
+  guest.back();assert.equal(ui.view,"edit:right:member:1");
+  b.act(display.id,display.value);assert.equal(ui.finder.apply("coalmoth"),true);assert.equal(read().rival,"bell-keepers");
+  b.act(display.id,display.value);assert.equal(ui.finder.apply("dewfin"),true);assert.equal(ui.view,"edit:right:team");
+  assert.equal(read().rival,"custom");assert.deepEqual(copy(read().right),["mossbell","dewfin","glimmeray"]);
+  assert.deepEqual(copy(read().gear),{left:{dewfin:"mender-wrap"},right:{mossbell:"opening-pennant"}});
+  assert.equal(JSON.stringify(game.state),campaign);
+});
+test("stale Hall slot and gear forecasts do not overwrite later edits, and starting a real match locks an open Finder",()=>{
+  const {b,win,game,read}=room();
+  let choice=b.partnerContext("left",0);b.act("spar-team-swap","left:2:1");
+  let changed=copy(read());assert.equal(choice.apply("marshcurl"),false);assert.deepEqual(copy(read()),changed);
+  choice=b.partnerContext("left",0);b.act("spar-team-equip","left:1:last-stitch");changed=copy(read());
+  assert.equal(choice.apply("marshcurl"),false);assert.deepEqual(copy(read()),changed);
+  choice=b.partnerContext("left",0);b.act("spar-team-rival","red-foundry");changed=copy(read());
+  assert.equal(choice.apply("marshcurl"),false);assert.deepEqual(copy(read()),changed);
+  choice=b.partnerContext("left",0);b.act("spar-team-equip","right:0:prism-lens");changed=copy(read());
+  assert.equal(choice.apply("marshcurl"),false);assert.deepEqual(copy(read()),changed);
+  let context;
+  const hall=win.WilderSparring.create({game,row:(id,label,value)=>({id,label,value}),image:id=>id,go:()=>{},render:()=>{},notify:()=>{},
+    openFinder:value=>{context=value;}});
+  const fresh=hall.defaultPartners();
+  assert.equal(fresh.foe,"pincoil");assert.deepEqual(copy(fresh.foes),["mossbell","coalmoth","glimmeray"]);
+  hall.act("spar-team-rival","red-foundry");
+  const configured=hall.defaultPartners();
+  assert.deepEqual(copy(configured.foes),["smelteroll","boltbur","kilnclaw"]);
+  assert.equal(configured.foe??configured.foes[0],"smelteroll");
+  const enter=controls(hall.model("edit:left:member:1")).find(r=>r.id==="spar-team-finder");
+  assert.ok(hall.act(enter.id,enter.value));assert.equal(context.slot,1);
+  hall.act("spar-start");assert.ok(game.state.sparring.match);
+  const live=JSON.stringify(game.state);
+  assert.equal(context.apply("marshcurl"),false);assert.equal(JSON.stringify(game.state),live);
+});
+test("Hall catalog finds ordinary moves and transfers typed move, role and duet searches to the same partner slot",()=>{
+  const {b,game,ui,read}=room(),route="edit:right:search:2",starting=copy(read());
+  function search(query){
+    b.act("spar-team-key","right:clear");
+    for(const key of query)assert.ok(b.key({key},route));
+    assert.ok(b.key({key:"Enter"},route));assert.equal(ui.view,"edit:right:pick:2");return b.page(ui.view);
+  }
+  const ordinary="Fault Stamp",hits=Object.values(game.species).filter(k=>!k.bonus&&k.skills.some(s=>!s.trained&&s.name===ordinary));
+  assert.ok(hits.some(k=>k.id==="marshcurl"));
+  for(const [text,role,query,count] of [[ordinary,"","fault stamp",hits.length],["heal","mend","",0],["Rain Garden","mend","Rain Garden",0],["","","",500]]){
+    const page=search(text);assert.ok(page.sections.some(s=>s.title===count+" matching kin"));
+    const find=controls(page).find(r=>r.id==="spar-team-finder");
+    assert.ok(b.act(find.id,find.value));const selection=ui.finder;
+    assert.deepEqual([selection.role,selection.query,selection.anchor,selection.slot],[role,query,"mossbell",2]);
+    assert.deepEqual(copy(selection.team),starting.right);assert.deepEqual(copy(selection.foes),starting.left);
+    selection.back();assert.equal(ui.view,"edit:right:pick:2");assert.ok(b.page(ui.view).sections.some(s=>s.title===count+" matching kin"));
+  }
+  assert.deepEqual(copy(read()),starting);
+});
 test("comparing a private third kin lists only its new pairings with the exact costs and effects from the Hall",()=>{
   const {b,game,win}=room(),front=["cindlet","dewfin"],third="sprigkit",other="charquill";
   const scout=(ids,candidate)=>copy(win.WilderSparringTeams.scoutDuets(game.species,ids,candidate));

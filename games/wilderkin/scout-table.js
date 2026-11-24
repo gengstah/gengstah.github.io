@@ -6,16 +6,16 @@
   const group=(title,rows,columns=1)=>({title,rows,columns});
   const page=(title,kicker,subtitle,sections)=>({title,kicker,subtitle,sections});
   const path=(...parts)=>parts.join("|");
-  function create({game,row,image,go,render,notify,openBattle,openSharedMessage,active=()=>true,rules=window.WilderScoutRules.create({game})}){
+  function create({game,row,image,go,render,notify,openBattle,openFinder,openSharedMessage,active=()=>true,rules=window.WilderScoutRules.create({game})}){
     const species=game.species,gear=window.WilderSparringGear,dex=window.WilderKinDex;
     const catalog=Object.values(species).filter(k=>!k.bonus).sort((a,b)=>a.name.localeCompare(b.name));
-    const previews=new Map(),drafts=new Map();
-    let problem="",pending=false,revision=0,displayed="",search={route:"",query:"",page:0};
+    const previews=new Map(),drafts=new Map(),unsaved=new Set();
+    let problem="",pending=false,revision=0,finderVersion=0,displayed="",search={route:"",query:"",page:0};
     const art={src:"ui/scout-table.png",landscape:true,height:155};
     const show=(next,mode)=>go("scout-table",next,mode);
     const button=(cmd,label,value=null,detail="",extra={})=>row("scout-"+cmd,label,value,detail,extra);
     const home=()=>button("desk","Scout Table desk");
-    const known=id=>Object.hasOwn(species,id)&&!species[id].bonus;
+    const known=id=>typeof id==="string"&&Object.hasOwn(species,id)&&!species[id].bonus;
     const name=id=>species[id].name;
     const portrait=id=>image(id,false);
     const sig=id=>window.WilderSparringSignatures?.byId(id);
@@ -39,9 +39,11 @@
     }
     function put(key,value){
       drafts.set(key,value);
-      try{const all=readDrafts();all[key]=value;window.localStorage?.setItem(draftKey,JSON.stringify(all));}catch{}
+      try{
+        const all=readDrafts();all[key]=value;window.localStorage.setItem(draftKey,JSON.stringify(all));unsaved.delete(key);
+      }catch{unsaved.add(key);}
     }
-    function saved(key){return drafts.get(key)||readDrafts()[key];}
+    function saved(key){return unsaved.has(key)?drafts.get(key):readDrafts()[key]??drafts.get(key);}
     function trail(){
       const ids=game.state.team.filter(known);
       if(ids.includes(game.state.lead))return [game.state.lead,...ids.filter(id=>id!==game.state.lead)];
@@ -98,22 +100,57 @@
       const t=draft(id),k=t.ids[i],piece=gear.byId(t.gear[k]);
       return page(name(k),"SCOUT TABLE   /   REGISTERED SLOT "+(i+1),caption(k,t.gear),[
         group("This slot",[button("catalog","Choose a different kin",null,catalog.length+" free loaners, plus your travelers.",{tone:"primary",image:portrait(k)}),
+          ...(openFinder?[button("finder","Find a partner",null,"Choose a teammate, duet role and rival to compare this slot.")]:[]),
           button("gear",piece?piece.name:"Choose equipment",null,piece?piece.effect:"One piece per kin. Each piece can serve one holder."),button("draft","Return to the four")]),
         group("Skills",species[k].skills.filter(s=>!s.trained).map(s=>({label:s.name,detail:s.description||s.type}))),
         ...(species[k].emberArt?[{title:species[k].emberArt.name,text:species[k].emberArt.description}]:[]),
         ...(sig(k)?[{title:sig(k).name,text:sig(k).effect}]:[])]);
     }
+    function replaceMember(id,t,slot,next){
+      const at=t.ids.indexOf(next);
+      if(at>=0)[t.ids[at],t.ids[slot]]=[t.ids[slot],t.ids[at]];
+      else{delete t.gear[t.ids[slot]];t.ids[slot]=next;}
+      saveDraft(id,t);
+    }
+    function findPartner(id,slot,fromCatalog=false){
+      if(!openFinder||pending)return;
+      const original=draft(id),version=++finderVersion,started=revision;
+      const localCopy=JSON.stringify(original);
+      const leave=next=>{
+        if(version!==finderVersion)return;
+        finderVersion++;
+        show(mayRegister(id,record(id))?path(next,id,slot):path("table",id),"replace");
+      };
+      const query=fromCatalog?search.query:"";
+      const seed=window.WilderPartnerSearch?.searchSeed(query)||{query};
+      // A human invitation seals the host's four. No opposing roster is public at registration.
+      openFinder({anchor:original.ids[slot===0?1:0],slot,team:original.ids.slice(),gear:{...original.gear},foes:[],
+        ...seed,label:"Scout Table · slot "+(slot+1),back:()=>leave(fromCatalog?"catalog":"member"),
+        apply(next){
+          const t=draft(id);
+          if(version!==finderVersion||started!==revision||pending||!mayRegister(id,record(id))||
+            JSON.stringify(t)!==localCopy){
+            notify("This registration has changed. Return to the table to review it.");return false;
+          }
+          if(!known(next)||t.ids.some((k,i)=>i!==slot&&k===next)){
+            notify("Choose a kin outside the other three registered slots.");return false;
+          }
+          replaceMember(id,t,slot,next);leave("member");return true;
+        }});
+    }
     function catalogPage(id,i){
       const key=path(id,i),t=draft(id);
       if(search.route!==key)search={route:key,query:"",page:0};
-      const q=search.query.trim().toLowerCase(),matches=catalog.filter(k=>[k.name,...k.types,k.emberArt?.name,sig(k.id)?.name].some(term=>term?.toLowerCase().includes(q)));
+      const q=search.query.trim().toLowerCase(),matches=catalog.filter(k=>[k.name,...k.types,k.emberArt?.name,sig(k.id)?.name,...k.skills.map(m=>m.name)].some(term=>term?.toLowerCase().includes(q)));
       const pages=Math.max(1,Math.ceil(matches.length/8));search.page=Math.max(0,Math.min(pages-1,search.page));
       const choice=k=>button("choose",name(k),k,caption(k,t.gear),{image:portrait(k),badge:t.ids.includes(k)?"IN FOUR":""});
+      const finder=openFinder?[button("finder","Find a duet partner for "+name(t.ids[i===0?1:0]),null,
+        q?"Use this search in Partner Finder.":"Compare loaners by their duet and matchup.")]:[];
       return page("Choose a kin","SCOUT TABLE   /   SLOT "+(i+1),"Select a kin to register it here. Selecting a member of your four exchanges their places.",[
         group("Find a loaner",[button("search",q?"Search · "+search.query:"Search kin, type or technique",null,"Type a name such as Charquill, or a technique such as Backdraft."),
-          ...(q?[button("clear","Clear search")]:[]),button("member","Back to slot")],2),
+          ...(matches.length?finder:[]),...(q?[button("clear","Clear search")]:[]),button("member","Back to slot")],2),
         ...(!q?[group("Traveling kin",trail().map(choice),2)]:[]),
-        group(matches.length+" matching loaners",matches.length?matches.slice(8*search.page,8*search.page+8).map(k=>choice(k.id)):[{label:"No matching kin",detail:"Try a shorter name, affinity or technique."}],2),
+        group(matches.length+" matching loaners",matches.length?matches.slice(8*search.page,8*search.page+8).map(k=>choice(k.id)):[{label:"No matching kin",detail:"Try another name, affinity or skill."},...finder],matches.length?2:1),
         ...(pages>1?[group("Page "+(search.page+1)+" of "+pages,[button("page","Previous",-1,"",{disabled:search.page===0}),button("page","Next",1,"",{disabled:search.page===pages-1})],2)]:[])]);
     }
     function gearPage(id,i){
@@ -335,6 +372,7 @@
         else if(cmd==="register"&&view==="register")transaction(()=>id==="new"?rules.invite(t):rules.join(r.hash,t));
         else if(cmd==="import"&&view==="draft"&&["trail","hall"].includes(value)){saveDraft(id,value==="hall"?hall():fill(trail()));render();}
         else if(cmd==="slot"&&view==="draft"&&[0,1,2,3].includes(value))show(path("member",id,value));
+        else if(cmd==="finder"&&(view==="member"||view==="catalog")&&slot)findPartner(id,i,view==="catalog");
         else if(slot&&["catalog","gear","member"].includes(cmd))show(path(cmd,id,i));
         else if(cmd==="search"&&view==="catalog"){
           const q=window.prompt?.("Search all "+catalog.length+" loaners by kin, affinity or technique",search.query);
@@ -342,10 +380,7 @@
         }else if(cmd==="clear"&&view==="catalog"){search.query="";search.page=0;render();}
         else if(cmd==="page"&&view==="catalog"){search.page+=Math.sign(Number(value))||0;render();}
         else if(cmd==="choose"&&view==="catalog"&&slot&&known(value)){
-          const at=t.ids.indexOf(value);
-          if(at>=0)[t.ids[at],t.ids[i]]=[t.ids[i],t.ids[at]];
-          else{delete t.gear[t.ids[i]];t.ids[i]=value;}
-          saveDraft(id,t);show(path("draft",id),"replace");
+          replaceMember(id,t,i,value);show(path("draft",id),"replace");
         }else if(cmd==="equip"&&view==="gear"&&slot&&(value==="none"||gear.byId(value))){
           for(const k of t.ids)if(k===t.ids[i]||t.gear[k]===value)delete t.gear[k];
           if(value!=="none")t.gear[t.ids[i]]=value;

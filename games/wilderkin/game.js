@@ -36,11 +36,24 @@
   const fair=window.WilderCanvasGames.create({game,row,notify,go,render});
   const rentalControls={game,row,image:id=>image(id,false),go,render,notify,playTone,
     animate:fx=>{if(fx.kind==="duet")score.answer();return ui.animate(fx);}};
+  let finderAddress="#partner-finder";
+  const openFinder=window.WilderPartnerFinder?(context,view)=>{
+    finderAddress=context?(screen.name==="scout-table"&&window.location.hash.startsWith("#scout-v1=")?window.location.hash:
+      screen.name==="scout-table"?"#scout-table":screen.name==="sparring"&&String(screen.value).startsWith("scout-practice")?"#scout-practice":
+      screen.name==="sparring"?"#sparring":screen.name==="duet-practice"?"#partner-finder":""):"#partner-finder";
+    finder.open(context,view);
+  }:null;
   const circuit=window.WilderTrials.create({...rentalControls,active:()=>screen.name==="circuit"});
   const reedbank=window.WilderReedbank.create({...rentalControls,active:()=>screen.name==="reedbank"});
   const guardSchool=window.WilderGuardLessons.create({...rentalControls,locate,travel,fight,active:()=>screen.name==="guard-school"});
   const bell=window.WilderSecondBell.create({...rentalControls,image:(id,owned=false)=>image(id,owned),locate,travel,fight});
-  const hall=window.WilderSparring.create({...rentalControls,active:()=>screen.name==="sparring"});
+  const hall=window.WilderSparring.create({...rentalControls,openFinder,active:()=>screen.name==="sparring"});
+  const finder=window.WilderPartnerFinder?.create({...rentalControls,defaultContext:()=>hall.defaultPartners(),fieldGuide:id=>go("kin",id),
+    openDrill:selection=>drill.open(selection)});
+  const drill=window.WilderDuetPractice?.create({...rentalControls,openFinder,playFilm:(tape,index)=>{
+    const hash=filmPractice.hallFilm(tape);
+    return hash?openRoomSource(hash,index,null,false,true):false;
+  }});
   const scoutRules=window.WilderScoutRules?.create({game});
   const filmPractice=window.WilderFilmPractice?.create({game});
   const films=window.WilderFilmRoom?.create({...rentalControls,practice:filmPractice,
@@ -52,12 +65,12 @@
   const hallViewer=window.WilderHallFilm?.create({...rentalControls,openPractice:(r,i,ctx)=>films.open(r,i,ctx),share:copyOriginalFilm});
   const post=window.WilderBellpost?.create({...rentalControls,scoutRules,openSharedMessage,openScoutReport:hash=>followScout(hash,true),
     openFilmRoom:films?(r,index,context)=>films.open(r,index,context):null});
-  const scouts=window.WilderScoutTable?.create({...rentalControls,rules:scoutRules,openSharedMessage,
+  const scouts=window.WilderScoutTable?.create({...rentalControls,rules:scoutRules,openSharedMessage,openFinder,
     active:()=>screen.name==="scout-table",openBattle:table=>{
       const value=post.loadScouted(table);go("bellpost",value);return !value.startsWith("error");
     }});
   const replay=window.WilderSparringReview.create({...rentalControls,read:()=>hall.reviewRecord()});
-  const pages=window.WilderPages.create({game,world,dex,row,member,image,go,back,render,notify,locate,root,
+  const pages=window.WilderPages.create({game,world,dex,row,member,image,go,back,render,notify,locate,root,openFinder,
     fight,playTone,resolveBattle,fieldRecruited,travel,reset,atSite:nearestSite});
   function playTone(kind="click") {
     if (!game.state.sound) return;
@@ -75,10 +88,11 @@
   function stopWalk(){route=[];arrival=null;}
   function addressRoom(next){
     const loc=window.location;
-    const address=next.name==="film-room"?"#film-room":next.name==="hall-film"?hallViewer.hash():null;
-    if(address){if(loc.hash!==address)window.history.replaceState(null,"",address);}
-    else if(["film-room","hall-film"].includes(screen.name)&&
-      (loc.hash==="#film-room"||loc.hash.startsWith("#hall-film1="))){
+    const address=next.name==="partner-finder"?finderAddress:next.name==="duet-practice"?"#duet-practice":
+      next.name==="film-room"?"#film-room":next.name==="hall-film"?hallViewer.hash():null;
+    if(address!=null){if(loc.hash!==address)window.history.replaceState(null,"",address||loc.pathname+loc.search);}
+    else if(["film-room","hall-film","partner-finder","duet-practice"].includes(screen.name)&&
+      (["#film-room","#partner-finder","#duet-practice"].includes(loc.hash)||loc.hash.startsWith("#hall-film1="))){
       if(next.name==="bellpost")post.restoreAddress(next.value);
       else window.history.replaceState(null,"",loc.pathname+loc.search);
     }
@@ -132,6 +146,8 @@
       case "sparring":model=hall.model(screen.value);break;
       case "bellpost":model=post.model(screen.value);break;
       case "film-room":model=films.model(screen.value);break;
+      case "partner-finder":model=finder.model(screen.value);break;
+      case "duet-practice":model=drill.model(screen.value);break;
       case "hall-film":model=hallViewer.model(screen.value);break;
       case "scout-table":model=scouts.model(screen.value);break;
       case "sparring-review":model=replay.model(screen.value);break;
@@ -495,6 +511,8 @@
     if (screen.name==="sparring" && hall.key(e,screen.value)) return true;
     if (screen.name==="bellpost" && post.key(e,screen.value)) return true;
     if (screen.name==="film-room" && films.key?.(e,screen.value)) return true;
+    if (screen.name==="partner-finder" && finder.key(e,screen.value)) return true;
+    if (screen.name==="duet-practice" && drill.key(e,screen.value)) return true;
     if (screen.name==="scout-table" && scouts.key?.(e,screen.value)) return true;
     if (screen.name==="hollow" && pages.hollowKey(e,screen.value)) return true;
     if (screen.name==="search" && pages.typeKey(e)) return true;
@@ -536,6 +554,7 @@
     switch (id) {
       case "hall-open-film":if(screen.name==="sparring")return openLatestHall(value);return;
       case "nav":
+        if(value==="partner-finder"&&openFinder&&deferredLetter?.name!=="partner-finder")return openFinder();
         if (value==="world") return root();
         if (game.state.battle && ["station","landmarks","expedition"].includes(value)) return notify("Finish the encounter before returning to the trail.");
         return go(value);
@@ -586,6 +605,8 @@
       default:
         if(screen.name==="bellpost"&&post.act(id,value,screen.value))return;
         if(screen.name==="film-room"&&films.act(id,value,screen.value))return;
+        if(screen.name==="partner-finder"&&finder.act(id,value,screen.value))return;
+        if(screen.name==="duet-practice"&&drill.act(id,value,screen.value))return;
         if(screen.name==="hall-film"&&hallViewer.act(id,value,screen.value))return;
         if(screen.name==="scout-table"&&scouts.act(id,value,screen.value))return;
         if (screen.name==="second-bell"&&bell.act(id,value))return;
@@ -599,7 +620,8 @@
     }
   }
   function deferredButton(){
-    const label={"scout-table":"Read your Scout Table letter","film-room":"Open the Film Room","hall-film":"Watch your Hall film"};
+    const label={"scout-table":"Read your Scout Table letter","film-room":"Open the Film Room","hall-film":"Watch your Hall film",
+      "partner-finder":"Open Partner Finder","duet-practice":"Return to duet practice"};
     return row("nav",label[deferredLetter.name]||"Read your Bellpost letter",deferredLetter.name,"This encounter will remain here.");
   }
   function deliverScreen(dest){
@@ -611,6 +633,8 @@
     return dest;
   }
   function sharedScreen(hash) {
+    if(hash==="#partner-finder"&&finder){finderAddress=hash;finder.reset?.();return deliverScreen({name:"partner-finder",value:null});}
+    if(hash==="#duet-practice"&&drill)return deliverScreen({name:"duet-practice",value:null});
     if(hash==="#film-room"&&films)return deliverScreen({name:"film-room",value:null});
     const letter=post?.loadFragment(hash);
     const dest=deliverScreen(letter?{name:"bellpost",value:letter}:null);
@@ -628,7 +652,7 @@
     if(hash==="#ember-partners")return {name:"sparring",value:"ember"};
     return hall.loadFragment(hash)?{name:"sparring",value:null}:null;
   }
-  async function openRoomSource(hash,index,returnHash,watch=false){
+  async function openRoomSource(hash,index,returnHash,watch=false,playNow=false){
     const revision=++locationRevision;
     try{
       const entry=await filmPractice.resolve(hash);
@@ -645,7 +669,13 @@
       }else if(returnHash){
         const value=post.showSourceFilm(entry,index);go("bellpost",value,"replace");
       }else{
-        films.open(entry.source,index,{publicHash:entry.publicHash,rosters:entry.rosters});
+        if(!films.open(entry.source,index,{publicHash:entry.publicHash,rosters:entry.rosters}))return false;
+        if(playNow){
+          const opened=locationRevision;
+          await films.ready();
+          if(opened!==locationRevision||screen.name!=="film-room"||screen.value!=="source")return false;
+          films.act("film-take",null,"source");
+        }
       }
       return true;
     }catch{

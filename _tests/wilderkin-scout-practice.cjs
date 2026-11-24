@@ -1,20 +1,20 @@
 const test=require("node:test");
 const assert=require("node:assert/strict");
 const fs=require("node:fs"),path=require("node:path"),vm=require("node:vm");
-const scripts=["atlas","bestiary","activities","campaign","story","duets","sparring-gear","sparring-signatures","sparring-battle","sparring-teams","scout-practice","sparring","engine"].map(name=>{
+const scripts=["atlas","bestiary","activities","campaign","story","duets","sparring-gear","sparring-signatures","sparring-battle","sparring-teams","partner-search","scout-practice","sparring","engine"].map(name=>{
   const file=path.join(__dirname,"../games/wilderkin",name+".js");return new vm.Script(fs.readFileSync(file,"utf8"),{filename:file});
 });
 const plain=x=>JSON.parse(JSON.stringify(x)),settle=()=>new Promise(r=>setImmediate(r));
 const route="scout-practice",key="wilderkin.scout-practice.v1";
 
 function boot(store=new Map(),draw=0){
-  let view=route,call=null,ongoing=false;
+  let view=route,call=null,ongoing=false;const finders=[],messages=[];
   const localStorage={getItem:k=>store.get(k)??null,setItem:(k,v)=>store.set(k,v)};
   const ctx=vm.createContext({window:{localStorage,crypto:{getRandomValues:a=>{a[0]=draw;return a;}},prompt:()=>"kilnbeak"}});
   scripts.forEach(s=>s.runInContext(ctx));
   const w=ctx.window,g=w.WilderGame,sim=w.WilderSparringBattle.create({game:g});
   const row=(id,label,value,detail,extra)=>({id,label,value,detail,...extra});
-  const controls={game:g,sim,row,image:id=>"portrait/"+id,live:()=>ongoing,show:v=>{view=v;},
+  const controls={game:g,sim,row,openFinder:context=>finders.push(context),notify:m=>messages.push(m),image:id=>"portrait/"+id,live:()=>ongoing,show:v=>{view=v;},
     readSetup:()=>g.state.sparring.setup,playFromPractice:(raw,moves,expected,first)=>{call={raw,moves,expected,first};return true;}};
   const desk=w.WilderScoutPractice.create(controls);
   const model=()=>desk.model(view),rows=()=>model().sections.flatMap(s=>s.rows||[]);
@@ -23,7 +23,7 @@ function boot(store=new Map(),draw=0){
     assert.ok(button&&!button.disabled,[id,value,model().title,JSON.stringify(rows().filter(r=>r.id))].join(" "));
     assert.equal(desk.act(button.id,button.value),true);
   }
-  const h={g,sim,w,controls,store,desk,model,rows,click,call:()=>call,live:v=>{ongoing=v;},reload:()=>boot(store,draw)};
+  const h={g,sim,w,controls,store,desk,model,rows,click,finders,messages,call:()=>call,live:v=>{ongoing=v;},reload:()=>boot(store,draw)};
   return h;
 }
 function register(h,ids=["sprigkit","cindlet","dewfin"]){
@@ -190,4 +190,25 @@ test("two private picks reveal the two remaining candidates’ real duet options
   assert.ok(trios.every(r=>!r.detail.includes("Sprigkit")&&!r.detail.includes("Mossbell")));
   h.click("view",route);h.click("lock");assert.equal(h.model().title,"Both trios revealed");
   assert.equal(h.desk.model(route+":duets").title,"Both trios revealed");
+});
+
+test("solo registration passes only the published coach four and legal gear to Finder, routes searches, and rejects stale and locked drafts",()=>{
+  const h=boot();h.click("view",route+":member:1");h.click("finder",1);
+  let f=h.finders.at(-1);assert.deepEqual(plain(f.foes),["mossbell","coalmoth","glimmeray","pincoil"]);
+  assert.equal(f.foeGear.pincoil,"relay-bell");assert.equal(f.anchor,"sprigkit");assert.equal(f.slot,1);
+  assert.equal(f.apply("dewfin"),false);assert.equal(f.apply("cindlet"),true);
+  h.click("view",route+":catalog:1:0");h.w.prompt=()=>"Rain Garden";h.click("search",1);
+  assert.ok(h.model().sections.find(s=>s.title==="0 loaners").rows.some(r=>r.id==="scout-pr-find-catalog"));
+  h.click("find-catalog","1|0");f=h.finders.at(-1);assert.deepEqual([f.role,f.query],["mend","Rain Garden"]);
+  f.back();assert.equal(h.model().title,"Choose a registered kin");h.w.prompt=()=>"Coil Snap";h.click("search",1);
+  const hits=h.rows().filter(r=>r.id==="scout-pr-choose");assert.ok(hits.length&&hits.every(r=>h.g.species[r.value.split("|")[1]].skills.some(s=>s.name==="Coil Snap")));h.w.prompt=()=>"heal";h.click("search",1);h.click("find-catalog","1|0");
+  f=h.finders.at(-1);assert.deepEqual([f.role,f.query],["mend",""]);assert.equal(f.apply("thicketowl"),true);
+  let saved=JSON.parse(h.store.get(key));assert.deepEqual(saved.ids,["sprigkit","thicketowl","dewfin","gustlance"]);assert.deepEqual(saved.gear,{gustlance:"opening-pennant"});
+  h.click("view",route);h.click("view",route+":member:3");h.click("finder",3);f=h.finders.at(-1);assert.equal(f.apply("gustlance"),true);
+  assert.ok(JSON.parse(h.store.get(key)).gear.gustlance);h.click("finder",3);assert.equal(h.finders.at(-1).apply("marshcurl"),true);
+  assert.deepEqual(JSON.parse(h.store.get(key)).gear,{});
+  h.click("finder",3);const stale=h.finders.at(-1),other=h.reload();other.click("coach","pike");
+  assert.equal(stale.apply("kilnbeak"),false);stale.back();h.click("finder",3);
+  f=h.finders.at(-1);assert.deepEqual(plain(f.foes),["gustlance","arcbill","icereeve","kilnbeak"]);
+  const second=h.reload();second.click("register");assert.equal(f.apply("kilnbeak"),false);f.back();assert.equal(h.model().title,"Pick your three");
 });

@@ -67,7 +67,7 @@
   function tape(m,rival=m.setup.rival){return {left:m.setup.left.slice(),right:m.setup.right.slice(),...gearCopy(m.setup.gear),first:m.first,human:0,moves:m.moves.slice(),
     ...(window.WilderSparringTeams.namedCrew(rival,m.setup.right)?{rival}:{}),
     ...(m.scout?{scout:{...m.scout,ids:m.scout.ids.slice(),gear:{...m.scout.gear},picks:m.scout.picks.slice()}}:{})};}
-  function create({game,row,image,go,render,notify,animate,playTone,active=()=>true}) {
+  function create({game,row,image,go,render,notify,animate,playTone,openFinder,active=()=>true}) {
     const species=game.species,sim=window.WilderSparringBattle.create({species});
     const rec=()=>game.state.sparring||restore(null,{species});
     const save=r=>game.saveSparring(r);
@@ -79,7 +79,7 @@
     const link=(label,target,detail="",extra={})=>button("view",label,target,detail,extra);
     const show=(value,mode="push")=>go("sparring",value,mode);
     let pending=null,cached=null,review=null,busy=false,cupScreen=false;
-    const builder=window.WilderSparringTeams.create({game,row,image,go,render,notify,
+    const builder=window.WilderSparringTeams.create({game,row,image,go,render,notify,openFinder,canEdit:()=>!busy&&!live()&&game.trailSaveIsCurrent?.()!==false,
       read:()=>rec().setup,write:patch=>{
         if(live())return;
         const r=rec();save({...r,setup:builder.restore({...r.setup,...patch})});
@@ -92,7 +92,7 @@
     }
     const live=()=>{const p=position();return p&&p.phase!=="done";};
     const ember=window.WilderEmberPartners?.create({species,sim,row,image,show,live,playFromPractice});
-    const scout=window.WilderScoutPractice?.create({game,sim,row,image,show,live,playFromPractice,readSetup:()=>rec().setup});
+    const scout=window.WilderScoutPractice?.create({game,sim,row,image,show,live,playFromPractice,openFinder,notify,readSetup:()=>rec().setup});
     const library=window.WilderSparringLibrary?.create({species,sim,row,image,read:rec,save,show,render,live,playFromPractice});
     const cup=window.WilderCupSeries?.create({game,sim,row,image,show,render,notify,
       read:()=>rec().cup,save:value=>save({...rec(),cup:value}),startFight:m=>{
@@ -138,6 +138,7 @@
       if(films.length)sections.push(group("Battle films",films));
       if(!ongoing)sections.push(group("Prepare",[
         link("Build your trio","edit:left:team",s.left.map(kin).join(" · ")),
+        ...(openFinder?[row("nav","Find a duet partner","partner-finder","Choose a job, compare two partners and test the duet.")]:[]),
         ...(library?[link("Team case","bench","Save your builds and compare them in practice matches.")]:[]),
         link("Scout rival crews","edit:rivals","Eight teams with different battle plans.")]));
       return {title:"Sparring Hall",kicker:"THREE AGAINST THREE",subtitle:"Borrow any three field-guide kin. Both trios fight at level 20.",
@@ -528,7 +529,17 @@
       if(!offered)return false;
       pending=offered;return true;
     }
-    return {model,act,key,loadFragment,prepareReedbank,reviewRecord:()=>rec().lastReview};
+    function defaultPartners(){
+      const setup=rec().setup,team=setup.left,starter=team.join(",")==="sprigkit,cindlet,dewfin";
+      const anchor=starter?"dewfin":team[0],slot=starter?0:1;
+      const context=builder.partnerContext("left",slot,{anchor});
+      if(starter){
+        context.role="mend";
+        if(setup.rival==="bell-keepers")context.foe="pincoil";
+      }
+      return context;
+    }
+    return {model,act,key,loadFragment,prepareReedbank,reviewRecord:()=>rec().lastReview,defaultPartners};
   }
   window.WilderSparring={create,restore};
 })();

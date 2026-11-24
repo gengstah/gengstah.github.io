@@ -186,10 +186,12 @@
     return clean;
   }
 
+  let lastStoredTrail=null;
   function loadGame() {
     for (const key of [SAVE_KEY,...LEGACY_KEYS]) {
       try {
         const raw=window.localStorage.getItem(key);
+        if(key===SAVE_KEY)lastStoredTrail=raw;
         if (raw) {
           const decoded=readSave(JSON.parse(raw));
           if (decoded) return decoded;
@@ -352,7 +354,9 @@
   function save() {
     if(usingLoaners) return;
     try {
-      window.localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+      const raw=JSON.stringify(state);
+      window.localStorage.setItem(SAVE_KEY,raw);
+      lastStoredTrail=raw;
       canSave = true;
     } catch {
       canSave = false;
@@ -362,6 +366,11 @@
   function commit(kind, message) {
     save();
     return result(kind, message);
+  }
+
+  function trailSaveIsCurrent(){
+    try{return window.localStorage.getItem(SAVE_KEY)===lastStoredTrail;}
+    catch{return true;}
   }
 
   function access(index) {
@@ -1644,6 +1653,7 @@
     return reply;
   }
   window.WilderGame = {
+    trailSaveIsCurrent,
     firstOuting:window.WilderOpening?.create({state:()=>state,commit,setLead,sightings:()=>field?.sightings(state.region)||[]}),
     wardenLesson,wardenForecast,guardTraining,guardPractice,switchForecast,ordinaryForecast,emberTechnique,useEmberTechnique,replacements,replaceFainted,
     passageReport,filePassage,secondBell,wildCall,answerWildCall,captureStatus,

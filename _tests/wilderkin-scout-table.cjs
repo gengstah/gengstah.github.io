@@ -2,7 +2,7 @@ const {test}=require("node:test"),assert=require("node:assert/strict");
 const fs=require("node:fs"),path=require("node:path"),vm=require("node:vm"),crypto=require("node:crypto").webcrypto;
 const root=path.join(__dirname,"../games/wilderkin");
 const files=["atlas","bestiary","activities","campaign","story","duets","sparring-gear","sparring-signatures","sparring-battle",
-  "sparring-teams","sparring","scout-rules","scout-table","engine"];
+  "sparring-teams","partner-search","sparring","scout-rules","scout-table","engine"];
 const scripts=files.map(n=>new vm.Script(fs.readFileSync(path.join(root,n+".js"),"utf8"),{filename:n+".js"}));
 const plain=x=>JSON.parse(JSON.stringify(x));
 function browser(store=new Map()){
@@ -16,8 +16,8 @@ function browser(store=new Map()){
   const row=(id,label,value,detail,extra)=>({id,label,value,detail,...extra});
   const go=(screen,next)=>{assert.equal(screen,"scout-table");route=next;repaint();};
   let model;
-  const shared=[],ui=w.WilderScoutTable.create({game:g,rules,row,image:id=>id+".png",go,render:repaint,notify:m=>messages.push(m),
-    openBattle:r=>{opened.push(r);return true;},active:()=>active,openSharedMessage:async text=>{if(text.includes("#scout-bout1=")){shared.push(text);return true;}return false;}});
+  const shared=[],finders=[],ui=w.WilderScoutTable.create({game:g,rules,row,image:id=>id+".png",go,render:repaint,notify:m=>messages.push(m),
+    openBattle:r=>{opened.push(r);return true;},openFinder:context=>finders.push(context),active:()=>active,openSharedMessage:async text=>{if(text.includes("#scout-bout1=")){shared.push(text);return true;}return false;}});
   function repaint(){model=ui.model(route);}
   w.prompt=(_message,value)=>{prompted=value;return answer;};
   w.navigator.clipboard={writeText:async s=>{copied=s;}};w.navigator.share=async o=>{native=o.url;};
@@ -31,7 +31,7 @@ function browser(store=new Map()){
   }
   async function open(hash){const next=await ui.loadFragment(hash);assert.ok(next);go("scout-table",next);}
   repaint();
-  return {w,rules,g,ui,rows,act,at,open,opened,messages,shared,get view(){return model;},get route(){return route;},get hash(){return loc.hash;},
+  return {w,rules,g,ui,rows,act,at,open,opened,messages,shared,finders,get view(){return model;},get route(){return route;},get hash(){return loc.hash;},
     get copy(){return copied;},get native(){return native;},get prompted(){return prompted;},type:text=>{answer=text;},setActive:v=>{active=v;},store};
 }
 async function register(d,guest=false){
@@ -134,4 +134,28 @@ test("the third-pick controls explain the guard-breaking and recovery tradeoff b
   const shown=(d,title)=>plain(d.view.sections.find(s=>s.title===title).rows.map(r=>r.label));
   assert.deepEqual(shown(viewer,"Host’s three duets"),own);assert.deepEqual(shown(viewer,"Guest’s three duets"),away);
   assert.deepEqual(shown(host,"Guest’s three duets"),away);assert.deepEqual(shown(guest,"Host’s three duets"),own);
+});
+
+test("human registration finds partners from a slot or empty query, keeps other gear and rejects frozen and stale drafts",async()=>{
+  const h=browser();h.act("new");h.act("slot",0);h.act("gear");h.act("equip","last-stitch");h.act("draft");
+  h.act("slot",3);h.act("gear");h.act("equip","prism-lens");h.act("finder");
+  let f=h.finders.at(-1);assert.equal(f.slot,3);assert.equal(f.anchor,"sprigkit");assert.deepEqual(plain(f.foes),[]);
+  assert.equal(f.apply("dewfin"),false);assert.equal(f.apply(["marshcurl"]),false);
+  assert.equal(f.apply("charquill"),true);assert.match(h.view.subtitle,/Prism Lens/);
+  h.act("catalog");h.type("Rain Garden");h.act("search");assert.ok(h.view.sections.find(s=>s.title==="0 matching loaners").rows.some(r=>r.id==="scout-finder"));
+  h.act("finder");f=h.finders.at(-1);assert.deepEqual([f.role,f.query],["mend","Rain Garden"]);f.back();assert.equal(h.view.title,"Choose a kin");
+  h.type("Fault Stamp");h.act("search");assert.ok(h.rows().some(r=>r.id==="scout-choose"));
+  h.type("heal");h.act("search");h.act("finder");f=h.finders.at(-1);assert.deepEqual([f.role,f.query],["mend",""]);
+  assert.equal(f.apply("marshcurl"),true);assert.equal(h.view.title,"Marshcurl");h.act("draft");
+  assert.match(h.rows().find(r=>r.value===0).detail,/Lifeline Stitch/);assert.doesNotMatch(h.rows().find(r=>r.value===3).detail,/Prism Lens/);
+  h.act("slot",3);h.act("finder");const stale=h.finders.at(-1),other=browser(h.store);
+  other.act("new");other.act("slot",1);other.act("gear");other.act("equip","relay-bell");
+  assert.equal(stale.apply("thicketowl"),false);stale.back();h.act("draft");assert.match(h.rows().find(r=>r.value===1).detail,/Relay Bell/);
+  h.act("slot",3);h.act("finder");const sealing=h.finders.at(-1);
+  h.act("draft");h.act("register-check");h.act("register");assert.equal(sealing.apply("thicketowl"),false);
+  await h.at("table|");assert.equal(sealing.apply("thicketowl"),false);
+  const visitor=browser();await visitor.open(h.hash);visitor.act("join");visitor.act("slot",1);visitor.act("finder");
+  const guest=visitor.finders.at(-1);assert.deepEqual(plain(guest.foes),[]);assert.ok(!guest.foeGear);
+  const another=browser(visitor.store);await another.open(h.hash);await register(another,true);assert.equal(guest.apply("thicketowl"),false);
+  guest.back();assert.ok(visitor.route.startsWith("table|"));
 });

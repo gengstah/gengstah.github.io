@@ -1,6 +1,6 @@
 // Atlas, collection, journal and station pages share the same canvas navigation.
 window.WilderPages = {
-  create({game,world,dex,row,member,image,go,back,render,notify,locate,root,fight,playTone,resolveBattle,fieldRecruited,travel,reset,atSite}) {
+  create({game,world,dex,row,member,image,go,back,render,notify,locate,root,fight,playTone,resolveBattle,fieldRecruited,travel,reset,atSite,openFinder}) {
     const fair=window.WilderActivities, story=window.WilderStory;
     const caravans=window.WilderCaravans.pages({game,row,image,go,render,notify,locate});
     const walkers=window.WilderWalkingPartner.pages({game,row,image,go,render,notify,locate});
@@ -126,19 +126,25 @@ window.WilderPages = {
       return page(r.name,r.district+"   /   "+format(i+1),[heading("Trail access",actions),heading("Map pin",marks,2),heading("Local tracks",game.pools[i].map(id=>localSpecies(id,"open-kin",true)))],
         r.description+"  Wild Lv. "+game.wildLevel(i)+" · "+job.completed+"/"+job.total+" field legs charted.",{src:thumb(i),caption:r.name});
     }
-    function guide() {
-      const query=filter.guideSearch.toLowerCase(),state=s(),held=new Set(state.party.map(p=>p.id));
-      const entries=all.filter(k=>{
+    function guideScope(state){
+      const held=new Set(state.party.map(p=>p.id));
+      return all.filter(k=>{
         if(k.bonus && !state.stillwake?.revealed && !held.has(k.id))return false;
-        const pass=window.WilderFamilyTechniques.forKin(k.id),guard=game.guardTraining(k.id);
         const status={"All":true,"Seen":state.seen.includes(k.id),"Owned":held.has(k.id),"Reserve":held.has(k.id)&&!state.team.includes(k.id),"Local":game.pools[state.region].includes(k.id),"Carriers":!!k.ability};
-        return status[filter.collection] && (filter.affinity==="All"||k.types.includes(filter.affinity)) &&
-          [k.name,own(k.id).name,game.growthInfo(k.id)?.formName||"",k.ability||"",k.emberArt?.name,pass?.family,pass?.name,guard?.family,guard?.name,guard?.guard,...k.types,format(entryNo.get(k.id))].join(" ").toLowerCase().includes(query);
+        return status[filter.collection]&&(filter.affinity==="All"||k.types.includes(filter.affinity));
+      });
+    }
+    function guide() {
+      const query=filter.guideSearch.toLowerCase(),state=s();
+      const entries=guideScope(state).filter(k=>{
+        const pass=window.WilderFamilyTechniques.forKin(k.id),guard=game.guardTraining(k.id);
+        return [k.name,own(k.id).name,game.growthInfo(k.id)?.formName||"",k.ability||"",k.emberArt?.name,pass?.family,pass?.name,guard?.family,guard?.name,guard?.guard,...k.skills.map(skill=>skill.name),...k.types,format(entryNo.get(k.id))].join(" ").toLowerCase().includes(query);
       });
       const perPage=10,count=Math.ceil(entries.length/perPage);filter.guidePage=Math.max(0,Math.min(filter.guidePage,count-1));
       const found=entries.slice(filter.guidePage*perPage,filter.guidePage*perPage+perPage);
       const sections=[heading("Catalog",[
         row("search-edit",query?"Find: "+filter.guideSearch:"Search names and techniques","guide"),
+        ...(openFinder?[row("field-partners","Find a duet partner","guide",query?"Look for partner skills matching “"+filter.guideSearch+"”.":"Compare partners for your lead and find their habitats.")]:[]),
         row("cycle-collection","Collection: "+filter.collection),row("cycle-affinity","Affinity: "+filter.affinity),nav("affinities","Affinity chart")],2),
         heading(entries.length+" matching kin",found.length?found.map(id=>localSpecies(id.id)):[info("No results","Change your search or filters.")],2)];
       if (count>1) sections.push(heading("Page "+(filter.guidePage+1)+" of "+count,[row("page-step","Previous","guidePage|-1","",{disabled:!filter.guidePage}),row("page-step","Next","guidePage|1","",{disabled:filter.guidePage>=count-1})],2));
@@ -150,6 +156,7 @@ window.WilderPages = {
       const home=local?s().region:homes.find(i=>s().visited.includes(i))??homes[0];
       if(k.bonus && !s().stillwake?.revealed && !p)return guide();
       const controls=k.bonus?[nav("stillwake","The fourth sounding","Read the witnesses’ accounts.")]:[open("study",id,"Field observations")];
+      if(openFinder&&!k.bonus)controls.push(row("field-partners","Find a partner for "+k.name,id,"Look for a duet and test it with level-20 loaners."));
       if(!k.bonus&&local)controls.push(wayTo("wild","tracks","Follow local tracks"));
       else if(!k.bonus&&homes.length===1)controls.push(open("region",home,"Find its habitat",game.regions[home].name));
       if(!s().battle&&game.pools[s().region].includes(id)&&game.wildCall?.(id))controls.unshift(open("wild-scout",id,"Scout "+k.name+"’s call","Choose your lead for this encounter."));
@@ -564,7 +571,8 @@ window.WilderPages = {
         return open("growth",id,g.formName,g.baseName+"’s two camp disciplines",{image:"art/growth/"+g.formId+".png"});
       });
       const lodge=game.wardens.find(i=>!s().wardenLessons.includes(i))??0;
-      return page("What’s new in Wilderkin","FIELD DISPATCH   /   FILM ROOM",[
+      return page("What’s new in Wilderkin","FIELD DISPATCH   /   DUET PRACTICE",[
+        heading("Build a pairing",[nav("partner-finder","Find a duet partner","Choose a skill for two kin, compare partners and try it in battle.")]),
         heading("Rehearse a battle",[nav("film-room","Enter the Film Room","Take Kilnbeak’s side at 22 HP, or bring your own match film.")]),
         heading("Scout a lineup",[nav("scout-table","Take a seat at the Scout Table","Bring four kin, scout your opponent and choose three."),open("sparring","scout-practice","Practice with a coach","Try the draft and battle using loaners.")]),
         heading("Ember partners",[open("sparring","ember","Meet Charquill and Kilnbeak","Tend a wounded reserve with Charquill or strike and recover with Kilnbeak.")]),
@@ -678,6 +686,17 @@ window.WilderPages = {
     function act(id,value) {
       const [a,b]=String(value??"").split("|");
       switch(id) {
+        case "field-partners":{
+          if(!openFinder)return;
+          const fromGuide=value==="guide",state=s();
+          const anchor=fromGuide?(game.species[state.lead]?.bonus?"dewfin":state.lead):value;
+          if(!Object.hasOwn(game.species,anchor)||game.species[anchor].bonus)return;
+          const reserve=[...state.team,"sprigkit","dewfin"].find(k=>k!==anchor&&!game.species[k].bonus);
+          const catalog=fromGuide?guideScope(state).filter(k=>!k.bonus).map(k=>k.id):undefined;
+          openFinder({...window.WilderPartnerSearch.searchSeed(fromGuide?filter.guideSearch:""),anchor,slot:1,team:[anchor,reserve],
+            foes:game.pools[state.region],foeLabel:"In this habitat",catalog,catalogLabel:fromGuide&&filter.collection!=="All"?filter.collection+" kin":"Field guide",
+            label:"Field guide · "+own(anchor).name,back:()=>go(fromGuide?"guide":"kin",fromGuide?null:anchor,"replace")});return;
+        }
         case "view":return go(a,b);
         case "page-step":filter[a]+=Number(b);return render();
         case "route-step":filter.atlasRoute+=Number(value);filter.atlasSearch="";filter.atlasPage=0;return render();

@@ -24,17 +24,18 @@
       return {kind:"battle",background:"ui/sparring-hall.png",ally:profile(front(p.sides[seat])),foe:profile(front(p.sides[1-seat])),
         lineups:{left:strip(seat),right:strip(1-seat)}};
     };
-    let input=null,book=null,seat=0,index=0,returnIndex=0,order=[],slot=0,pending=false,loading=false,initialized=false;
+    let input=null,book=null,seat=0,index=0,returnIndex=0,order=[],slot=0,pending=false,loading=false,restore;
     let revision=null,request=null,problem="";
     const shortcuts=new Map();
     function initialize(){
-      if(initialized)return;
-      initialized=true;loading=true;
-      Promise.resolve(practice.resume()).then(res=>{
+      if(restore)return restore;
+      loading=true;
+      restore=Promise.resolve(practice.resume()).then(res=>{
         if(!res?.ok)problem=res?.message||"The saved rehearsal could not be opened.";
       }).catch(()=>{problem="The saved rehearsal could not be opened.";}).finally(()=>{
         loading=false;if(active())render();
       });
+      return restore;
     }
     async function recover(){
       const res=await practice.resume();
@@ -304,7 +305,7 @@
       if(k==="d"&&current==="play"&&mine()?.pos.phase==="move"){act("film-partners");return true;}
       return false;
     }
-    return {open,model,act,key};
+    return {open,model,act,key,ready:initialize};
   }
   window.WilderFilmRoom={create};
 })();

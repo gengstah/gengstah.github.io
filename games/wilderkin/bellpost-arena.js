@@ -158,7 +158,7 @@
       return {...snapshot(r,e.after),title:"Battle film",kicker:"DECISION "+(at+1)+" OF "+events.length,
         subtitle:replace?"Free replacement before action "+(e.before.ply+1):"Action "+(e.before.ply+1)+" · "+eventLabel(r,e),sections};
     }
-    return {model,review};
+    return {model,review,snapshot};
   }
   // A completed public Scout Table match. The guest's eighth decision starts at 22 HP.
   const featured={index:7,publicHash:"#scout-bout1="+

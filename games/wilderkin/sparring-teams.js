@@ -51,7 +51,7 @@
     }
     return setup;
   }
-  function create({game,row,image,go,render,notify,read,write,onStart}) {
+  function create({game,row,image,go,render,notify,read,write,onStart,openFinder,canEdit=()=>true}) {
     const species=game.species,dex=window.WilderKinDex,duets=window.WilderDuets,affinities=Object.keys(dex.types);
     const battle=window.WilderSparringBattle?.create({species});
     const gearDesk=window.WilderSparringGear;
@@ -81,6 +81,28 @@
     const navigate=v=>go("sparring",v);
     const kit=side=>read().gear?.[side]||{};
     const sideGear=(side,contents)=>({left:kit("left"),right:kit("right"),[side]:contents});
+    function partnerContext(side,slot,seed={},origin="member"){
+      const other=side==="left"?"right":"left",team=read()[side].slice(),gear={...kit(side)};
+      const foes=read()[other].slice(),foeGear={...kit(other)};
+      const anchor=team.includes(seed.anchor)&&seed.anchor!==team[slot]?seed.anchor:team.find((_,i)=>i!==slot);
+      return {...seed,anchor,slot,team,gear,foes,foeGear,label:own(side)+" · "+label(slot),
+        apply:id=>{
+          if(!canEdit()||!standard(species,id))return false;
+          const latest=read();
+          if(team.some((k,i)=>latest[side][i]!==k||latest.gear?.[side]?.[k]!==gear[k]||i!==slot&&k===id)||
+             foes.some((k,i)=>latest[other][i]!==k||latest.gear?.[other]?.[k]!==foeGear[k]))return false;
+          if(team[slot]!==id){
+            const next=team.slice();next[slot]=id;
+            write({[side]:next,...(side==="right"?{rival:"custom"}:{}),...(read().gear?{gear:sideGear(side,cleanKit(next,gear))}:{})});
+          }
+          navigate(where(side,"team"));return true;
+        },back:()=>navigate(where(side,origin,slot))};
+    }
+    function partnerButton(side,i,query){
+      const anchor=read()[side].find((_,j)=>j!==i);
+      return action("finder","Find a duet partner for "+species[anchor].name,side+":"+i+(query!==undefined?":search":""),
+        query?"Look for partner skills matching “"+query+"”.":"Choose what the two kin should do together.");
+    }
     function encode(ids) {return valid(species,ids)?"#spar-v1="+ids.join(","):null;}
     function encodeLoadout(ids,gear={}) {
       if(!valid(species,ids)||!gear||typeof gear!=="object"||Array.isArray(gear))return null;
@@ -149,6 +171,7 @@
         sections:[...signatureDetails(id),group("Formation",[
           ...(gearDesk?[visit(where(side,"gear",i),equipped?equipped.name:"Choose equipment",equipped?"Equipped · change or remove":"One optional slot · six free pieces")]:[]),
           visit(where(side,"pick",i),"Choose a different kin","Search all "+catalog.length+" loaners",{tone:"primary"}),
+          ...(openFinder?[partnerButton(side,i)]:[]),
           ...roster.flatMap((other,j)=>j===i?[]:[action("swap",j===0?"Make lead":"Trade with slot "+(j+1),side+":"+i+":"+j,species[other].name)]),
           visit(where(side,"team"),"Back to team")]),
           group("Skills",k.skills.map(skill=>({label:skill.name,detail:skill.kind==="attack"?skill.type+" · "+skill.power+" power":skill.kind==="guard"?"Strike and brace":"One recovery per match"})))]};
@@ -194,7 +217,8 @@
     function list(side) {
       const f=filters[side],q=f.query.trim().toLowerCase();
       return catalog.filter(k=>(f.affinity==="All"||k.types.includes(f.affinity))&&(!f.family||signature(k.id)?.familyKey===f.family)&&
-        (!q||k.name.toLowerCase().includes(q)||k.id.includes(q)||k.emberArt?.name.toLowerCase().includes(q)||signature(k.id)?.name.toLowerCase().includes(q)));
+        (!q||k.name.toLowerCase().includes(q)||k.id.includes(q)||k.emberArt?.name.toLowerCase().includes(q)||signature(k.id)?.name.toLowerCase().includes(q)||
+          k.skills.some(s=>!s.trained&&s.name.toLowerCase().includes(q))));
     }
     function travelingParty(side,slot) {
       const state=game.state;
@@ -232,6 +256,7 @@
         {image:paint(k.id),badge:read()[side].includes(k.id)?label(read()[side].indexOf(k.id)):""}));
       return {title:"Choose a loaner",kicker:own(side).toUpperCase()+"   /   "+label(i).toUpperCase(),sections:[
         group("Find a kin",[visit(where(side,"search",i),f.query?"Search · "+f.query:"Search by name or technique"),
+          ...(openFinder?[partnerButton(side,i,f.query)]:[]),
           visit(where(side,"affinity",i),"Affinity · "+f.affinity),...(signature("mossbell")?[compareGrove(side,i)]:[])],2),
         ...(passes.length?[group("Browse by handoff",passes.map(move=>action("family",move.name,side+":"+i+":"+(f.family===move.familyKey?"all":move.familyKey),
           f.family===move.familyKey?"Clear family filter":move.familyKey==="beacon"?"Herons · expose the rival":"Gliders · heal the incoming kin",{badge:f.family===move.familyKey?"SELECTED":""})),2)]:[]),
@@ -368,6 +393,10 @@
       }
       if(!Object.hasOwn(filters,side))return false;
       const i=Number(slot),team=read()[side];
+      if(command==="finder"&&openFinder&&[0,1,2].includes(i)){
+        const seed=target==="search"?window.WilderPartnerSearch.searchSeed(filters[side].query):{};
+        openFinder(partnerContext(side,i,seed,target==="search"?"pick":"member"));return true;
+      }
       if(command==="page"){filters[side].page+=Math.sign(Number(slot))||0;render();}
       else if(command==="key")setKey(side,slot);
       else if(command==="ember"&&[0,1,2].includes(i)&&["charquill","kilnbeak"].includes(target)&&species[target].emberArt){
@@ -398,7 +427,7 @@
       }else return false;
       return true;
     }
-    return {page,act,key,restore:raw=>restore(raw,{species}),decode,encode,decodeLoadout,encodeLoadout,scout,rivals};
+    return {page,act,key,restore:raw=>restore(raw,{species}),decode,encode,decodeLoadout,encodeLoadout,scout,rivals,partnerContext};
   }
   window.WilderSparringTeams={create,restore,scoutDuets,namedCrew};
 })();
