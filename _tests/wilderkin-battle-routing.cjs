@@ -25,12 +25,37 @@ function boot(hash,save=null,prepare){
     matchMedia:()=>({matches:true}),requestAnimationFrame:cb=>frames.push(cb)});
   for(const [file,script] of scripts){if(file==="game.js")prepare?.(w.WilderGame);script.runInContext(ctx);}
   return {g:w.WilderGame,model:()=>model,save:()=>save,externalSave:raw=>{save=raw;},key:key=>input.key({key}),hash:value=>{w.location.hash=value;listeners.hashchange();},
-    click(id,value){const rows=model.sections.flatMap(s=>s.rows||[]);const found=rows.find(r=>r.id===id&&(value===undefined||value===r.value));
+    click(id,value){const rows=[...(model.objective?.routes||[model.objective]).filter(Boolean),...model.sections.flatMap(s=>s.rows||[])];const found=rows.find(r=>r.id===id&&(value===undefined||value===r.value));
       assert.ok(found&&!found.disabled,id+" / "+value+" on "+model.title);input.action(found.id,found.value);},
     walk(){for(let i=0;frames.length&&i<300;i++){time+=130;frames.shift()(time);}assert.equal(frames.length,0);}
   };
 }
 const ok=result=>assert.ok(result.ok,result.message);
+test("the ordinary map offers a battle or a nest, and a saved walk leads to a real encounter and a second owned-team hunt",async()=>{
+  const start=boot("");
+  assert.deepEqual(Array.from(start.model().objective.routes,r=>r.value),["first-battle","first-outing"]);
+  start.click("nav","first-battle");start.click("first-battle-lead","cindlet");
+  assert.equal(start.g.state.firstBattle.stage,"walk");
+  const path=boot("",start.save());
+  path.click("first-battle-resume");path.walk();
+  assert.equal(path.model().ally.species,"cindlet");assert.equal(path.model().foe.species,"opalclasp");
+  assert.equal(path.g.state.region,0);assert.equal(path.g.state.landmark,"wild");
+  const opening=path.model().sections[0].rows.find(r=>r.id==="skill");
+  assert.ok(opening);assert.equal(path.model().sections.flatMap(s=>s.rows||[]).filter(r=>r.id==="skill"&&r.value===opening.value).length,1);
+  path.click("skill","trail-feint");await tick();
+  const returning=boot("#first-battle",path.save());
+  assert.equal(returning.model().id,"battle:");assert.ok(returning.model().log[0].includes("24 HP"));
+  returning.click("skill","trail-feint");await tick();returning.click("capture");await tick();
+  assert.equal(returning.model().sections[0].rows[0].value,"first-trail-partners");
+  const second=boot("#first-trail/partners",returning.save());
+  second.click("trailmate-partners");second.click("trailmate-partner","dewfin");
+  second.click("trailmate-follow","mossbell");second.click("card-battle");
+  assert.equal(second.g.state.battle.activeId,"opalclasp");assert.equal(second.g.state.battle.enemy.id,"mossbell");
+  second.click("skill","tuning-fork");await tick();assert.equal(second.model().sections[0].rows[0].value,"dewfin");
+  second.click("duet","dewfin");await tick();assert.equal(second.g.state.battle.enemy.hp,4);
+  second.click("nav","trios");second.click("trio","cindlet|ember-pop");await tick();
+  assert.equal(second.g.state.battle,null);assert.equal(second.g.state.wins,1);
+});
 test("the real controller prioritizes a saved knockout over a deep link and ordinary attack keys",()=>{
   const a=boot("#second-bell",null,g=>{
     ok(g.setLead("dewfin"));

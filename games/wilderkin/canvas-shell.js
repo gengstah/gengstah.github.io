@@ -329,6 +329,23 @@
     }
     function questBox(q,x,y,w) {
       if(!q)return 0;
+      if(q.routes){
+        label(c,q.title,x,y,22,C.ink,"title",650);
+        const stacked=w<325,gap=8,cell=stacked?w:(w-gap)/2;
+        q.routes.forEach((r,i)=>{
+          const left=x+(stacked?0:i*(cell+gap)),top=y+29+(stacked?i*81:0);
+          const hit=control(r,left,top,cell,73),primary=r.tone==="primary",hot=highlighted(hit);
+          rect(c,left,top,cell,73,primary?(hot?"#446e53":C.forest):(hot?"#e5edcf":"#f6ecd0"),primary?C.forest:"#bca66f");
+          if(hot)rect(c,left,top,cell,3,C.gold);
+          label(c,r.badge,left+11,top+9,10,primary?"#e2e7b7":"#796234","mono",700);
+          picture(r.image,left+cell-45,top+1,40,32);
+          c.font=getFont(18,"title",650);
+          label(c,fit(c,r.label,cell-18),left+10,top+29,18,primary?C.cream:C.ink,"title",650);
+          c.font=getFont(12,"body",500);
+          label(c,fit(c,r.detail,cell-18),left+10,top+51,12,primary?"#d6e5ce":C.secondary);
+        });
+        return stacked?183:102;
+      }
       const compact=w<400,sz=q.illustrations?(compact?56:74):(compact?33:43),tx=x+sz+26,tw=Math.max(70,w-sz-47);
       c.font=getFont(22,"title",650);const titles=wrap(c,q.title,tw);
       c.font=getFont(13,"body",500);const lines=q.description?wrap(c,q.description,tw):[];
@@ -622,17 +639,20 @@
       if(model.formationStrip)sy+=lineupStrip(model.formationStrip,x,sy,w);
       if(model.kind==="page" && art)sy+=artPanel(art,x,sy,w,t)+15;
       if(model.kind==="world"){
+        const routes=model.objective?.routes;
         if(desktop){
           const right=Math.min(340,Math.round(w*.285)),gap=18,left=w-right-gap,top=sy;
+          if(routes)sy+=questBox(model.objective,x,sy,left)+14;
           sy+=mapPanel(x,sy,left,t)+14;
-          sy+=questBox(model.objective,x,sy,left)+14;
+          if(!routes)sy+=questBox(model.objective,x,sy,left)+14;
           let ry=top;
           ry+=party(x+left+gap,ry,right,model.party,t)+14;
           for(const part of parts)ry+=section(part,x+left+gap,ry,right,t);
           return Math.max(ry,sy);
         }
+        if(routes)sy+=questBox(model.objective,x,sy,w)+13;
         sy+=mapPanel(x,sy,w,t)+13;
-        sy+=questBox(model.objective,x,sy,w)+13;
+        if(!routes)sy+=questBox(model.objective,x,sy,w)+13;
         for(const part of parts)sy+=section(part,x,sy,w,t);
         sy+=party(x,sy,w,model.party,t)+10;
       }else if(model.kind==="battle") {

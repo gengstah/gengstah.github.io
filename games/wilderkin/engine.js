@@ -102,6 +102,7 @@
   const coaches=window.WilderWardens;
   const guardSchool=window.WilderGuardSchool;
   const fittings=window.WilderTrailFittings;
+  const firstBattleRules=window.WilderFirstBattle;
   const calls=window.WilderWildCalls;
   const wildCard=id=>validSpecies(id) ? calls?.forKin(id,species[id]) : null;
 
@@ -123,7 +124,7 @@
     return {
       version: 3, region: 0, positions: {}, party: starters.map(id => makeMember(id, 5)),
       lead: starters[0], crests: [], met: [], seen: starters.slice(), battle: null, firstOuting:window.WilderOpening?"new":"closed",
-      team: starters.slice(), visited: [0], quests: {}, clears: {}, rests: 0,
+      team: starters.slice(), visited: [0], quests: {}, clears: {}, rests: 0,firstBattle:null,
       sound: true, wins: 0, bag:{reed:5,sap:5,ore:2,kinweave:4,balm:3,tonic:1,sparkseed:1,broth:0},reports:[],
       surveys:{},localWins:{},licenses:[],passes:[],crafted:{},landmark:null,forageReady:true,wardenLessons:[],relayClears:[],trainedGuards:[],bellMarks:{},
       trailFittings:fittings?.empty()||{claimed:[],gear:{}},fittingNotes:{},thirdBeat:{},
@@ -368,6 +369,10 @@
     else if ((battle || fresh.landmark!=="warden") && !fresh.team.some(id=>fresh.party.find(p=>p.id===id)?.hp>0)) {
       fresh.party.forEach(p=>{p.hp=p.maxHp;});
     }
+    if(resumed&&firstBattleRules&&validSpecies(firstBattleRules.foe)){
+      const level=regions[0].wildLevel;
+      fresh.firstBattle=firstBattleRules.restore(saved.firstBattle,fresh,battle,hpAt(firstBattleRules.foe,level),level);
+    }
     return fresh;
   }
 
@@ -419,15 +424,19 @@
     return true;
   }
 
-  function commit(kind, message) {
+  function commit(kind, message, firstBattleReceipt=null) {
     const fittingEvents=pendingFittingEvents.splice(0);
     if(fittingEvents.length){
       const lines=fittingEvents.map(e=>e.text);
       message+=" "+lines.join(" ");
       if(state.battle)state.battle.log=[...state.battle.log,...lines].slice(-8);
     }
+    if(kind==="turn"&&state.battle?.firstBattle&&!rehearsal&&!usingLoaners)firstBattleRules?.turn(state,message);
     if(!save())return changedTrail();
-    return fittingEvents.length?{...result(kind,message),fittingEvents}:result(kind,message);
+    const reply=result(kind,message);
+    if(fittingEvents.length)reply.fittingEvents=fittingEvents;
+    if(firstBattleReceipt)reply.firstBattle={...firstBattleReceipt,partyHp:{...firstBattleReceipt.partyHp}};
+    return reply;
   }
 
   function trailSaveIsCurrent(){
@@ -663,9 +672,26 @@
     return commit("battle",message);
   }
 
+  function beginWild(id,firstBattle=null) {
+    const options=!usingLoaners && !member(id) && wildCard(id) ? {wildCall:{quarry:id}} : {};
+    if(firstBattle)options.firstBattle=firstBattle;
+    return beginEncounter("wild",[id],regions[state.region].wildLevel,"A trail stirs!",options);
+  }
+
+  const firstBattle=!rehearsal&&firstBattleRules?.create({
+    state:()=>state,blocked:()=>usingLoaners,nearTracks:()=>nearSite("wild"),
+    name:id=>ownedKin(id).name,commit,begin:beginWild
+  });
+  const firstBattleFinish=(kind,message)=>!rehearsal&&!usingLoaners&&state.battle?.firstBattle?
+    firstBattleRules?.finish(state,kind,message):null;
+
   function startBattle(kind,track) {
     if (state.battle) return error("You are already in an encounter.");
     const r=regions[state.region], pool=(kind==="wild"?pools:nativePools)[state.region];
+    if(kind==="first-battle"&&firstBattle){
+      if(track!==undefined&&track!==firstBattleRules.foe)return error("Follow Opalclasp’s tracks for this outing.");
+      return firstBattle.begin();
+    }
     if (kind==="second-bell") {
       const card=secondBell();
       if (!card?.available) return error(card?.reason||"There is no Second Bell exhibition here.");
@@ -681,8 +707,7 @@
     if (kind==="wild") {
       if (track!==undefined && !pool.includes(track)) return error("That species has no tracks here.");
       const id=track || pool[Math.floor(Math.random()*pool.length)];
-      const options=!usingLoaners && !member(id) && wildCard(id) ? {wildCall:{quarry:id}} : {};
-      return beginEncounter(kind,[id],r.wildLevel,"A trail stirs!",options);
+      return beginWild(id);
     }
     if (kind!=="warden") return error("Unknown encounter.");
     if(!rehearsal){
@@ -760,6 +785,7 @@
     }
     if(kind==="warden"&&state.battle.trioPlayed)window.WilderThirdBeat?.win(state,state.battle.trioPlayed);
     const fieldHp=Object.fromEntries(team().map(p=>[p.id,p.hp]));
+    const receipt=firstBattleFinish("victory",message);
     const xp = kind==="warden" ? Math.ceil(xpNeeded(enemy.level)*.85) : Math.ceil(xpNeeded(enemy.level)*(kind==="expedition" ? .18 : .12));
     const levels=[];
     let activeGain=0;
@@ -792,7 +818,7 @@
     }
     message += " " + ownedKin(activeId).name + " gained " + activeGain + " XP.";
     if (levels.length) message += " " + levels.join(" ");
-    return {...commit("victory",message),fieldHp};
+    return {...commit("victory",message,receipt),fieldHp};
   }
 
   function foeIntent(enemyId=state.battle?.enemy.id,rotating=false) {
@@ -919,11 +945,12 @@
           return commit("defeat",firstMessage+" "+reply+" Your last companion fainted. The rehearsal is over.");
         }
         const fieldHp=Object.fromEntries(team().map(p=>[p.id,p.hp]));
+        const receipt=firstBattleFinish("defeat",firstMessage+" "+reply);
         state.battle = null;
         delete state.positions[state.region];
         state.landmark=null;
         state.party.forEach(p => { p.hp = p.maxHp; });
-        return {...commit("defeat","Your party ran out of strength. You returned to the trailhead, where your companions recovered to full health."),fieldHp};
+        return {...commit("defeat","Your party ran out of strength. You returned to the trailhead, where your companions recovered to full health.",receipt),fieldHp};
       }
       const next=ready[0];
       changeFront(battle,next.id);
@@ -1599,18 +1626,19 @@
     const gate=captureStatus();
     if (!gate.available) return error(gate.reason);
     const {enemy}=state.battle;
+    const receipt=firstBattleFinish("recruited","The Kinweave opened. "+species[enemy.id].name+" joined your party.");
     state.battle = null;
-    return befriend(enemy.id,enemy.level);
+    return befriend(enemy.id,enemy.level,receipt);
   }
 
-  function befriend(id,level) {
+  function befriend(id,level,receipt=null) {
     state.bag.kinweave--;
     state.forageReady=true;
     state.party.push(makeMember(id,level));
     if(!state.seen.includes(id)) state.seen.push(id);
     const joinsTeam=state.team.length<6;
     if(joinsTeam) state.team.push(id);
-    return commit("recruited","The Kinweave opens. "+species[id].name+(joinsTeam?" joined your traveling party!":" joined your reserve!"));
+    return commit("recruited","The Kinweave opens. "+species[id].name+(joinsTeam?" joined your traveling party!":" joined your reserve!"),receipt);
   }
 
   function observe(id,action) {
@@ -1642,8 +1670,9 @@
     if(rehearsal){state.battle=null;return commit("escaped","You called your team back and ended the rehearsal.");}
     const message=state.battle.wildCall?.answered ? species[state.battle.enemy.id].name+" returned freely to the wild." :
       "You called your party back and returned to the trail.";
+    const receipt=firstBattleFinish("escaped",message);
     state.battle = null;
-    return commit("escaped",message);
+    return commit("escaped",message,receipt);
   }
 
   function training(amount) {
@@ -1673,15 +1702,16 @@
     return commit("claimed", q.requester + " thanks you. " + training(75));
   }
 
-  function visitSite(kind) {
-    if (state.battle || !["camp","warden","wild","travel","activities"].includes(kind)) return false;
+  function nearSite(kind) {
     // The renderer supplies the exact landmark coordinates. Checking the same tile or its neighbor
     // also accepts the keyboard interaction before the player steps onto a landmark sprite.
     const map=window.WilderWorld?.regions[state.region];
-    if (map) {
-      const point=state.positions[state.region] || map.spawn;
-      if (!map.sites.some(site=>(site.kind||site.id)===kind && Math.abs(point.x-site.x)+Math.abs(point.y-site.y)<=1)) return false;
-    }
+    if(!map)return true;
+    const point=state.positions[state.region] || map.spawn;
+    return map.sites.some(site=>(site.kind||site.id)===kind && Math.abs(point.x-site.x)+Math.abs(point.y-site.y)<=1);
+  }
+  function visitSite(kind) {
+    if (state.battle || !["camp","warden","wild","travel","activities"].includes(kind)||!nearSite(kind)) return false;
     state.landmark=kind;
     return save();
   }
@@ -1993,7 +2023,7 @@
     }
   };
   return {
-    rehearsalTeam,wardenRoster,trio,useTrio,
+    rehearsalTeam,wardenRoster,trio,useTrio,firstBattle,
     trailSaveIsCurrent,trailFittings,claimFittings,equipFitting,trailFittingPreview,
     firstOuting:window.WilderOpening?.create({state:()=>state,commit,setLead,sightings:()=>field?.sightings(state.region)||[]}),
     wardenLesson,wardenForecast,guardTraining,guardPractice,switchForecast,ordinaryForecast,emberTechnique,useEmberTechnique,replacements,replaceFainted,

@@ -1,6 +1,6 @@
 // Atlas, collection, journal and station pages share the same canvas navigation.
 window.WilderPages = {
-  create({game,world,dex,row,member,image,go,back,render,notify,locate,root,fight,playTone,resolveBattle,fieldRecruited,travel,reset,atSite,openFinder}) {
+  create({game,world,dex,row,member,image,go,back,render,notify,locate,root,fight,playTone,resolveBattle,fieldRecruited,travel,reset,atSite,openFinder,trailPartners}) {
     const fair=window.WilderActivities, story=window.WilderStory;
     const caravans=window.WilderCaravans.pages({game,row,image,go,render,notify,locate});
     const walkers=window.WilderWalkingPartner.pages({game,row,image,go,render,notify,locate});
@@ -201,6 +201,7 @@ window.WilderPages = {
     }
     function party(switching) {
       const call=switching&&s().battle?.kind==="wild"?game.wildCall?.():null;
+      const hunt=!switching&&trailPartners?.entry();
       const rows=game.team().map(p=>{
         const k=own(p.id),pass=window.WilderFamilyTechniques.forKin(p.id);
         const battle=s().battle,lead=switching?battle?.activeId:s().lead;
@@ -225,7 +226,7 @@ window.WilderPages = {
       if(!switching)rows.push(nav("growth-ledger","Starter growth","Compare forms and study their techniques."));
       if(!switching)rows.push(nav("sparring","Practice at the Sparring Hall","Build both teams from level-20 loaners."));
       if(!switching)rows.push(nav("bellpost","Battle a friend with this party","Bring your trail trio into a two-device Bellpost match."));
-      return page(switching?"Send out a Wilderkin":"Traveling party","COMPANIONS",[heading("Your team",rows)],switching?"Changing kin spends this turn.":"Select a companion to read its skills or make it your leader.");
+      return page(switching?"Send out a Wilderkin":"Traveling party","COMPANIONS",[...(hunt?[{rows:[hunt]}]:[]),heading("Your team",rows)],switching?"Changing kin spends this turn.":"Select a companion to read its skills or make it your leader.");
     }
     function growthLedger() {
       const entries=starterIds.map(id=>{
@@ -445,6 +446,8 @@ window.WilderPages = {
         sections.push(heading("Habitat",[local ?row("walk-kind","Walk to "+d.name,"sighting:"+id+"|","Follow its marker on the map.",{disabled:!!s().battle})
           :open("region",d.region,"Find its habitat",d.location)]));
       } else if(!d.complete) {
+        const help=id==="mossbell"?outing.assistRow(d):null;
+        if(help)sections.push(heading("Ask your partner",[help]));
         sections.push(heading("Read the signs",d.clues.filter(c=>!c.read).map(c=>row("field-observe",c.label,id+"|"+c.id)),3));
         if(d.nextHint)sections.push({text:d.nextHint});
         sections.push(heading("How will you approach?",d.choices.map(c=>row("field-observe",c.label,id+"|"+c.id,c.detail,{disabled:!d.canRespond||c.tried}))));
@@ -599,7 +602,8 @@ window.WilderPages = {
         return open("growth",id,g.formName,g.baseName+"’s two camp disciplines",{image:"art/growth/"+g.formId+".png"});
       });
       const lodge=game.wardens.find(i=>!s().wardenLessons.includes(i))??0;
-      return page("What’s new in Wilderkin","FIELD DISPATCH   /   TRAIL FORMATIONS",[
+      return page("What’s new in Wilderkin","FIELD DISPATCH   /   MOSSBROOK VALE",[
+        ...(game.firstBattle?[heading("The Clover Clearing tracks",[nav("first-battle","Face Opalclasp with your starter","Pick a lead, earn duet beats and bring a third companion into the fight.")])]:[]),
         ...(window.WilderThirdBeat?[heading("Three kin, one opening",[nav("third-beat","Meet Iona at the ferry","Play a duet, then let a third kin take the lead with its own skill."),row("open-trios","Build a trio around a favorite")])]:[]),
         ...(window.WilderTrailRosterDesk?[heading("Build a traveling party",[row("yard-edit","Arrange your team",null,"Reorder six companions, choose a lead, then field the tested party against a real opponent.")])]:[]),
         ...(window.WilderPracticeYard?[heading("Try your campaign team",[nav("practice-yard","Enter the Chalkyard","Compare a reserve, face a local kin or a familiar Warden, and replay the last decision.")])]:[]),

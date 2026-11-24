@@ -41,7 +41,14 @@
       };
     }
 
-    function preview(options) {return prepare(options)?.()?.game||null;}
+    function preview(options,atTrailHp=false) {
+      const scope=prepare(options)?.()?.game||null;
+      if(scope&&atTrailHp){
+        const health=new Map(game.state.party.map(p=>[p.id,p.hp]));
+        for(const p of scope.team())p.hp=health.get(p.id);
+      }
+      return scope;
+    }
 
     // A hypothetical charged hit from full health, without claiming earlier
     // exchanges took place. A different Warden member may be at the front here.

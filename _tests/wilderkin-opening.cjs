@@ -1,7 +1,7 @@
 const {test}=require("node:test");
 const assert=require("node:assert/strict");
 const fs=require("node:fs"),path=require("node:path"),vm=require("node:vm");
-const scripts=["atlas","bestiary","activities","campaign","story","fieldwork","walking-partner","opening","engine"].map(name=>{
+const scripts=["atlas","bestiary","activities","campaign","story","fieldwork","walking-partner","opening","engine","trail-guide"].map(name=>{
   const file=path.join(__dirname,"../games/wilderkin",name+".js");
   return new vm.Script(fs.readFileSync(file,"utf8"),{filename:file});
 });
@@ -16,8 +16,17 @@ function start(record){
   const spawn={x:2,y:2};
   window.WilderWorld={regions:[{spawn,sites:[]}],walkable:()=>true,
     sightingTiles:(_,number)=>Array.from({length:number},(_,i)=>({x:8+i*2,y:2}))};
+  function notebook(events=[]) {
+    const otherPages={pages:()=>({act:()=>false})};
+    window.WilderCaravans=window.WilderHollows=window.WilderStillwake=otherPages;
+    const game=window.WilderGame;
+    return window.WilderPages.create({game,world:window.WilderWorld,dex:window.WilderKinDex,
+      row:(id,label,value,detail,extra)=>({id,label,value,detail,...extra}),image:id=>id+".png",
+      member:id=>game.state.party.find(p=>p.id===id),render:()=>{},playTone:()=>{},
+      notify:text=>events.push(text),go:(...args)=>events.push(args)});
+  }
   return {g:window.WilderGame,component:window.WilderOpening,writes,spawn,
-    save:()=>JSON.parse(saves.get("wilderkin.trail.v3"))};
+    notebook,save:()=>JSON.parse(saves.get("wilderkin.trail.v3"))};
 }
 test("each of the three illustrated choices leads to a real local sighting and saves the team once",()=>{
   for(const [id,walker] of [["sprigkit","lead"],["cindlet","hidden"],["dewfin","sprigkit"]]){
@@ -88,4 +97,67 @@ test("a player can explore or battle first, and a pending or restored fight neve
   const h=start().g,spot=h.sightings().find(site=>site.species==="mossbell");
   h.setPosition(spot.x,spot.y);assert.ok(h.observe("mossbell","read-trace").ok);
   assert.equal(h.firstOuting.offer(),null);
+});
+
+const studyRows=(guide,id="mossbell")=>guide.model("study",id).sections.flatMap(s=>s.rows||[]);
+const assist=guide=>studyRows(guide).find(r=>r.id==="outing-assist");
+function atNest(g) {
+  const site=g.sightings().find(s=>s.species==="mossbell");
+  assert.ok(g.setPosition(site.x,site.y));
+}
+
+test("each starter can use its real skill to record a different lasting Mossbell clue",()=>{
+  for(const [id,skill,clue] of [["sprigkit","Leaf Flurry","trace"],["cindlet","Ember Pop","surroundings"],["dewfin","Bubble Jet","sound"]]){
+    const run=start(),g=run.g,events=[],guide=run.notebook(events);
+    assert.ok(g.firstOuting.choose(id).ok);
+    atNest(g);
+    const help=assist(guide);
+    assert.equal(help.value,id);assert.ok(help.detail.includes(skill));
+    assert.ok(g.kin(id,{owned:true}).skills.some(s=>s.name===skill));
+    const native=studyRows(guide).filter(r=>r.id==="field-observe" && r.value.includes("|read-"));
+    assert.equal(native.length,3);
+    const before=copy(g.state.bag),party=copy(g.state.party);
+    guide.act(help.id,help.value);
+    assert.deepEqual(events[0],["study","mossbell","replace"]);
+    assert.ok(events[1].startsWith(g.species[id].name));
+    assert.deepEqual(copy(g.state.fieldwork.mossbell.clues),[clue]);
+    assert.deepEqual(copy(g.state.bag),before);assert.deepEqual(copy(g.state.party),party);
+    assert.equal(g.study("mossbell").complete,false);assert.equal(g.study("mossbell").canRespond,true);
+    const reload=start(run.save()),journal=reload.notebook();
+    assert.equal(assist(journal),undefined);
+    assert.deepEqual(copy(reload.g.state.fieldwork.mossbell.clues),[clue]);
+    const recorded=reload.g.study("mossbell").clues.find(c=>c.id==="read-"+clue);
+    assert.ok(recorded.read && recorded.text);
+    assert.equal(studyRows(journal).filter(r=>r.id==="field-observe" && r.value.includes("|read-")).length,2);
+    journal.act("field-observe","mossbell|try-room");
+    assert.ok(reload.g.study("mossbell").complete);
+    assert.ok(reload.g.canInvite("mossbell").ok);
+  }
+});
+
+test("only the current healthy lead at the nest can assist and a native observation uses the same clue",()=>{
+  const run=start(),g=run.g,guide=run.notebook();
+  assert.ok(g.firstOuting.choose("cindlet").ok);
+  assert.equal(assist(guide),undefined);
+  guide.act("outing-assist","cindlet");
+  assert.equal(g.state.fieldwork.mossbell,undefined);
+  atNest(g);
+  assert.equal(assist(guide).value,"cindlet");
+  assert.ok(g.setLead("dewfin").ok);
+  guide.act("outing-assist","cindlet");assert.equal(g.state.fieldwork.mossbell,undefined);
+  assert.equal(assist(guide).value,"dewfin");
+  assert.ok(g.startBattle("wild","opalclasp").ok);
+  guide.act("outing-assist","dewfin");assert.equal(g.state.fieldwork.mossbell,undefined);
+  assert.ok(g.flee().ok);
+  assert.equal(studyRows(guide,"opalclasp").some(r=>r.id==="outing-assist"),false);
+  const exhausted=run.save();
+  exhausted.party.find(kin=>kin.id==="dewfin").hp=0;
+  const tired=start(exhausted),journal=tired.notebook();
+  assert.equal(assist(journal),undefined);
+  journal.act("outing-assist","dewfin");assert.equal(tired.g.state.fieldwork.mossbell,undefined);
+  guide.act("field-observe","mossbell|read-sound");
+  assert.equal(assist(guide),undefined);
+  guide.act("outing-assist","dewfin");assert.deepEqual(copy(g.state.fieldwork.mossbell.clues),["sound"]);
+  const legacy=start();legacy.g.firstOuting.dismiss();atNest(legacy.g);
+  assert.equal(assist(legacy.notebook()),undefined);
 });
