@@ -115,9 +115,11 @@
       else {
         sections.push(group("Choose a match",[
           button("mode","Battle a rival crew","cpu",opponent.name+" · tactical opponent",{tone:"primary"}),
-          button("mode","Pass and play","local","Two players share this device and take turns.")]));
+          button("mode","Pass and play","local","Two players share this device and take turns."),
+          row("nav","Battle a friend by link","bellpost","Play on two devices. Each of you chooses your own moves.")]));
         if(r.match)sections.push(group("Last match",[link("Review the result","result")]));
       }
+      if(ongoing)sections.push(group("Friend matches",[row("nav","Bellpost","bellpost","Play a friend on another device. Your Hall match stays on the floor.")]));
       if(cup)sections.push(group("Tournament desk",[link("Lantern Cup","cup","Register six, bring three, and play a best-of-three series.")]));
       if(r.lastReview)sections.push(group("Practice film",[row("nav","Replay your last rival match","sparring-review","Try a different decision on a recorded turn.")]));
       if(!ongoing)sections.push(group("Prepare",[

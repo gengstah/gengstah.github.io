@@ -199,6 +199,7 @@ window.WilderPages = {
       if(!switching)rows.push(nav("walker","Walking partner","Check in or change who follows you."));
       if(!switching)rows.push(nav("growth-ledger","Starter growth","Compare forms and study their techniques."));
       if(!switching)rows.push(nav("sparring","Practice at the Sparring Hall","Build both teams from level-20 loaners."));
+      if(!switching)rows.push(nav("bellpost","Battle a friend with this party","Bring your trail trio into a two-device Bellpost match."));
       return page(switching?"Send out a Wilderkin":"Traveling party","COMPANIONS",[heading("Your team",rows)],switching?"Changing kin spends this turn.":"Select a companion to read its skills or make it your leader.");
     }
     function growthLedger() {
@@ -554,7 +555,8 @@ window.WilderPages = {
         return open("growth",id,g.formName,g.baseName+"’s two camp disciplines",{image:"art/growth/"+g.formId+".png"});
       });
       const lodge=game.wardens.find(i=>!s().wardenLessons.includes(i))??0;
-      return page("What’s new in Wilderkin","FIELD DISPATCH   /   WILD CALLS",[
+      return page("What’s new in Wilderkin","FIELD DISPATCH   /   BELLPOST",[
+        heading("Battle a friend",[nav("bellpost","Open the Bellpost desk","Invite a friend, exchange turn links or connect on the same Wi-Fi.")]),
         heading("Calls on the trail",[nav("wild-calls","Follow a wild call","Scout a local kin, pick a lead and aim its move at a field target.")]),
         heading("Warden exhibitions",[nav("second-bell","Enter the Second Bell","Scout a Warden’s published formation and challenge it with your traveling party.")]),
         heading("Neri Pike’s guard school",[nav("guard-school","Train a guard with Neri","Find Opalclasp in Mossbrook Vale or Cragroll in Cinderfall Ridge.")]),
