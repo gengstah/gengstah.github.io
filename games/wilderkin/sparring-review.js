@@ -20,9 +20,9 @@
       if((setup.mode!==undefined&&setup.mode!=="cpu")||![0,1].includes(human)||![0,1].includes(first)||
         !Array.isArray(moves)||!moves.length||moves.length>66||moves.some(id=>typeof id!=="string"||id.length>80)||
         ![setup.left,setup.right].every(team=>Array.isArray(team)&&team.length===3&&team.every(id=>typeof id==="string"&&id.length<=80)))return null;
-      const signature=JSON.stringify([setup.left,setup.right,human,first,moves]);
+      const signature=JSON.stringify([setup.left,setup.right,setup.gear,human,first,moves]);
       if(cached?.signature===signature)return cached;
-      let pos=sim.start(setup.left,setup.right,first);
+      let pos=sim.start(setup.left,setup.right,first,setup.gear);
       if(!pos)return null;
       const events=[];
       for(const id of moves){
@@ -44,6 +44,7 @@
         if(side.cover<1)effects.push(side.cover===.25?"quarter cover":"half cover");
         if(side.pinned)effects.push("pinned");
         if(!p.recovery)effects.push("recovery spent");
+        if(p.gear)effects.push(window.WilderSparringGear.byId(p.gear).name+" "+(p.spent?"used":"ready"));
         return {label:sideName(i,human)+" · "+name(p.id),detail:[p.hp+"/"+p.maxHp+" HP",side.beats+"/3 beats",...effects].join(" · "),
           ...(image?{image:image(p.id,false)}:{})};
       });
@@ -53,7 +54,7 @@
       page=Math.min(count-1,Math.max(0,page));
       const rows=book.events.slice(page*perPage,(page+1)*perPage).map((e,i)=>
         link(turnLabel(e)+" · "+e.move.label,"t"+(page*perPage+i),
-          sideName(e.before.turn,book.human)+" · "+actor(e.before,e.before.turn),{badge:e.move.kind==="duet"?"DUET":undefined}));
+          [sideName(e.before.turn,book.human),actor(e.before,e.before.turn),...(e.move.gearEvents||[]).map(g=>window.WilderSparringGear.byId(g.gearId).name)].join(" · "),{badge:e.move.kind==="duet"?"DUET":undefined}));
       const nav=[];
       if(page>0)nav.push(link("Earlier turns","p"+(page-1)));
       if(page<count-1)nav.push(link("Later turns","p"+(page+1)));
@@ -118,6 +119,13 @@
         sections.push(group("Coach’s reply to your recorded move",lineRows(expected.slice(1),human)));
       sections.push(group("If you chose "+alt.label,lineRows(other,human)),
         {title:"After this exchange",text:difference},group("Projected position",context(end,human),2));
+      const changes=end.sides.flatMap((side,i)=>side.team.flatMap((k,j)=>{
+        const real=original.sides[i].team[j];
+        if(!k.gear||real.spent===k.spent)return [];
+        return [{label:name(k.id)+" · "+window.WilderSparringGear.byId(k.gear).name,
+          detail:sideName(i,human)+" · "+(k.spent?"Used in this variation. Still ready in the recorded match.":"Still ready in this variation. Used in the recorded match.")}];
+      }));
+      if(changes.length)sections.push(group("Equipment after the exchange",changes));
       if(end.phase==="done")sections.push({text:end.winner==="draw"?"The projected match ends in a draw.":sideName(end.winner,human)+" wins in this variation."});
       else if(alt.kind==="replace")sections.push({text:"The coach picked the incoming leader’s first move and the rival’s reply."});
       return {title:"Try another move",kicker:turnLabel(e).toUpperCase()+"   /   PRACTICE VARIATION",subtitle:e.move.label+" or "+alt.label+" from the same position.",sections};

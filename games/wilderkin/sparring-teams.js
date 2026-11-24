@@ -19,21 +19,30 @@
   };
   const standard=(species,id)=>typeof id==="string"&&Object.hasOwn(species,id)&&!species[id].bonus;
   const valid=(species,ids)=>Array.isArray(ids)&&ids.length===3&&new Set(ids).size===3&&[...ids].every(id=>standard(species,id));
+  function cleanKit(ids,raw) {
+    return window.WilderSparringGear?.normalize({left:raw},ids,ids).left||{};
+  }
   function restore(raw,{species}) {
     const left=valid(species,raw?.left)?raw.left:starters,rightOK=valid(species,raw?.right);
     const rival=rivals.find(r=>r.id===raw?.rival)||rivals[0];
     const right=rightOK?raw.right:rival.team;
     const matches=rival.team.every((id,i)=>id===right[i]);
-    return {left:left.slice(),right:right.slice(),rival:rightOK&&["shared","custom"].includes(raw.rival)?raw.rival:matches?rival.id:"custom",
+    const setup={left:left.slice(),right:right.slice(),rival:rightOK&&["shared","custom"].includes(raw.rival)?raw.rival:matches?rival.id:"custom",
       mode:raw?.mode==="local"?"local":"cpu"};
+    if(raw?.gear&&typeof raw.gear==="object"&&!Array.isArray(raw.gear)){
+      setup.gear={left:cleanKit(left,raw.gear.left),right:cleanKit(right,raw.gear.right)};
+    }
+    return setup;
   }
   function create({game,row,image,go,render,notify,read,write,onStart}) {
     const species=game.species,dex=window.WilderKinDex,duets=window.WilderDuets,affinities=Object.keys(dex.types);
     const battle=window.WilderSparringBattle?.create({species});
+    const gearDesk=window.WilderSparringGear;
     const catalog=Object.values(species).filter(k=>!k.bonus).sort((a,b)=>a.name.localeCompare(b.name));
     const pageSize=8;
     const filters={left:{query:"",affinity:"All",page:0},right:{query:"",affinity:"All",page:0}};
     const paint=id=>image?image(id,false):dex.spriteUrl(id);
+    const gearArt=item=>"art/gear/"+item.id+".png";
     const stats=k=>k.types.join(" / ")+(battle?" · "+battle.maxHp(k.id)+" HP":"");
     const own=side=>side==="left"?"Your team":"Rival team";
     const action=(key,label,value,detail="",extra={})=>row("spar-team-"+key,label,value,detail,extra);
@@ -42,13 +51,30 @@
     const label=i=>i===0?"Lead":"Slot "+(i+1);
     const where=(side,screen,slot)=>["edit",side,screen,...(slot==null?[]:[slot])].join(":");
     const navigate=v=>go("sparring",v);
+    const kit=side=>read().gear?.[side]||{};
+    const sideGear=(side,contents)=>({left:kit("left"),right:kit("right"),[side]:contents});
     function encode(ids) {return valid(species,ids)?"#spar-v1="+ids.join(","):null;}
-    function decode(hash) {
-      if(typeof hash!=="string"||hash.length>150||!/^#spar-v1=[a-z0-9-]+,[a-z0-9-]+,[a-z0-9-]+$/.test(hash))return null;
-      const ids=hash.slice(9).split(",");
-      return valid(species,ids)?ids:null;
+    function encodeLoadout(ids,gear={}) {
+      if(!valid(species,ids)||!gear||typeof gear!=="object"||Array.isArray(gear))return null;
+      if(!Object.keys(gear).length)return encode(ids);
+      const clean=gearDesk?.validate({left:gear,right:{}},ids,ids)?.left;
+      return clean?"#spar-v2="+ids.map(id=>clean[id]?id+"~"+clean[id]:id).join(","):null;
     }
-    function scout(ids) {
+    function decodeLoadout(hash) {
+      if(typeof hash!=="string"||hash.length>180)return null;
+      const match=/^#spar-v([12])=([a-z0-9~,-]+)$/.exec(hash);
+      if(!match)return null;
+      const slots=match[2].split(","),ids=[],gear={};
+      if(slots.length!==3)return null;
+      for(const slot of slots){
+        const pair=slot.split("~"),[id,piece]=pair;
+        if(!standard(species,id)||pair.length>2||pair.length===2&&(match[1]==="1"||!gearDesk?.byId(piece)))return null;
+        ids.push(id);if(piece)gear[id]=piece;
+      }
+      return encodeLoadout(ids,gear)===hash?{ids,gear}:null;
+    }
+    const decode=hash=>decodeLoadout(hash)?.ids||null;
+    function scout(ids,gear={}) {
       if(!valid(species,ids))return null;
       const roster=ids.map(id=>species[id]);
       const attackTypes=[...new Set(roster.flatMap(k=>k.skills.filter(m=>m.kind==="attack").map(m=>m.type)))];
@@ -60,7 +86,8 @@
         const d=duets.score(roster[a].type,roster[b].type);
         pairs.push({ids:[ids[a],ids[b]],name:d.name,role:d.role,cost:d.cost,label:d.label,detail:duetNotes[d.role]});
       }
-      return {attackTypes,coverage,uncovered:affinities.filter(t=>!coverage.includes(t)),defense,
+      const clean=cleanKit(ids,gear),equipment=ids.filter(id=>clean[id]).map(id=>({holder:id,...gearDesk.byId(clean[id])}));
+      return {attackTypes,coverage,uncovered:affinities.filter(t=>!coverage.includes(t)),defense,equipment,
         holes:defense.filter(d=>d.weak.length>=2&&!d.resists.length),duets:pairs};
     }
     function answers(ids,target) {
@@ -76,25 +103,66 @@
       const ids=read()[side];
       const rows=ids.map((id,i)=>{
         const k=species[id];
-        return visit(where(side,"member",i),k.name,stats(k)+" · Change or reorder",{image:paint(id),badge:label(i)});
+        const equipped=gearDesk?.byId(kit(side)[id]);
+        return visit(where(side,"member",i),k.name,stats(k)+(equipped?" · "+equipped.name:" · Change or reorder"),{image:paint(id),badge:label(i)});
       });
       return {title:own(side),kicker:"SPARRING HALL   /   LEVEL 20",sections:[group("Battle order",rows),
         group("Practice",[
           action("ready","Review matchup",null,"Both teams and lead order",{tone:"primary"}),
           visit("edit:scout","Scout matchup","Coverage, openings and duets"),
           visit("edit:rivals","Choose a rival crew"),
+          ...(side==="left"?[row("spar-view","Open team case","bench","Save this build or compare it with a saved trio.")]:[]),
           visit(where(side==="left"?"right":"left","team"),side==="left"?"Edit rival team":"Edit your team"),
-          action("share","Copy team challenge link",side,"A friend can face this exact lineup and lead.")
+          action("share","Copy team challenge link",side,"Share the lead, reserves and equipped gear.")
         ])]};
     }
     function memberPage(side,i) {
-      const roster=read()[side],id=roster[i],k=species[id];
+      const roster=read()[side],id=roster[i],k=species[id],equipped=gearDesk?.byId(kit(side)[id]);
       return {title:k.name,kicker:own(side).toUpperCase()+"   /   "+label(i).toUpperCase()+"   /   LEVEL 20",subtitle:stats(k),art:{src:paint(id)},
         sections:[group("Formation",[
+          ...(gearDesk?[visit(where(side,"gear",i),equipped?equipped.name:"Choose equipment",equipped?"Equipped · change or remove":"One optional slot · six free pieces")]:[]),
           visit(where(side,"pick",i),"Choose a different kin","Search all "+catalog.length+" loaners",{tone:"primary"}),
           ...roster.flatMap((other,j)=>j===i?[]:[action("swap",j===0?"Make lead":"Trade with slot "+(j+1),side+":"+i+":"+j,species[other].name)]),
           visit(where(side,"team"),"Back to team")]),
           group("Skills",k.skills.map(skill=>({label:skill.name,detail:skill.kind==="attack"?skill.type+" · "+skill.power+" power":skill.kind==="guard"?"Strike and brace":"One recovery per match"})))]};
+    }
+    function gearPage(side,i) {
+      const ids=read()[side],id=ids[i],items=kit(side),current=gearDesk.byId(items[id]);
+      return {title:"Equip "+species[id].name,kicker:own(side).toUpperCase()+"   /   "+label(i).toUpperCase(),
+        subtitle:"Each piece can trigger once per match. Choose a different piece for each teammate.",
+        sections:[group("Equipment",gearDesk.items.map(item=>{
+          const holder=ids.find(k=>items[k]===item.id);
+          return visit(where(side,"piece",i)+":"+item.id,item.name,item.role,
+            {image:gearArt(item),badge:holder===id?"Equipped":holder?"On "+species[holder].name:""});
+        }),2),group("Your slot",[
+          ...(current?[action("equip","Remove "+current.name,side+":"+i+":none","Leave this slot empty")]:[]),
+          visit(where(side,"member",i),"Back to "+species[id].name,current?"Holding "+current.name:"Empty slot")])]};
+    }
+    function gearExample(item,side,i) {
+      const s=read(),ids=s[side],k=species[ids[i]],foes=s[side==="left"?"right":"left"];
+      const move=k.skills.find(m=>m.kind==="attack"),guard=k.skills.find(m=>m.kind==="guard");
+      const mate=species[ids.find(id=>id!==k.id)];
+      switch(item.id) {
+        case "relay-bell":return "Choose Switch to bring "+k.name+" in from the bench. With one beat and a normal switch gain of one, the bell takes your team to three.";
+        case "last-stitch":return "If a hit would take "+k.name+" from 8 HP to zero, it holds at 1 HP.";
+        case "seam-hook":return "Use "+move.name+" against an exposed rival with two beats. "+k.name+" spends the opening and takes both beats away.";
+        case "mender-wrap":return "Use "+guard.name+" with "+k.name+" in front. If "+mate.name+" is the only injured conscious reserve, it recovers up to "+Math.ceil(battle.maxHp(mate.id)/5)+" HP.";
+        case "prism-lens":{
+          const target=[...foes.map(id=>species[id]),...catalog].find(foe=>dex.effectiveness(move.type,foe.types)<1);
+          return "Use "+move.name+" on "+target.name+". "+k.name+" gets ×1 affinity for that strike in place of ×"+Number(dex.effectiveness(move.type,target.types).toFixed(2))+".";
+        }
+        case "opening-pennant":return (i===0?"Keep "+k.name+" in front":"Move "+k.name+" to the lead")+" to start with one beat toward "+duets.score(k.type,mate.type).name+".";
+      }
+    }
+    function piecePage(side,i,item) {
+      const ids=read()[side],id=ids[i],k=species[id],gear=kit(side),other=ids.find(n=>n!==id&&gear[n]===item.id),current=gearDesk.byId(gear[id]);
+      const detail=[other?species[other].name+" gives up this piece.":"",current&&current.id!==item.id?"Replaces "+current.name+".":""].filter(Boolean).join(" ");
+      return {title:item.name,kicker:k.name.toUpperCase()+"   /   "+item.role.toUpperCase(),art:{src:gearArt(item),height:144},sections:[
+        {title:"Trigger and effect",text:item.trigger+" "+item.effect},
+        {title:"On "+k.name,text:gearExample(item,side,i)},
+        {title:"Trade-off",text:item.cost},
+        group("Equipment slot",[action("equip",other?"Move to "+k.name:current?.id===item.id?"Keep equipped":"Equip "+k.name,
+          side+":"+i+":"+item.id,detail,{tone:"primary"}),visit(where(side,"gear",i),"Back to equipment")])]};
     }
     function list(side) {
       const f=filters[side],q=f.query.trim().toLowerCase();
@@ -145,7 +213,10 @@
           group("Practice",[action("rival","Face this crew",r.id,"Review matchup",{tone:"primary"}),visit("edit:rivals","Back to rival crews")])]};
     }
     function scouting(side) {
-      const data=read(),ids=data[side],rival=data[side==="left"?"right":"left"],report=scout(ids),names=arr=>arr.map(id=>species[id].name).join(", ");
+      const data=read(),otherSide=side==="left"?"right":"left",ids=data[side],rival=data[otherSide],report=scout(ids,kit(side)),names=arr=>arr.map(id=>species[id].name).join(", ");
+      const otherGear=cleanKit(rival,kit(otherSide));
+      const equipment=gearDesk?[...report.equipment.map(g=>({...g,side})),
+        ...rival.filter(id=>otherGear[id]).map(id=>({...gearDesk.byId(otherGear[id]),holder:id,side:otherSide}))]:[];
       const switches=report.defense.filter(d=>d.weak.length&&d.resists.length).sort((a,b)=>b.weak.length-a.weak.length).slice(0,2);
       const defense=report.holes.length?report.holes.map(h=>h.type+" threatens "+names(h.weak)+". Nobody resists it.").join(" "):
         "No unresisted shared weakness. "+switches.map(d=>species[d.resists[0]].name+" resists "+d.type+" for "+names(d.weak)+".").join(" ");
@@ -153,7 +224,9 @@
         group("Against their three",rival.map(id=>{
           const k=species[id],best=answers(ids,id)[0];
           return {label:k.name,detail:best.kin+" · "+best.name+" ×"+Number(best.mult.toFixed(2))+" · incoming up to ×"+Number(best.risk.toFixed(2)),image:paint(id)};
-        })),{title:"Attack coverage",text:"Strong into "+report.coverage.length+" / "+affinities.length+" single affinities. "+report.coverage.join(", ")+". "+
+        })),...(equipment.length?[group("Visible equipment",equipment.map(g=>({label:species[g.holder].name+" · "+g.name,
+          badge:own(g.side),detail:g.trigger+" "+g.effect})))]:[]),
+        {title:"Attack coverage",text:"Strong into "+report.coverage.length+" / "+affinities.length+" single affinities. "+report.coverage.join(", ")+". "+
           (report.uncovered.length?"No advantage into "+report.uncovered.join(", ")+".":"Every single affinity is covered.")},
         {title:"Defensive gaps",text:defense.trim()},
         group("Duets",report.duets.map(d=>({label:d.name+" · "+d.cost+" beats",detail:names(d.ids)+". "+d.detail}))),
@@ -170,6 +243,8 @@
       const i=Number(slot);
       if(![0,1,2].includes(i))return teamPage(side);
       if(screen==="member")return memberPage(side,i);
+      if(screen==="gear"&&gearDesk)return gearPage(side,i);
+      if(screen==="piece"&&gearDesk)return gearDesk.byId(id)?piecePage(side,i,gearDesk.byId(id)):gearPage(side,i);
       if(screen==="pick")return picker(side,i);
       if(screen==="candidate")return standard(species,id)?candidate(side,i,id):picker(side,i);
       if(screen==="affinity")return {title:"Filter by affinity",kicker:"LOANER CATALOG",sections:[group("Matches either affinity",["All",...affinities].map(t=>action("affinity",t,side+":"+i+":"+t,"",{badge:filters[side].affinity===t?"SELECTED":""})),2)]};
@@ -195,8 +270,8 @@
       else return false;
       return true;
     }
-    function share(ids) {
-      const fragment=encode(ids),location=window.location;
+    function share(ids,gear) {
+      const fragment=encodeLoadout(ids,gear),location=window.location;
       if(!fragment||!location)return;
       const url=location.origin+location.pathname+(location.search||"")+fragment;
       const fallback=()=>{if(typeof window.prompt==="function")window.prompt("Copy this Sparring Hall challenge link",url);else notify(url);};
@@ -209,25 +284,36 @@
       const command=id.slice("spar-team-".length),[side,slot,target]=String(value??"").split(":");
       if(command==="open"){navigate(value);return true;}
       if(command==="ready"){onStart();return true;}
-      if(command==="rival"){const r=rivals.find(x=>x.id===value);if(r){write({right:r.team.slice(),rival:r.id});onStart();}return true;}
+      if(command==="rival"){
+        const r=rivals.find(x=>x.id===value);
+        if(r){write({right:r.team.slice(),rival:r.id,...(read().gear?{gear:sideGear("right",{})}:{})});onStart();}
+        return true;
+      }
       if(!Object.hasOwn(filters,side))return false;
       const i=Number(slot),team=read()[side];
       if(command==="page"){filters[side].page+=Math.sign(Number(slot))||0;render();}
       else if(command==="key")setKey(side,slot);
       else if(command==="affinity"&&[0,1,2].includes(i)&&["All",...affinities].includes(target)){
         filters[side].affinity=target;filters[side].page=0;navigate(where(side,"pick",i));
-      }else if(command==="share")share(team);
+      }else if(command==="share")share(team,kit(side));
+      else if(command==="equip"&&gearDesk&&[0,1,2].includes(i)&&(target==="none"||gearDesk.byId(target))){
+        const holder=team[i],next={...kit(side)};
+        for(const id of team)if(id===holder||next[id]===target)delete next[id];
+        if(target!=="none")next[holder]=target;
+        write({gear:sideGear(side,next)});navigate(where(side,"member",i));
+      }
       else if((command==="select"||command==="swap")&&[0,1,2].includes(i)){
         const selected=command==="swap"?team[Number(target)]:target;
         if(standard(species,selected)){
           const next=changed(team,i,selected);
-          if(next.some((v,j)=>v!==team[j]))write(side==="left"?{left:next}:{right:next,rival:"custom"});
+          if(next.some((v,j)=>v!==team[j]))write({[side]:next,...(side==="right"?{rival:"custom"}:{}),
+            ...(read().gear?{gear:sideGear(side,cleanKit(next,kit(side)))}:{})});
           navigate(where(side,"team"));
         }
       }else return false;
       return true;
     }
-    return {page,act,key,restore:raw=>restore(raw,{species}),decode,encode,scout,rivals};
+    return {page,act,key,restore:raw=>restore(raw,{species}),decode,encode,decodeLoadout,encodeLoadout,scout,rivals};
   }
   window.WilderSparringTeams={create,restore};
 })();

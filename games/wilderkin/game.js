@@ -338,14 +338,18 @@
         return pages.act(id,value);
     }
   }
+  function sharedScreen(hash) {
+    if(hash==="#updates")return {name:"updates",value:null};
+    if(hash==="#workshop")return {name:"sparring",value:"bench:workshop"};
+    return hall.loadFragment(hash)?{name:"sparring",value:null}:null;
+  }
   restorePlayer();
-  if (window.location.hash==="#updates") screen={name:"updates",value:null};
-  else if(hall.loadFragment(window.location.hash)) screen={name:"sparring",value:null};
-  else if (game.state.battle) screen={name:"battle",value:null};
-  else if(circuit.hasInvitation()) screen={name:"circuit",value:null};
+  const destination=sharedScreen(window.location.hash);
+  if(destination)screen=destination;
+  else if(game.state.battle)screen={name:"battle",value:null};
+  else if(circuit.hasInvitation())screen={name:"circuit",value:null};
   window.addEventListener("hashchange",()=>{
-    if(window.location.hash==="#updates")go("updates");
-    else if(hall.loadFragment(window.location.hash))go("sparring");
+    const dest=sharedScreen(window.location.hash);if(dest)go(dest.name,dest.value);
   });
   render();
 })();

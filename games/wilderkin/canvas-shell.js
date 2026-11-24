@@ -642,13 +642,26 @@
       hpBar(x+pad,y+h-12,Math.max(14,inner-tw-6),p);
       label(c,life,x+w-pad,y+h-16,10,C.ink,"mono",650,"right");
     }
+    function gearBar(p,x,y,w) {
+      const h=32,g=p.gear;
+      rect(c,x,y,w,h,C.sheet,C.line);
+      if(!g){label(c,"No gear",x+9,y+9,11,C.secondary,"body",500);return;}
+      const hit=control({id:"spar-view",value:"equipment",label:p.name+" · "+g.name+" · "+(g.spent?"Used":"Ready")},x,y,w,h);
+      if(highlighted(hit))rect(c,x+1,y+1,w-2,h-2,"#efe6c7");
+      c.save();c.globalAlpha=g.spent ? .52 : 1;picture("art/gear/"+g.id+".png",x+5,y+2,27,27);c.restore();
+      c.font=getFont(12,"body",650);label(c,fit(c,g.name,w-44),x+37,y+2,12,C.ink,"body",650);
+      label(c,g.spent?"USED":"READY",x+37,y+18,9,g.spent?C.brass:C.moss,"mono",700);
+    }
     function battle(x,y,w,t){
       if(!model.ally||!model.foe)return 0;
       const active=fx,elapsed=active?clamp((t-active.started)/active.duration,0,1):0;
       const mobile=w<530,sh=mobile?122:Math.min(235,Math.max(145,w/4.6)),bar=mobile?72:78,gap=4;
       const half=(w-gap)/2;
       fighterStat(model.ally,x,y,half,bar,"ally");fighterStat(model.foe,x+half+gap,y,half,bar,"foe");
-      const yy=y+bar+gap;
+      let yy=y+bar+gap;
+      if(model.ally.gear||model.foe.gear){
+        gearBar(model.ally,x,yy,half);gearBar(model.foe,x+half+gap,yy,half);yy+=32+gap;
+      }
       arenaRect={y:yy,h:sh};
       rect(c,x,yy,w,sh,"#8ba875",C.forest);
       c.save();c.beginPath();c.rect(x+2,yy+2,w-4,sh-4);c.clip();
