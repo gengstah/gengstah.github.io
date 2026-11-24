@@ -2,8 +2,8 @@
 (() => {
   "use strict";
   const draftKey="wilderkin.bellpost.drafts.v1";
-  // Some messaging apps include a closing quote, ellipsis or ideographic full stop in the link.
-  const trailingPunctuation=/(?:[’”…。]|%E2%80%(?:99|9D|A6)|%E3%80%82)+$/i;
+  // A chat client can attach sentence punctuation and Markdown closers to the URL.
+  const trailingPunctuation=/(?:[.,;:!?'")\]}>*_\x60’”…。]|%(?:22|27|29|3E|5D|60|7D)|%E2%80%(?:99|9D|A6)|%E3%80%82)+$/i;
   const copyTeam=t=>({ids:t.ids.slice(),gear:{...t.gear}});
   function create({game,row,image,go,render,notify}) {
     const rules=window.WilderBellpostRules.create({game});
@@ -188,8 +188,11 @@
     function loadFragment(hash){
       if(hash==="#bellpost")return "desk";
       if(typeof hash!=="string"||!hash.startsWith("#bellpost-v1="))return null;
-      hash=hash.replace(trailingPunctuation,"");
-      const inspected=rules.inspect(hash);
+      let inspected=rules.inspect(hash);
+      if(!inspected&&hash.length<=600){
+        const trimmed=hash.replace(trailingPunctuation,"");
+        if(trimmed!==hash){hash=trimmed;inspected=rules.inspect(hash);}
+      }
       if(inspected&&!rules.get(inspected.id)){
         inbox.set(inspected.id,inspected);olderLetter=null;rememberUrl(inspected.hash);return path("game",inspected.id);
       }
@@ -237,8 +240,9 @@
       if(!action.startsWith("post-"))return false;
       const cmd=action.slice(5),i=Number(part);
       if(cmd==="desk"){rememberUrl("#bellpost");show("desk");return true;}
-      if(cmd==="paste"){textBox("Paste a Bellpost link","",raw=>{
-        const where=raw.indexOf("#"),dest=where<0?null:loadFragment(raw.slice(where));
+      if(cmd==="paste"){textBox("Paste a Bellpost link or message","",raw=>{
+        const letter=raw.match(/#bellpost-v1=\S+/u)?.[0]||raw.match(/#bellpost(?=$|[\s.,!?;)\]}>])/u)?.[0];
+        const dest=letter&&loadFragment(letter);
         if(dest){if(dest==="desk")rememberUrl("#bellpost");show(dest);}else notify("Choose a Bellpost invitation or turn link.");
       });return true;}
       if(cmd==="new"){show(path("draft","new"));return true;}

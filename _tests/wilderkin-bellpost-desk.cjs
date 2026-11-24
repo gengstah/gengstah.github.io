@@ -75,6 +75,34 @@ test("drafts remain personal to the invitation, campaign lead and equipped Hall 
   assert.equal(a.game.state.battle,battle);assert.equal(JSON.stringify(a.game.state.party),party);
 });
 
+test("pasting a whole message extracts its Bellpost letter and preserves the complete legacy or current turn",()=>{
+  const host=device(),guest=device(),reader=device();
+  host.click("post-new");host.click("post-confirm");host.click("post-copy");
+  const invitation=host.clip(),id=host.route().split("|")[1];
+  function paste(d,message){
+    d.open("#bellpost");d.w.prompt=()=>message;d.click("post-paste");
+  }
+  const rawInvite=host.w.WilderBellpostRules.create({game:host.game}).export(id);
+  for(const message of [invitation+".","#news: Your move! "+invitation+". Good luck!",
+    "Choose your team:\n**[Join](<"+rawInvite+">)**.\nSee you there."]){
+    paste(guest,message);
+    assert.equal(guest.model().title,"You’re invited to Bellpost");assert.equal(guest.hash(),code(invitation));
+  }
+  guest.click("post-join",id);guest.click("post-confirm");host.open(guest.hash());host.click("post-move");
+  const turn=host.hash(),rawTurn=host.w.WilderBellpostRules.create({game:host.game}).export(id);
+  for(const message of ["Your move! https://game.test/games/wilderkin/"+turn+". Good luck!",
+    "Play [your turn]("+turn+"), then send it back.","Your reply: "+rawTurn+"..",
+    "Copy this fragment: "+String.fromCharCode(96)+turn+String.fromCharCode(96)+"!"]){
+    paste(reader,message);assert.equal(reader.hash(),turn);
+    assert.ok(reader.rows().some(r=>r.id==="post-film"));assert.ok(!reader.rows().some(r=>r.id==="post-move"));
+  }
+  for(const bad of [turn.replace("sprigkit","sprig)kit"),turn.replace(/\.[A-W]+\.x$/,".Afoo!B.x"),
+    turn.replace(/\.[A-W]+\.x$/,".A!B.x"),turn+".broken",turn+"!".repeat(2000)+"Z"]){
+    paste(reader,"Your move! "+bad+". Good luck!");
+    assert.equal(reader.route(),"error");assert.equal(reader.rows().some(r=>r.id==="post-join"||r.id==="post-move"),false);
+  }
+});
+
 test("real two-seat exchange uses the latest link, handles cancellation and lets a spectator inspect film",async()=>{
   const host=device(),guest=device(),observer=device();host.click("post-new");host.click("post-confirm");host.click("post-copy");
   const invite=code(host.clip()),id=host.route().split("|")[1];guest.open(invite);guest.click("post-join",id);guest.click("post-confirm");
