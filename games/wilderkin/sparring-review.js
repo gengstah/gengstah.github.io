@@ -45,6 +45,8 @@
         if(side.pinned)effects.push("pinned");
         if(!p.recovery)effects.push("recovery spent");
         if(p.gear)effects.push(window.WilderSparringGear.byId(p.gear).name+" "+(p.spent?"used":"ready"));
+        const signature=window.WilderSparringSignatures?.byId(p.id);
+        if(signature)effects.push(signature.name+" "+(side.thornRead?"awaiting a reply":p.signatureSpent?"used":"unused"));
         return {label:sideName(i,human)+" · "+name(p.id),detail:[p.hp+"/"+p.maxHp+" HP",side.beats+"/3 beats",...effects].join(" · "),
           ...(image?{image:image(p.id,false)}:{})};
       });
@@ -54,7 +56,8 @@
       page=Math.min(count-1,Math.max(0,page));
       const rows=book.events.slice(page*perPage,(page+1)*perPage).map((e,i)=>
         link(turnLabel(e)+" · "+e.move.label,"t"+(page*perPage+i),
-          [sideName(e.before.turn,book.human),actor(e.before,e.before.turn),...(e.move.gearEvents||[]).map(g=>window.WilderSparringGear.byId(g.gearId).name)].join(" · "),{badge:e.move.kind==="duet"?"DUET":undefined}));
+          [sideName(e.before.turn,book.human),actor(e.before,e.before.turn),...(e.move.gearEvents||[]).map(g=>window.WilderSparringGear.byId(g.gearId).name)].join(" · "),
+          {badge:e.move.kind==="signature"?"SIGNATURE":e.move.kind==="duet"?"DUET":undefined}));
       const nav=[];
       if(page>0)nav.push(link("Earlier turns","p"+(page-1)));
       if(page<count-1)nav.push(link("Later turns","p"+(page+1)));
@@ -126,6 +129,23 @@
           detail:sideName(i,human)+" · "+(k.spent?"Used in this variation. Still ready in the recorded match.":"Still ready in this variation. Used in the recorded match.")}];
       }));
       if(changes.length)sections.push(group("Equipment after the exchange",changes));
+      if([...actual,...other].some(e=>e.move.kind==="signature"||e.move.thornResponse)){
+        const changes=end.sides.flatMap((side,i)=>{
+          const real=original.sides[i],rows=[];
+          for(const [j,k] of side.team.entries()){
+            if(Boolean(k.signatureSpent)!==Boolean(real.team[j].signatureSpent)){
+              const signature=window.WilderSparringSignatures.byId(k.id);
+              rows.push({label:name(k.id)+" · "+signature.name,detail:k.signatureSpent?
+                "Used in this variation. Still available in the recorded match.":"Still available in this variation. Used in the recorded match."});
+            }
+            if(k.exposed!==real.team[j].exposed)rows.push({label:name(k.id)+" · exposure",detail:k.exposed?
+              "Exposed in this variation. Clear in the recorded match.":"Clear in this variation. Exposed in the recorded match."});
+          }
+          if(side.beats!==real.beats)rows.push({label:sideName(i,human)+" · beats",detail:side.beats+"/3 in this variation · "+real.beats+"/3 in the match"});
+          return rows;
+        });
+        if(changes.length)sections.push(group("Signature after the exchange",changes));
+      }
       if(end.phase==="done")sections.push({text:end.winner==="draw"?"The projected match ends in a draw.":sideName(end.winner,human)+" wins in this variation."});
       else if(alt.kind==="replace")sections.push({text:"The coach picked the incoming leader’s first move and the rival’s reply."});
       return {title:"Try another move",kicker:turnLabel(e).toUpperCase()+"   /   PRACTICE VARIATION",subtitle:e.move.label+" or "+alt.label+" from the same position.",sections};

@@ -137,6 +137,8 @@ window.WilderPages = {
       if(k.bonus && !s().stillwake?.revealed && !p)return guide();
       const controls=k.bonus?[nav("stillwake","The fourth sounding","Read the witnesses’ accounts.")]:[open("study",id,"Field observations"),home===s().region?wayTo("wild","tracks","Follow local tracks"):open("region",home,"Find its habitat",game.regions[home].name)];
       if(game.growthInfo(id))controls.unshift(open("growth",id,"Growth and disciplines",k.discipline?.name||"See training and forms."));
+      const signature=window.WilderSparringSignatures?.byId(id);
+      if(signature)controls.push(open("sparring","bench:grove:"+id,"Try "+signature.name,"Practice this Hall signature at the Thornbridge crossing."));
       if (k.ability) controls.push(open("license",k.ability,k.ability+" license",dex.abilities[k.ability].description));
       if(p) controls.push(row("walk-partner-select","Walk with "+k.name,id,"Choose a follower independently of your battle leader."));
       if (p && !s().battle && !s().team.includes(id)) controls.unshift(open("enlist",id,"Call from reserve"),open("mentor",id,"Train at camp"));
@@ -460,8 +462,9 @@ window.WilderPages = {
         return open("growth",id,g.formName,g.baseName+"’s two camp disciplines",{image:"art/growth/"+g.formId+".png"});
       });
       const lodge=game.wardens.find(i=>!s().wardenLessons.includes(i))??0;
-      return page("What’s new in Wilderkin","FIELD DISPATCH   /   FIELD EQUIPMENT",[
+      return page("What’s new in Wilderkin","FIELD DISPATCH   /   THORNBRIDGE",[
         heading("Sparring Hall",[
+          open("sparring","bench:grove","The Thornbridge crossing","Protect a teammate with Mossbell or read a rival’s attack with Fernprickle."),
           open("sparring","bench:workshop","The Earth Wire wager","Try one piece of equipment against Earth Wire’s trio."),
           open("sparring","edit:left:gear:0","Choose your lead’s equipment","Inspect six pieces and see exactly when each activates."),
           open("sparring","bench","Open your team case","Save two versions of a trio and see how each fares against the same rival."),
@@ -476,7 +479,7 @@ window.WilderPages = {
           nav("stillwake","Investigate the fourth sounding","Follow an unlisted signal across the trail."),
           nav("circuit","Draft a loaner team","Try a three-bout course with a fresh squad.")]),
         heading("Adventure",[row("root",s().battle?"Return to your battle":"Explore the map",null,"",{tone:"primary"})])],
-        "A Lifeline Stitch can buy an injured lead one last turn. A Relay Bell can bring a duet online when you switch. Choose the piece that suits how you play.");
+        "Two Grove kin are waiting at Thornbridge. Play their opening turns from either side, then finish the fight with your chosen lead.");
     }
     function help() {
       return page("Controls","TRAIL HANDBOOK",[

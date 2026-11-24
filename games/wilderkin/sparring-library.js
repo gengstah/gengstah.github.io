@@ -16,7 +16,8 @@
   }
   const sideResult=(p,i)=>p.sides[i].team.filter(k=>k.hp>0).length+" standing · "+p.sides[i].team.reduce((sum,k)=>sum+k.hp,0)+" HP";
   const victor=p=>p.winner==="draw"?"Draw":p.winner===0?"Win":"Loss";
-  function create({species,sim,row,image,read,save,show,render,live}) {
+  function create({species,sim,row,image,read,save,show,render,live,playFromPractice}) {
+    const grove=window.WilderGroveLesson?.create({species,sim,row,image,show,live,playFromPractice});
     const name=id=>species[id].name;
     const gearName=id=>window.WilderSparringGear.byId(id).name;
     const group=(title,rows,columns=1)=>({title,rows,columns});
@@ -33,6 +34,12 @@
       squad:["sprigkit","cindlet","dewfin"],rival:["coilcrown","slateweaver","cairnwatch"],
       pieces:["opening-pennant","prism-lens","last-stitch"]
     };
+    const groveRivals={
+      "grove-bells":{rival:"bell-keepers",reserves:["coalmoth","arcbill"]},
+      "grove-ice":{rival:"ice-harbor",reserves:["coalmoth","glimmeray"]}
+    };
+    const groveTrial=key=>typeof key==="string"&&Object.hasOwn(groveRivals,key);
+    const demonstration=key=>key==="workshop"||groveTrial(key);
     function workshop() {
       return {title:"The Earth Wire wager",kicker:"COACH’S WORKSHOP",art:{src:image("coilcrown"),caption:"Coilcrown · Earth Wire captain"},
         subtitle:"Sprigkit leads the original trio against Earth Wire. Can changing just its equipment turn the matchup around?",
@@ -47,7 +54,8 @@
         button("save","Save in slot "+(i+1),String(i),current.team.map(name).join(" · ")));
       return {title:"Team case",kicker:"SPARRING HALL",subtitle:"Keep a trio with its lead and equipment. Compare a saved build with your current team against the same rival.",
         sections:[group("Saved teams",rows),group("At the desk",[row("spar-view","Edit current trio","edit:left:team"),row("spar-view","Choose a rival","edit:rivals"),
-          visit("The Earth Wire wager","bench:workshop","Try one piece against a known rival.")],2)]};
+          visit("The Earth Wire wager","bench:workshop","Try one piece against a known rival."),
+          ...(grove?[visit("The Thornbridge crossing","bench:grove","Try Mossbell or Fernprickle under pressure.")]:[])],2)]};
     }
     function card(i) {
       const slot=slots()[i];
@@ -73,7 +81,7 @@
       let p=null,notes=[],turns=[],opening=[];
       function play() {
         if(trial!==run)return;
-        if(index!=="workshop"&&live()){trial=null;return;}
+        if(!demonstration(index)&&live()){trial=null;return;}
         const end=performance.now()+8;
         do {
           const which=Math.floor(run.count/2),first=run.count%2;
@@ -107,9 +115,13 @@
     }
     function results(i) {
       const t=trial;
-      const example=i==="workshop";
-      if(!t||t.index!==i)return example?workshop():card(i);
-      const back=example?visit("Test another piece","bench:workshop"):visit("Back to saved team","bench:card:"+i);
+      const example=i==="workshop",crossing=groveTrial(i);
+      if(!t||t.index!==i){
+        if(crossing)return grove.model("bench:grove");
+        return example?workshop():card(i);
+      }
+      const back=crossing?visit("Back to Thornbridge","bench:grove"):
+        example?visit("Test another piece","bench:workshop"):visit("Back to saved team","bench:card:"+i);
       if(!t.finished)return {title:"Playing the trials",kicker:"TEAM CASE",subtitle:"The coaches are playing four matches against "+name(t.opponent.team[0])+"’s trio.",sections:[group("Team desk",[back])]};
       const sections=t.lineups.map((build,k)=>{
         const matches=t.games.filter(g=>g.which===k);
@@ -143,8 +155,12 @@
             {label:(current.name||"Current trio")+" · action "+variation[divergence].number,detail:describe(variation[divergence])}]));
         }
       }
-      sections.push(group("Take the field",example?[live()?row("spar-view","Resume your match","match"):button("adopt","Use workshop teams",null,"Load the tested build and Earth Wire into team preview."),back]:
-        [button("recall","Load "+t.slotName,String(i),"Return to team preview with this build."),row("spar-view","Play with current trio","preview"),back]));
+      let field;
+      if(demonstration(i)&&live())field=[row("spar-view","Resume your match","match")];
+      else if(crossing)field=t.lineups.map((a,n)=>button("take-lead","Battle with "+a.name,String(n),"Load this lineup and rival in team preview."));
+      else if(example)field=[button("adopt","Use workshop teams",null,"Load the tested build and Earth Wire into team preview.")];
+      else field=[button("recall","Load "+t.slotName,String(i),"Return to team preview with this build."),row("spar-view","Play with current trio","preview")];
+      sections.push(group("Take the field",[...field,back]));
       return {title:"Practice results",kicker:"TEAM CASE   /   FOUR COACHED MATCHES",subtitle:"Both coaches used the same battle rules. Opposing trio: "+t.opponent.team.map(name).join(" · ")+".",sections};
     }
     function report(n,pageNumber) {
@@ -164,9 +180,10 @@
           ...(page+1<pages?[visit("Later actions",route+(page+1))]:[]),visit("Compare all four matches","bench:trial:"+trial.index)])]};
     }
     function model(v) {
+      if(grove?.matches(v))return grove.model(v);
       const [,screen,n,pageNumber]=String(v).split(":"),i=Number(n);
       if(screen==="workshop")return workshop();
-      if(screen==="trial"&&n==="workshop")return results("workshop");
+      if(screen==="trial"&&demonstration(n))return results(n);
       if(screen==="game")return report(i,pageNumber);
       if(!Number.isInteger(i)||i<0||i>=capacity||!slots()[i])return cards();
       if(screen==="card")return card(i);
@@ -197,16 +214,24 @@
       return true;
     }
     function act(id,value) {
+      if(grove?.act(id,value))return true;
       if(typeof id!=="string"||!id.startsWith("bench-"))return false;
       const action=id.slice(6),str=String(value);
-      if(live()&&action!=="experiment"&&!(action==="open"&&workshopRoute(str)))return true;
+      if(live()&&action!=="experiment"&&action!=="grove-trial"&&!(action==="open"&&workshopRoute(str)))return true;
       if(action==="open"){if(!str.startsWith("bench:trial:")&&!str.startsWith("bench:game:"))trial=null;show(str);return true;}
       if(action==="experiment"&&exercise.pieces.includes(str)){
         runTrials("workshop",{...teamCopy(exercise.squad),name:"Bare lead"},{...teamCopy(exercise.squad,{sprigkit:str}),name:gearName(str)},teamCopy(exercise.rival));
         return true;
       }
-      if(action==="adopt"&&trial?.index==="workshop"&&trial.finished){
-        const r=read(),build=trial.lineups[1],setup={left:build.team.slice(),right:exercise.rival.slice(),gear:{left:{...build.gear},right:{}},rival:"earth-wire",mode:"cpu"};
+      if(action==="grove-trial"&&groveTrial(str)){
+        const {reserves,rival}=groveRivals[str],ids=window.WilderSparringTeams.restore({rival},{species}).right;
+        const [a,b]=["mossbell","fernprickle"].map(id=>({...teamCopy([id,...reserves]),name:name(id)}));
+        runTrials(str,a,b,teamCopy(ids));return true;
+      }
+      if(trial?.finished&&((action==="adopt"&&trial.index==="workshop")||
+          (action==="take-lead"&&groveTrial(trial.index)&&["0","1"].includes(str)))){
+        const r=read(),build=trial.lineups[action==="adopt"?1:Number(str)],rival=groveRivals[trial.index]?.rival||"earth-wire";
+        const setup={left:build.team.slice(),right:trial.opponent.team.slice(),gear:{left:{...build.gear},right:{...trial.opponent.gear}},rival,mode:"cpu"};
         save({...r,setup});show("preview");return true;
       }
       const [n,token]=str.split("|"),i=Number(n);
@@ -227,7 +252,8 @@
       return true;
     }
     function workshopRoute(v){
-      return v==="bench:workshop"||v==="bench:trial:workshop"||(trial?.index==="workshop"&&v.startsWith("bench:game:"));
+      return grove?.matches(v)||v==="bench:workshop"||(v.startsWith("bench:trial:")&&demonstration(v.slice(12)))||
+        (trial&&demonstration(trial.index)&&v.startsWith("bench:game:"));
     }
     return {model,act,key,workshopRoute};
   }

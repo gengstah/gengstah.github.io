@@ -340,6 +340,7 @@
   }
   function sharedScreen(hash) {
     if(hash==="#updates")return {name:"updates",value:null};
+    if(hash==="#grove")return {name:"sparring",value:"bench:grove"};
     if(hash==="#workshop")return {name:"sparring",value:"bench:workshop"};
     return hall.loadFragment(hash)?{name:"sparring",value:null}:null;
   }

@@ -83,7 +83,7 @@
       return cached.pos;
     }
     const live=()=>{const p=position();return p&&p.phase!=="done";};
-    const library=window.WilderSparringLibrary?.create({species,sim,row,image,read:rec,save,show,render,live});
+    const library=window.WilderSparringLibrary?.create({species,sim,row,image,read:rec,save,show,render,live,playFromPractice});
     const profile=p=>({species:p.id,name:kin(p.id),src:image(p.id),hp:p.hp,maxHp:p.maxHp,level:sim.rules.level,types:species[p.id].types,gear:held(p)});
     const roster=(ids,prefix,gear)=>ids.map((id,i)=>({label:kin(id),image:image(id),detail:[species[id].types.join(" / "),piece(gear?.[id])?.name].filter(Boolean).join(" · "),badge:i===0?prefix:""}));
     const packFor=s=>s.mode==="cpu"&&Object.hasOwn(kits,s.rival)&&window.WilderSparringGear?kits[s.rival]:null;
@@ -154,6 +154,38 @@
     const matchesRow=(m,choice)=>button("move",choice.label,choice.id,choice.reason||choice.detail,
       {image:choice.targetId?image(choice.targetId):undefined,disabled:!choice.available,
         badge:choice.kind==="duet"?choice.cost+" BEATS":undefined});
+    const signatureFor=p=>window.WilderSparringSignatures?.byId(member(p.sides[p.turn]).id);
+    function signatureButton(p,options) {
+      const signature=signatureFor(p);
+      if(!signature)return null;
+      const lead=member(p.sides[p.turn]),moves=options.filter(o=>o.kind==="signature");
+      const available=moves.some(o=>o.available),used=lead.signatureSpent;
+      const hint=used?"Used this match":!available?(moves[0]?.reason||"No conscious reserve"):
+        signature.id==="shelter-call"?"1 beat · Choose a reserve":"Read the next hit · Once per match";
+      return link(signature.name,"cmd:signature",hint,{key:"4"});
+    }
+    function signaturePage(m,p) {
+      const meta=signatureFor(p);
+      if(!meta)return arena(m,p);
+      const side=p.sides[p.turn],lead=member(side),uses=lead.signatureSpent?0:meta.uses;
+      const rows=sim.options(p).filter(o=>o.kind==="signature").map(o=>{
+        const target=side.team.find(k=>k.id===o.targetId);
+        const after=o.available?sim.apply(p,o.id):null;
+        const hit=after&&sim.options(after).filter(r=>r.kind==="attack"&&r.available).sort((a,b)=>b.damage-a.damage)[0];
+        const forecast=hit?hit.label+" would deal "+hit.damage+" damage "+(hit.consumeMark?"through cover.":"under quarter cover."):
+          after?.phase==="done"?"The final bell rings before a reply.":o.reason;
+        const beat=hit?.thornResponse?hit.thornResponse.beatsAfter+"/3 beats on contact":o.available?o.beatsAfter+"/3 beats after":"";
+        const detail=[target?target.hp+"/"+target.maxHp+" HP":"",forecast,beat].filter(Boolean).join(" · ");
+        return button("move",target?"Shelter "+kin(target.id):"Set "+meta.name,o.id,detail,
+          {image:target?image(target.id):undefined,disabled:!o.available,tone:o.available?"primary":undefined});
+      });
+      return {title:meta.name,kicker:kin(lead.id).toUpperCase()+"   /   SIGNATURE",
+        subtitle:(uses?"1 use remaining":"Use spent")+" · "+(meta.cost?meta.cost+" beat required · "+side.beats+" available":"No beat cost"),
+        sections:[{title:"On this turn",text:meta.effect+" "+meta.tradeoff},
+          group(meta.id==="shelter-call"?"Choose the incoming kin":"Read the opposing lead",
+            rows.length?rows:[{label:"No conscious reserve is available."}]),
+          {title:"Opponent’s reply",text:meta.counter},group("Battle floor",[link("Return to the match","match")])]};
+    }
     function handoff(m,p){
       const next=sideName(m,p.turn),lead=member(p.sides[p.turn]);
       return {title:"Pass to "+next,kicker:formatTurn(p).toUpperCase(),subtitle:p.phase==="replace"?kin(lead.id)+" is down. Choose the next leader for a free replacement.":next+" has the next move.",
@@ -167,8 +199,10 @@
       if(cpu)commands.push(group("Opponent’s move",[button("cpu","Watch the rival’s move",null,"The coach reads the same public battle state.",{tone:"primary"})]));
       else if(p.phase==="replace")commands.push(group("Choose your next leader",options.map(o=>matchesRow(m,o))));
       else {
-        const skills=options.filter(o=>["attack","guard","heal"].includes(o.kind));
-        commands.push(group("Choose a skill",skills.map((o,i)=>({...matchesRow(m,o),key:String(i+1)})),2),
+        const skills=options.filter(o=>["attack","guard","heal"].includes(o.kind)).map((o,i)=>({...matchesRow(m,o),key:String(i+1)}));
+        const signature=signatureButton(p,options);
+        if(signature)skills.push(signature);
+        commands.push(group("Choose a skill",skills,2),
           group("Team commands",[link("Switch kin","cmd:swap",standing(side)-1+" conscious reserves",{key:"S"}),
             link("Duets","cmd:duet",side.beats+" / 3 beats",{key:"D"}),link("Coach’s read","coach","See a move and a possible reply.",{key:"H"})],3));
       }
@@ -176,8 +210,10 @@
       const a=member(p.sides[0]),b=member(p.sides[1]);
       const strip=(s,i)=>({label:m.setup.mode==="local"?"P"+(i+1):i===0?"You":"Rival",beats:s.beats,active:s.active,
         team:s.team.map(p=>({id:p.id,src:image(p.id),hp:p.hp,maxHp:p.maxHp,gear:held(p)}))});
+      const log=p.log.slice(-2);
+      if(p.sides[1-p.turn].thornRead)log.push("Fernprickle is reading the next hit. A switch or recovery gives it nothing to counter.");
       return {kind:"battle",title:sideName(m,p.turn)+" to act",kicker:"SPARRING HALL   /   "+formatTurn(p).toUpperCase(),
-        background:"ui/sparring-hall.png",ally:profile(a),foe:profile(b),log:p.log.slice(-2),
+        background:"ui/sparring-hall.png",ally:profile(a),foe:profile(b),log,
         lineups:{left:strip(p.sides[0],0),right:strip(p.sides[1],1)},
         subtitle:sideName(m,0)+" "+standing(p.sides[0])+" standing · "+sideName(m,1)+" "+standing(p.sides[1])+" standing",sections:commands};
     }
@@ -232,6 +268,15 @@
         return {label:kin(k.id)+" · "+piece(k.gear).name,detail:sideName(m,i)+" · "+detail,image:image(k.id)};
       }));
       if(equipment.length)sections.push(group("Equipment report",equipment,2));
+      const signatures=events.flatMap((e,index)=>{
+        if(e.move.kind!=="signature")return [];
+        const reply=events[index+1],read=reply?.move.thornResponse;
+        const detail=e.move.targetId?kin(e.move.targetId)+" took the lead under quarter cover. "+e.after.sides[e.side].beats+"/3 beats left.":
+          read?kin(read.attackerId)+" became exposed. "+sideName(m,e.side)+" finished the reply with "+read.beatsAfter+"/3 beats.":
+          reply?reply.move.label+" ended the read without contact.":"The final bell rang before a reply.";
+        return [{label:"Action "+e.number+" · "+e.move.label,detail:sideName(m,e.side)+" · "+detail,image:image(e.actor)}];
+      });
+      if(signatures.length)sections.push(group("Signature plays",signatures));
       sections.push(group("At the bell",p.sides.map((side,i)=>{
         const duets=played.filter(e=>e.side===i&&e.move.kind==="duet").length;
         return {label:sideName(m,i),detail:standing(side)+" standing · "+total(side)+" HP · "+duets+(duets===1?" duet":" duets"),image:image(member(side).id)};
@@ -261,6 +306,7 @@
           sections:[group("Your lineups will stay at the hall",[link("Keep playing","match"),button("retire","Retire the match")])]};
         if(!m.handoff&&(m.setup.mode==="local"||p.turn===0)&&p.phase==="move"){
           if(v==="coach")return coach(m,p);
+          if(v==="cmd:signature")return signaturePage(m,p);
           if(v==="cmd:duet"||v==="cmd:swap")return optionsPage(m,p,v.slice(4));
         }
         return arena(m,p);
@@ -278,9 +324,22 @@
       if(setup.mode==="cpu"&&first===1)void take(null);
       return true;
     }
+    function playFromPractice(raw,moves) {
+      if(busy||live()||!raw||(raw.mode!==undefined&&raw.mode!=="cpu")||!Array.isArray(moves)||moves.length!==2)return false;
+      const setup=builder.restore({...raw,mode:"cpu"});
+      if(!["left","right"].every(side=>Array.isArray(raw[side])&&raw[side].length===3&&setup[side].every((id,i)=>raw[side][i]===id)))return false;
+      if(raw.gear!==undefined&&!window.WilderSparringGear?.validate(raw.gear,setup.left,setup.right))return false;
+      const m={setup:cloneSetup(setup),first:0,moves:moves.slice(),handoff:false};
+      const p=replay(sim,m);
+      if(!p||p.phase==="done"||p.ply!==2||p.turn!==0)return false;
+      cached={match:m,length:m.moves.length,pos:p};
+      save({...rec(),setup:cloneSetup(setup),match:m});playTone?.("battle");show("match","replace");
+      return true;
+    }
     function effect(p,move){
       const side=p.turn===0?"ally":"foe",partner=move.targetId;
-      return {kind:move.kind==="replace"?"swap":move.kind,name:move.label,type:move.type||species[member(p.sides[p.turn]).id].type,side,
+      const kind=move.kind==="signature"?(move.targetId?"swap":"heal"):move.kind==="replace"?"swap":move.kind;
+      return {kind,name:move.label,type:move.type||species[member(p.sides[p.turn]).id].type,side,
         ...(move.kind==="duet"?{partner:image(partner),partnerType:species[partner].type}:{})};
     }
     async function take(command){
@@ -300,7 +359,7 @@
           m.moves.push(move.id);m.handoff=m.setup.mode==="local"&&p.turn!==after.turn&&after.phase!=="done";
           cached={match:m,length:m.moves.length,pos:after};
           const r=rec();save({...r,match:m,lastReview:m.setup.mode==="cpu"&&after.phase==="done"?tape(m):r.lastReview});
-          playTone?.(move.kind==="heal"?"care":move.kind==="duet"?"battle":"strike");
+          playTone?.(move.kind==="heal"||move.kind==="signature"?"care":move.kind==="duet"?"battle":"strike");
           if(active()&&animate)await animate(effect(p,move));
           p=after;
           if(!active()||rec().match!==m)break;
@@ -356,6 +415,7 @@
         const skill=sim.options(p).filter(o=>["attack","guard","heal"].includes(o.kind))[Number(e.key)-1];
         if(skill?.available)act("spar-move",skill.id);return true;
       }
+      if(e.key==="4"&&signatureFor(p)){show("cmd:signature");return true;}
       const dest={d:"cmd:duet",s:"cmd:swap",h:"coach"}[e.key.toLowerCase()];
       if(dest){show(dest);return true;}return false;
     }

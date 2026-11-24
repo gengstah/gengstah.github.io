@@ -13,6 +13,7 @@
   function create({species,game}) {
     species=species||game.species;
     const dex=window.WilderKinDex,pairs=window.WilderDuets,kit=window.WilderSparringGear;
+    const signatures=window.WilderSparringSignatures;
     const valid=id=>typeof id==="string"&&Object.hasOwn(species,id);
     const validTeam=ids=>Array.isArray(ids)&&ids.length===3&&new Set(ids).size===3&&[...ids].every(valid);
     const maxHp=id=>species[id].baseHp+3*(level-5);
@@ -60,7 +61,11 @@
           } else if(spent!==undefined)return null;
           team.push(fighter);
         }
-        sides.push({active:s.active,beats:s.beats,lastPart:s.lastPart,cover:s.cover,braced:s.braced,pinned:s.pinned,team});
+        const side={active:s.active,beats:s.beats,lastPart:s.lastPart,cover:s.cover,braced:s.braced,pinned:s.pinned,team};
+        if(s.thornRead!==undefined||s.team.some(p=>p.signatureSpent!==undefined)){
+          if(!signatures?.restoreSide(s,side,sides.length,raw))return null;
+        }
+        sides.push(side);
       }
       const p={v:1,first:raw.first,turn:raw.turn,ply:raw.ply,limit,sides,log:raw.log.slice()};
       if(!standing(sides[1-p.turn])||!active(sides[1-p.turn]).hp)return null;
@@ -157,6 +162,10 @@
         if(m.available&&m.beatsAfter!==side.beats)m.detail+=" · "+m.beatsAfter+"/3 beats after";
         if(m.gearEvents)m.detail+=" · "+m.gearEvents.map(event=>event.text).join(" · ");
       }
+      if(signatures){
+        moves.push(...signatures.options(side,bench,label));
+        if(other.thornRead)for(const move of moves)signatures.forecastResponse(move,side,other,label);
+      }
       return moves;
     }
     function step(p,m,keepLog) {
@@ -181,8 +190,10 @@
         if(m.gearEvents)for(const e of m.gearEvents)sides[e.side].team.find(a=>a.id===e.holderId).spent=true;
         if(m.kind==="swap"||m.role==="relay")side.active=slot;
         side.beats=m.beatsAfter;side.lastPart=partFor[m.kind]||null;
+        if(m.signatureId||other.thornRead)signatures.resolve(m,lead,side,other,slot);
         next.ply++;next.turn=1-p.turn;
         next.winner=verdict(next);next.phase=next.winner!==null?"done":foe.hp?"move":"replace";
+        if(next.phase==="done"&&side.thornRead)delete side.thornRead;
       }
       if(keepLog) {
         const drop=m.damage&&!foe.hp?" · "+label(foe.id)+" falls":"";
