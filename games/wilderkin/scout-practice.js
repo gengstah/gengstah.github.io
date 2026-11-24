@@ -53,10 +53,32 @@
     }
     return {matrix,order:bestTeam};
   }
-  const coachName=id=>coaches.find(c=>c.id===id)?.name;
+  const rentalCodecs=new WeakMap();
+  function rentalCodec(species){
+    if(!species||!window.WilderRentalCards)return null;
+    if(!rentalCodecs.has(species))rentalCodecs.set(species,{codec:window.WilderRentalCards.create({game:{species},storage:null})});
+    return rentalCodecs.get(species);
+  }
+  function resolveCoach(id,hash,species){
+    if(id!=="rental")return coaches.find(c=>c.id===id);
+    if(typeof hash!=="string"||!hash.startsWith("#rental-v1="))return null;
+    const cache=rentalCodec(species);if(!cache)return null;
+    if(cache.hash===hash)return cache.rival;
+    const card=cache.codec.decode(hash);
+    if(!card||cache.codec.encode(card)!==hash)return null;
+    cache.hash=hash;cache.rival={id,name:card.name,team:card.ids,gear:card.gear,
+      plan:"The rental coach chooses three of these four after seeing your registered kin and gear. Your private picks stay hidden."};
+    return cache.rival;
+  }
+  const coachName=(id,hash,species)=>resolveCoach(id,hash,species)?.name;
+  function coachRoster(id,hash,species){
+    const c=resolveCoach(id,hash,species);
+    return c?{ids:c.team.slice(),gear:{...c.gear}}:null;
+  }
   function checkCard(raw,setup,first,species,sim){
-    const rival=coaches.find(c=>c.id===raw?.coach),ids=raw?.ids;
+    const rival=resolveCoach(raw?.coach,raw?.rental,species),ids=raw?.ids;
     if(!rival || raw.v!==1 || setup.mode!=="cpu" || setup.rival!=="custom" ||
+      (raw.coach==="rental"?Object.keys(raw).some(k=>!["v","coach","rental","ids","gear","picks","die"].includes(k)):Object.hasOwn(raw,"rental")) ||
       !Number.isInteger(raw.die) || raw.die<1 || raw.die>6 || raw.die%2!==first ||
       !Array.isArray(ids) || ids.length!==4 || new Set(ids).size!==4 ||
       ![...ids].every(id=>typeof id==="string" && Object.hasOwn(species,id) && !species[id].bonus) ||
@@ -64,16 +86,17 @@
     const fitting=window.WilderSparringGear.validate({left:raw.gear},ids,[]);
     if(!fitting || !setup.left.every(id=>setup.gear?.left?.[id]===fitting.left[id]) ||
       !setup.right.every(id=>setup.gear?.right?.[id]===rival.gear[id]))return null;
-    const card={v:1,coach:rival.id,ids:ids.slice(),gear:fitting.left,picks:setup.left.slice(),die:raw.die};
+    const card={v:1,coach:rival.id,ids:ids.slice(),gear:fitting.left,picks:setup.left.slice(),die:raw.die,
+      ...(rival.id==="rental"?{rental:raw.rental}:{})};
     return same(measure(sim,card,rival).order,setup.right)?card:null;
   }
   function filmRosters(raw,setup,first,species,sim){
     const card=checkCard(raw,setup,first,species,sim);
     if(!card)return null;
-    const rival=coaches.find(c=>c.id===card.coach);
+    const rival=resolveCoach(card.coach,card.rental,species);
     return {card,name:rival.name,rosters:[{ids:card.ids,gear:card.gear},{ids:rival.team.slice(),gear:{...rival.gear}}]};
   }
-  function create({game,sim,row,image,show,live,playFromPractice,readSetup,openFinder,notify}){
+  function create({game,sim,row,image,show,live,playFromPractice,readSetup,openFinder,openRentals,notify}){
     const species=game.species,kit=window.WilderSparringGear;
     const catalog=Object.values(species).filter(k=>!k.bonus).sort((a,b)=>a.name.localeCompare(b.name));
     const standard=id=>typeof id==="string"&&Object.hasOwn(species,id)&&!species[id].bonus;
@@ -81,27 +104,27 @@
     const name=id=>species[id].name;
     const select=(id,label,value,detail="",extra={})=>row("scout-pr-"+id,label,value,detail,extra);
     const link=(label,path,detail="",extra={})=>select("view",label,path,detail,extra);
-    const coach=()=>coaches.find(c=>c.id===draft.coach);
+    const coach=()=>resolveCoach(draft.coach,draft.rental,species);
     const gearLabel=(id,gear)=>kit.byId(gear[id])?.name||"No gear";
     const kinCard=(id,gear,badge)=>({label:name(id),detail:species[id].types.join(" / ")+" · "+gearLabel(id,gear),image:image(id),badge});
     const path=part=>part?route+":"+part:route;
     const stored=()=>{try{return window.localStorage?.getItem(saveKey)??null;}catch{return null;}};
-    let finderVersion=0,diskSnapshot=stored();
+    let editorVersion=0,diskSnapshot=stored(),rentalOffer=null;
     function mark(){
-      finderVersion++;
+      editorVersion++;
       try{const raw=JSON.stringify(draft);window.localStorage.setItem(saveKey,raw);diskSnapshot=raw;}catch{/* Session-only play. */}
     }
     let cache=null;
     function report(){
-      const key=JSON.stringify([draft.coach,draft.ids,draft.gear]);
+      const key=JSON.stringify([draft.coach,draft.rental,draft.ids,draft.gear]);
       if(cache?.key!==key)cache={key,...measure(sim,draft,coach())};
       return cache;
     }
     function load(){
       let raw;try{raw=JSON.parse(window.localStorage.getItem(saveKey));}catch{/* A new card works without storage. */}
-      if(raw?.v!==1||!validFour(raw.ids)||!coaches.some(c=>c.id===raw.coach)||
+      if(raw?.v!==1||!validFour(raw.ids)||!resolveCoach(raw.coach,raw.rental,species)||
         !kit.validate({left:raw.gear},raw.ids,[]))return empty();
-      const clean={...empty(),ids:raw.ids.slice(),gear:{...raw.gear},coach:raw.coach};
+      const clean={...empty(),ids:raw.ids.slice(),gear:{...raw.gear},coach:raw.coach,...(raw.coach==="rental"?{rental:raw.rental}:{})};
       if(!["pick","reveal","played"].includes(raw.phase)||!Array.isArray(raw.picks)||raw.picks.length>3||
         !raw.picks.every(id=>clean.ids.includes(id))||new Set(raw.picks).size!==raw.picks.length)return clean;
       clean.phase="pick";clean.picks=raw.picks.slice();
@@ -111,10 +134,57 @@
       return clean;
     }
     let draft=load(),query="";
+    function refresh(){
+      const raw=stored();if(raw===diskSnapshot)return false;
+      draft=load();diskSnapshot=raw;editorVersion++;return true;
+    }
     function resetPicks(){draft.phase="register";draft.picks=[];delete draft.die;mark();show(route);}
     function withFour(ids,gear){
       if(!validFour(ids))return;
       draft.ids=ids.slice();draft.gear=kit.normalize({left:gear},ids,[]).left;resetPicks();
+    }
+    function rentalFour(card){
+      if(!validFour(card?.ids))return null;
+      const fitted=kit.validate({left:card.gear===undefined?{}:card.gear},card.ids,[]);
+      return fitted?{ids:card.ids.slice(),gear:fitted.left}:null;
+    }
+    const sameFour=(a,b)=>a.ids.every((id,i)=>id===b.ids[i]&&a.gear[id]===b.gear[id]);
+    function rentalDesk(){
+      if(!openRentals)return;
+      refresh();if(draft.phase!=="register"){show(route);return;}
+      const version=++editorVersion;
+      openRentals({label:"Practice registration",card:{name:"My practice four",ids:draft.ids.slice(),gear:{...draft.gear}},
+        back:()=>{refresh();if(version===editorVersion)editorVersion++;show(route);},
+        apply(card){
+          const incoming=rentalFour(card);refresh();
+          if(!incoming||version!==editorVersion||draft.phase!=="register")return false;
+          withFour(incoming.ids,incoming.gear);return true;
+        }});
+    }
+    function useRental(offer){
+      if(offer.hash){draft.coach="rental";draft.rental=offer.hash;resetPicks();}
+      else withFour(offer.team.ids,offer.team.gear);
+    }
+    function stageRental(card,challenge){
+      const team=rentalFour(card);if(!team)return false;
+      const hash=challenge?rentalCodec(species)?.codec.encode(card):null;
+      if(challenge&&!resolveCoach("rental",hash,species))return false;
+      refresh();const offer={team,hash,version:++editorVersion};rentalOffer=null;
+      if(draft.phase!=="register"||!challenge&&!sameFour(draft,empty())&&!sameFour(draft,team)){
+        rentalOffer=offer;show(path("rental"));return true;
+      }
+      useRental(offer);return true;
+    }
+    function rentalReview(){
+      const {team,hash}=rentalOffer,opponent=hash&&resolveCoach("rental",hash,species);
+      return {title:opponent?"Face "+opponent.name+"?":"Which four will practice?",kicker:"SCOUT TABLE   /   PRACTICE REGISTRATION",
+        subtitle:opponent?"Keep your four and their gear. Reopen registration to scout the new rival and choose your trio.":
+          "Review both teams before replacing your four. You can choose a new trio after registration.",
+        sections:[group("Your current four",draft.ids.map(id=>kinCard(id,draft.gear)),2),
+          group(opponent?opponent.name+" registered":"Rental four",team.ids.map(id=>kinCard(id,team.gear)),2),
+          group("Registration",[select("rental-replace",opponent?"Face this rental coach":"Use the rental four",null,
+            draft.phase==="register"?"Open your registration.":"Clear the previous picks and return to registration.",{tone:"primary"}),
+            select("rental-keep","Keep my current table")])]};
     }
     function register(){
       const rival=coach(),mine=draft.ids;
@@ -123,8 +193,10 @@
           select("register","Register these four",null,"Scout "+rival.name+" and privately pick your trio.",{tone:"primary"}),
           ...(live()?[row("spar-view","Resume your Hall match","match","Your current fight is saved.")]:[])]),
           group("Your registered four",mine.map((id,i)=>select("view",name(id),path("member:"+i),species[id].types.join(" / ")+" · "+gearLabel(id,draft.gear),{image:image(id)})),2),
+          ...(rival.id==="rental"?[group(rival.name+" registered",rival.team.map(id=>kinCard(id,rival.gear)),2)]:[]),
           group("Choose a coach",coaches.map(c=>select("coach",c.name,c.id,c.plan,{image:image(c.team[0]),badge:c.id===rival.id?"Selected":""}))),
           group("Borrow a roster",[
+            ...(openRentals?[select("rentals","Rental Counter",null,"Save or share these four, or borrow a different registration.")]:[]),
             select("borrow","Bring my Hall trio","hall","Keeps your three and their gear. Fills the fourth place."),
             ...(game.state.team?.length?[select("borrow","Bring my travelers","trail","Your trail leader comes first. The Hall supplies level-20 copies.")]:[]),
             select("borrow","Use the starter four","starter","Sprigkit, Cindlet, Dewfin and Gustlance.")])]};
@@ -145,20 +217,16 @@
     }
     function findPartner(slot,catalogPage=null){
       if(!openFinder)return;
-      const refresh=()=>{
-        const raw=stored();if(raw===diskSnapshot)return false;
-        draft=load();diskSnapshot=raw;return true;
-      };
       refresh();if(draft.phase!=="register"){show(route);return;}
-      const original=draft.ids.slice(),rival=coach(),version=++finderVersion;
+      const original=draft.ids.slice(),rival=coach(),version=++editorVersion;
       const seed=catalogPage===null?{}:window.WilderPartnerSearch?.searchSeed(query)||{query};
       openFinder({...seed,anchor:original[slot===0?1:0],slot,team:original,gear:{...draft.gear},foes:rival.team.slice(),
         foeGear:{...rival.gear},label:rival.name+" · practice slot "+(slot+1),
-        back:()=>{refresh();if(version===finderVersion)finderVersion++;
+        back:()=>{refresh();if(version===editorVersion)editorVersion++;
           show(draft.phase==="register"?path(catalogPage===null?"member:"+slot:"catalog:"+slot+":"+catalogPage):route);},
         apply(next){
-          if(refresh()||version!==finderVersion||draft.phase!=="register"){
-            if(version===finderVersion)finderVersion++;
+          if(refresh()||version!==editorVersion||draft.phase!=="register"){
+            if(version===editorVersion)editorVersion++;
             notify?.("This practice registration has changed. Return to review your four.");return false;
           }
           if(!standard(next)||draft.ids.some((id,i)=>i!==slot&&id===next)){
@@ -240,7 +308,7 @@
     function rivalCard(id){
       const rival=coach(),matrix=report().matrix,item=kit.byId(rival.gear[id]);
       return {title:name(id),kicker:rival.name.toUpperCase()+"   /   PUBLIC REGISTRATION",art:{src:image(id)},
-        subtitle:species[id].types.join(" / ")+" · "+sim.maxHp(id)+" HP. "+item.name+" · "+item.effect,
+        subtitle:species[id].types.join(" / ")+" · "+sim.maxHp(id)+" HP. "+(item?item.name+" · "+item.effect:"No gear."),
         sections:[group("Against your four",draft.ids.map(a=>{
           const m=matrix[a][id];
           return {label:name(a),image:image(a),detail:name(a)+"’s "+m.us.label+" deals "+m.us.damage+". "+name(id)+"’s "+m.them.label+" deals "+m.them.damage+"."};
@@ -254,7 +322,7 @@
       const s=setup(),rival=coach(),first=draft.die%2,v=report().matrix[s.left[0]][s.right[0]],played=draft.phase==="played";
       const hallRecord=game.state.sparring?.match;
       const recorded=hallRecord?.scout;
-      const sameMatch=recorded && recorded.coach===draft.coach && recorded.die===draft.die && same(recorded.ids,draft.ids) &&
+      const sameMatch=recorded && recorded.coach===draft.coach && recorded.rental===draft.rental && recorded.die===draft.die && same(recorded.ids,draft.ids) &&
         same(recorded.picks,draft.picks) && draft.ids.every(id=>draft.gear[id]===recorded.gear[id]);
       const result=played&&sameMatch&&!live();
       return {title:"Both trios revealed",kicker:"SCOUT TABLE   /   "+rival.name.toUpperCase(),
@@ -270,6 +338,7 @@
     }
     function model(v=route){
       const [,page,rawSlot,n]=v.split(":"),slot=Number(rawSlot);
+      if(page==="rental"&&rentalOffer)return rentalReview();
       if(draft.phase==="register"){
         if(Number.isInteger(slot)&&slot>=0&&slot<4){
           if(page==="member")return member(slot);if(page==="gear")return gearPage(slot);
@@ -287,11 +356,18 @@
     function act(action,value){
       if(typeof action!=="string"||!action.startsWith("scout-pr-"))return false;
       const id=action.slice(9);
+      if((id==="rental-keep"||id==="rental-replace")&&rentalOffer){
+        const offer=rentalOffer;rentalOffer=null;refresh();
+        if(id==="rental-replace"&&offer.version===editorVersion){useRental(offer);return true;}
+        if(id==="rental-replace")notify?.("Your practice table changed. Review the current four before borrowing.");
+        show(route);return true;
+      }
       if(id==="view"){if(matches(value))show(value);return true;}
       if(id==="restart"){resetPicks();return true;}
       if(draft.phase==="register"){
         if(id==="register"){report();draft.phase="pick";mark();show(route);return true;}
-        if(id==="coach"&&coaches.some(c=>c.id===value)){draft.coach=value;mark();show(route);return true;}
+        if(id==="rentals"){rentalDesk();return true;}
+        if(id==="coach"&&coaches.some(c=>c.id===value)){draft.coach=value;delete draft.rental;mark();show(route);return true;}
         if(id==="borrow"){
           if(value==="starter"){const base=empty();withFour(base.ids,base.gear);}
           else if(value==="hall"||value==="trail"){
@@ -329,12 +405,13 @@
           draft.die=rollBell();draft.phase="reveal";mark();show(route);
         }
       }else if(id==="play"&&draft.phase==="reveal"&&!live()){
-        const card={v:1,coach:draft.coach,ids:draft.ids.slice(),gear:{...draft.gear},picks:draft.picks.slice(),die:draft.die};
+        const card={v:1,coach:draft.coach,ids:draft.ids.slice(),gear:{...draft.gear},picks:draft.picks.slice(),die:draft.die,
+          ...(draft.coach==="rental"?{rental:draft.rental}:{})};
         if(playFromPractice(setup(),[],0,draft.die%2,card)){draft.phase="played";mark();}
       }
       return true;
     }
-    return {matches,model,act};
+    return {matches,model,act,borrowRental:card=>stageRental(card,false),challengeRental:card=>stageRental(card,true)};
   }
-  window.WilderScoutPractice={create,checkCard,coachName,filmRosters};
+  window.WilderScoutPractice={create,checkCard,coachName,coachRoster,filmRosters};
 })();

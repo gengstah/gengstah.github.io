@@ -1,21 +1,21 @@
 const test=require("node:test");
 const assert=require("node:assert/strict");
 const fs=require("node:fs"),path=require("node:path"),vm=require("node:vm");
-const scripts=["atlas","bestiary","activities","campaign","story","duets","sparring-gear","sparring-signatures","sparring-battle","sparring-teams","partner-search","scout-practice","sparring","engine"].map(name=>{
+const scripts=["atlas","bestiary","activities","campaign","story","duets","sparring-gear","sparring-signatures","sparring-battle","sparring-teams","partner-search","bellpost-rules","rental-cards","scout-practice","sparring","engine"].map(name=>{
   const file=path.join(__dirname,"../games/wilderkin",name+".js");return new vm.Script(fs.readFileSync(file,"utf8"),{filename:file});
 });
 const plain=x=>JSON.parse(JSON.stringify(x)),settle=()=>new Promise(r=>setImmediate(r));
 const route="scout-practice",key="wilderkin.scout-practice.v1";
 
 function boot(store=new Map(),draw=0){
-  let view=route,call=null,ongoing=false;const finders=[],messages=[];
+  let view=route,call=null,ongoing=false;const finders=[],rentals=[],messages=[];
   const localStorage={getItem:k=>store.get(k)??null,setItem:(k,v)=>store.set(k,v)};
   const ctx=vm.createContext({window:{localStorage,crypto:{getRandomValues:a=>{a[0]=draw;return a;}},prompt:()=>"kilnbeak"}});
   scripts.forEach(s=>s.runInContext(ctx));
   const w=ctx.window,g=w.WilderGame,sim=w.WilderSparringBattle.create({game:g});
   const row=(id,label,value,detail,extra)=>({id,label,value,detail,...extra});
-  const controls={game:g,sim,row,openFinder:context=>finders.push(context),notify:m=>messages.push(m),image:id=>"portrait/"+id,live:()=>ongoing,show:v=>{view=v;},
-    readSetup:()=>g.state.sparring.setup,playFromPractice:(raw,moves,expected,first)=>{call={raw,moves,expected,first};return true;}};
+  const controls={game:g,sim,row,openFinder:context=>finders.push(context),openRentals:context=>rentals.push(context),notify:m=>messages.push(m),image:id=>"portrait/"+id,live:()=>ongoing,show:v=>{view=v;},
+    readSetup:()=>g.state.sparring.setup,playFromPractice:(raw,moves,expected,first,scout)=>{call={raw,moves,expected,first,scout};return true;}};
   const desk=w.WilderScoutPractice.create(controls);
   const model=()=>desk.model(view),rows=()=>model().sections.flatMap(s=>s.rows||[]);
   function click(id,value){
@@ -23,7 +23,7 @@ function boot(store=new Map(),draw=0){
     assert.ok(button&&!button.disabled,[id,value,model().title,JSON.stringify(rows().filter(r=>r.id))].join(" "));
     assert.equal(desk.act(button.id,button.value),true);
   }
-  const h={g,sim,w,controls,store,desk,model,rows,click,finders,messages,call:()=>call,live:v=>{ongoing=v;},reload:()=>boot(store,draw)};
+  const h={g,sim,w,controls,store,desk,model,rows,click,finders,rentals,messages,call:()=>call,live:v=>{ongoing=v;},reload:()=>boot(store,draw)};
   return h;
 }
 function register(h,ids=["sprigkit","cindlet","dewfin"]){
@@ -32,6 +32,74 @@ function register(h,ids=["sprigkit","cindlet","dewfin"]){
 function revealed(h){
   return plain(h.model().sections.filter(s=>s.rows?.some(r=>r.badge==="Sits out")).map(s=>s.rows.map(r=>r.label)));
 }
+
+test("rentals preserve the exact practice four and gear, guard a stale counter, and review a different or locked registration before replacement",()=>{
+  const h=boot(),initial=JSON.stringify(h.g.state),r={name:"Rain team",ids:["dewfin","thicketowl","kilnclaw","cairnwatch"],gear:{dewfin:"opening-pennant",kilnclaw:"last-stitch"}},
+    other={name:"Four herons",ids:["gustlance","kilnbeak","arcbill","iceribbon"],gear:{}};
+  assert.equal(h.desk.borrowRental({...r,gear:{cindlet:"last-stitch"}}),false);assert.equal(h.store.has(key),false);
+  assert.equal(h.desk.borrowRental(r),true);assert.equal(h.model().title,"Scout Table practice");assert.equal(h.call(),null);
+  assert.deepEqual(JSON.parse(h.store.get(key)),{v:1,ids:r.ids,gear:r.gear,coach:"weir",phase:"register",picks:[]});
+  const loaded=h.reload();loaded.click("rentals");const origin=loaded.rentals.at(-1);
+  assert.deepEqual(plain(origin.card),{name:"My practice four",ids:r.ids,gear:r.gear});
+  h.desk.act("scout-pr-equip","1|relay-bell");assert.equal(origin.apply(other),false);
+  origin.back();loaded.click("rentals");
+  assert.equal(loaded.rentals.at(-1).apply({...other,ids:["bad",...other.ids.slice(1)]}),false);
+  assert.equal(loaded.rentals.at(-1).apply(other),true);assert.equal(loaded.model().title,"Scout Table practice");
+  loaded.desk.borrowRental(r);assert.match(loaded.model().title,/Which four/);loaded.click("rental-keep");
+  assert.deepEqual(JSON.parse(h.store.get(key)).ids,other.ids);
+  loaded.desk.borrowRental(r);h.reload().desk.act("scout-pr-equip","1|last-stitch");loaded.click("rental-replace");
+  assert.deepEqual(JSON.parse(h.store.get(key)).ids,other.ids);
+  loaded.desk.borrowRental(r);loaded.click("rental-replace");loaded.click("rentals");const prior=loaded.rentals.at(-1);
+  register(loaded,r.ids.slice(0,3));loaded.click("lock");assert.equal(prior.apply(other),false);
+  const locked=h.store.get(key);loaded.live(true);loaded.desk.borrowRental(r);
+  assert.equal(h.store.get(key),locked);loaded.click("rental-keep");assert.equal(loaded.model().title,"Both trios revealed");
+  loaded.desk.borrowRental(other);loaded.click("rental-replace");const draft=JSON.parse(h.store.get(key));
+  assert.deepEqual(draft.ids,other.ids);assert.deepEqual(draft.gear,{});assert.deepEqual(draft.picks,[]);
+  assert.equal(draft.phase,"register");assert.equal(draft.die,undefined);assert.equal(loaded.call(),null);
+  assert.equal(JSON.stringify(h.g.state),initial);
+});
+
+test("a public rental coach picks from the published four and fitted gear independently of private picks, and its replay verifies both fours",()=>{
+  const rental={name:"Rain Garden Relay",ids:["dewfin","thicketowl","kilnclaw","cairnwatch"],
+    gear:{dewfin:"opening-pennant",thicketowl:"mender-wrap",kilnclaw:"last-stitch",cairnwatch:"relay-bell"}};
+  const trail=["sprigkit","cindlet","dewfin","gustlance"],foundry=["smelteroll","boltbur","kilnclaw","pincoil"];
+  function contest(ids,picks){
+    const h=boot(),player={name:"Mine",ids,gear:{[ids[0]]:"last-stitch"}};
+    assert.ok(h.desk.borrowRental(player));assert.ok(h.desk.challengeRental(rental));
+    const raw=JSON.parse(h.store.get(key)),api=h.w.WilderScoutPractice,codec=h.w.WilderRentalCards.create({game:h.g,storage:null});
+    assert.deepEqual(raw.ids,ids);assert.deepEqual(raw.gear,player.gear);assert.equal(raw.phase,"register");
+    assert.equal(raw.rental,codec.encode(rental));assert.equal(api.coachName("rental",raw.rental,h.g.species),rental.name);
+    assert.deepEqual(plain(api.coachRoster("rental",raw.rental,h.g.species)),{ids:rental.ids,gear:rental.gear});
+    const loaded=h.reload();assert.ok(loaded.model().sections.find(s=>s.title===rental.name+" registered").rows[0].detail.includes("Opening Pennant"));
+    register(loaded,picks);loaded.click("lock");loaded.click("play");
+    const {raw:setup,first,scout}=loaded.call();
+    assert.deepEqual(plain(setup.gear.right),Object.fromEntries(setup.right.map(k=>[k,rental.gear[k]])));
+    const film=api.filmRosters(scout,setup,first,h.g.species,h.sim);assert.equal(film.name,rental.name);
+    assert.deepEqual(plain(film.rosters),[{ids,gear:player.gear},{ids:rental.ids,gear:rental.gear}]);
+    for(const bad of [{...scout,rental:scout.rental+"."},{...scout,foes:rental.ids},{...scout,coach:"weir"},
+      {...scout,rental:codec.encode({...rental,gear:{}})}])assert.equal(api.checkCard(bad,setup,first,h.g.species,h.sim),null);
+    assert.equal(api.checkCard(scout,{...setup,right:[...setup.right].reverse()},first,h.g.species,h.sim),null);
+    return plain(setup.right);
+  }
+  const first=contest(trail,trail.slice(0,3));
+  assert.deepEqual(first,contest(trail,["gustlance","dewfin","cindlet"]));
+  assert.deepEqual(first,["kilnclaw","thicketowl","cairnwatch"]);
+  assert.deepEqual(contest(foundry,foundry.slice(0,3)),["cairnwatch","dewfin","kilnclaw"]);
+});
+
+test("changing to a rental rival after picks asks before clearing them, supports an empty equipment slot, and returns to the named coaches",()=>{
+  const h=boot(),card={name:"Quiet shore",ids:["dewfin","thicketowl","kilnclaw","cairnwatch"],gear:{}};
+  h.click("register");h.click("pick","cindlet");const saved=h.store.get(key);
+  assert.equal(h.desk.challengeRental({...card,name:""}),false);assert.equal(h.store.get(key),saved);
+  h.live(true);assert.equal(h.desk.challengeRental(card),true);assert.equal(h.store.get(key),saved);
+  h.click("rental-keep");assert.equal(h.model().title,"Pick your three");assert.equal(h.store.get(key),saved);
+  assert.equal(h.desk.challengeRental(card),true);h.click("rental-replace");
+  assert.deepEqual(JSON.parse(h.store.get(key)).picks,[]);assert.equal(h.call(),null);
+  h.click("register");h.click("view",route+":scout");h.click("view",route+":rival:thicketowl");
+  assert.match(h.model().subtitle,/No gear/);h.click("view",route);h.click("restart");
+  h.click("coach","pike");const draft=JSON.parse(h.store.get(key));
+  assert.equal(draft.coach,"pike");assert.equal(draft.rental,undefined);
+});
 
 test("public rosters, optional gear and all sixteen actual opening reads are available before either order is revealed",()=>{
   const h=boot();

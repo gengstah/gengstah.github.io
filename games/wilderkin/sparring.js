@@ -67,13 +67,13 @@
   function tape(m,rival=m.setup.rival){return {left:m.setup.left.slice(),right:m.setup.right.slice(),...gearCopy(m.setup.gear),first:m.first,human:0,moves:m.moves.slice(),
     ...(window.WilderSparringTeams.namedCrew(rival,m.setup.right)?{rival}:{}),
     ...(m.scout?{scout:{...m.scout,ids:m.scout.ids.slice(),gear:{...m.scout.gear},picks:m.scout.picks.slice()}}:{})};}
-  function create({game,row,image,go,render,notify,animate,playTone,openFinder,active=()=>true}) {
+  function create({game,row,image,go,render,notify,animate,playTone,openFinder,openRentals,active=()=>true}) {
     const species=game.species,sim=window.WilderSparringBattle.create({species});
     const rec=()=>game.state.sparring||restore(null,{species});
     const save=r=>game.saveSparring(r);
     const kin=id=>species[id].name;
     const sideName=(m,side)=>m.setup.mode==="local"?"Player "+(side+1):side===0?"Your team":
-      m.cupOpponent||window.WilderScoutPractice?.coachName(m.scout?.coach)||rival(m.setup).name;
+      m.cupOpponent||window.WilderScoutPractice?.coachName(m.scout?.coach,m.scout?.rental,species)||rival(m.setup).name;
     const group=(title,rows,columns=1)=>({title,rows,columns});
     const button=(id,label,value,detail="",extra={})=>row("spar-"+id,label,value,detail,extra);
     const link=(label,target,detail="",extra={})=>button("view",label,target,detail,extra);
@@ -92,7 +92,7 @@
     }
     const live=()=>{const p=position();return p&&p.phase!=="done";};
     const ember=window.WilderEmberPartners?.create({species,sim,row,image,show,live,playFromPractice});
-    const scout=window.WilderScoutPractice?.create({game,sim,row,image,show,live,playFromPractice,openFinder,notify,readSetup:()=>rec().setup});
+    const scout=window.WilderScoutPractice?.create({game,sim,row,image,show,live,playFromPractice,openFinder,openRentals,notify,readSetup:()=>rec().setup});
     const library=window.WilderSparringLibrary?.create({species,sim,row,image,read:rec,save,show,render,live,playFromPractice});
     const cup=window.WilderCupSeries?.create({game,sim,row,image,show,render,notify,
       read:()=>rec().cup,save:value=>save({...rec(),cup:value}),startFight:m=>{
@@ -119,16 +119,18 @@
     function lobby(){
       const r=rec(),s=r.setup,ongoing=live(),opponent=rival(s);
       const sections=[];
+      const rentals=openRentals?[row("nav","Borrow or challenge a rental team","rental-counter","Choose a four-kin team at the Rental Counter.")]:[];
       if(pending)sections.push(group("A guest crew sent a challenge",[button("invitation","Scout the guest lineup",null,pending.ids.map(kin).join(" · "))]));
       if(ongoing)sections.push(group("On the floor",[link("Resume the match","match",sideName(r.match,position().turn)+" to act · "+position().ply+" actions played",{tone:"primary"})]));
       else {
         sections.push(group("Choose a match",[
           button("mode","Battle a rival crew","cpu",opponent.name+" · tactical opponent",{tone:"primary"}),
+          ...rentals,
           button("mode","Pass and play","local","Two players share this device and take turns."),
           row("nav","Battle a friend by link","bellpost","Play on two devices. Each of you chooses your own moves.")]));
         if(r.match)sections.push(group("Last match",[link("Review the result","result")]));
       }
-      if(ongoing)sections.push(group("Friend matches",[row("nav","Bellpost","bellpost","Play a friend on another device. Your Hall match stays on the floor.")]));
+      if(ongoing)sections.push(group("Friend matches",[...rentals,row("nav","Bellpost","bellpost","Play a friend on another device. Your Hall match stays on the floor.")]));
       if(cup)sections.push(group("Tournament desk",[link("Lantern Cup","cup","Register six, bring three, and play a best-of-three series.")]));
       if(ember)sections.push(group("Practice with partners",[link("Ember partners","ember","Bring a wounded reserve back into the fight or challenge the rival’s guard.")]));
       if(scout)sections.push(group("Scout Table",[row("nav","Scout a friend’s roster","scout-table","Bring four kin and lock three after scouting."),link("Practice with a scout","scout-practice","Choose a trio against a coach’s public four.")]));
@@ -539,7 +541,8 @@
       }
       return context;
     }
-    return {model,act,key,loadFragment,prepareReedbank,reviewRecord:()=>rec().lastReview,defaultPartners};
+    return {model,act,key,loadFragment,prepareReedbank,reviewRecord:()=>rec().lastReview,defaultPartners,
+      borrowRental:card=>scout?.borrowRental(card),challengeRental:card=>scout?.challengeRental(card)};
   }
   window.WilderSparring={create,restore};
 })();

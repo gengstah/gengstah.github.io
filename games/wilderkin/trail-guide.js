@@ -571,7 +571,8 @@ window.WilderPages = {
         return open("growth",id,g.formName,g.baseName+"’s two camp disciplines",{image:"art/growth/"+g.formId+".png"});
       });
       const lodge=game.wardens.find(i=>!s().wardenLessons.includes(i))??0;
-      return page("What’s new in Wilderkin","FIELD DISPATCH   /   DUET PRACTICE",[
+      return page("What’s new in Wilderkin","FIELD DISPATCH   /   RENTAL TEAMS",[
+        heading("Play a rental team",[nav("rental-counter","Visit the Rental Counter","Borrow four kin, pick three to battle, or bring your own team to face them.")]),
         heading("Build a pairing",[nav("partner-finder","Find a duet partner","Choose a skill for two kin, compare partners and try it in battle.")]),
         heading("Rehearse a battle",[nav("film-room","Enter the Film Room","Take Kilnbeak’s side at 22 HP, or bring your own match film.")]),
         heading("Scout a lineup",[nav("scout-table","Take a seat at the Scout Table","Bring four kin, scout your opponent and choose three."),open("sparring","scout-practice","Practice with a coach","Try the draft and battle using loaners.")]),

@@ -16,8 +16,9 @@ function browser(store=new Map()){
   const row=(id,label,value,detail,extra)=>({id,label,value,detail,...extra});
   const go=(screen,next)=>{assert.equal(screen,"scout-table");route=next;repaint();};
   let model;
-  const shared=[],finders=[],ui=w.WilderScoutTable.create({game:g,rules,row,image:id=>id+".png",go,render:repaint,notify:m=>messages.push(m),
-    openBattle:r=>{opened.push(r);return true;},openFinder:context=>finders.push(context),active:()=>active,openSharedMessage:async text=>{if(text.includes("#scout-bout1=")){shared.push(text);return true;}return false;}});
+  const shared=[],finders=[],rentals=[],ui=w.WilderScoutTable.create({game:g,rules,row,image:id=>id+".png",go,render:repaint,notify:m=>messages.push(m),
+    openBattle:r=>{opened.push(r);return true;},openFinder:context=>finders.push(context),openRentals:context=>rentals.push(context),
+    active:()=>active,openSharedMessage:async text=>{if(/#(?:scout-bout1|rental-v1)=/.test(text)){shared.push(text);return true;}return false;}});
   function repaint(){model=ui.model(route);}
   w.prompt=(_message,value)=>{prompted=value;return answer;};
   w.navigator.clipboard={writeText:async s=>{copied=s;}};w.navigator.share=async o=>{native=o.url;};
@@ -31,7 +32,7 @@ function browser(store=new Map()){
   }
   async function open(hash){const next=await ui.loadFragment(hash);assert.ok(next);go("scout-table",next);}
   repaint();
-  return {w,rules,g,ui,rows,act,at,open,opened,messages,shared,finders,get view(){return model;},get route(){return route;},get hash(){return loc.hash;},
+  return {w,rules,g,ui,rows,act,at,open,opened,messages,shared,finders,rentals,get view(){return model;},get route(){return route;},get hash(){return loc.hash;},
     get copy(){return copied;},get native(){return native;},get prompted(){return prompted;},type:text=>{answer=text;},setActive:v=>{active=v;},store};
 }
 async function register(d,guest=false){
@@ -41,6 +42,37 @@ async function register(d,guest=false){
 async function lock(d,ids){
   d.act("order");for(const id of ids)d.act("pick",id);d.act("lock-check");d.act("lock");await d.at("table|");return d.hash;
 }
+test("borrowed host and visiting drafts preserve four and gear, keep sealed seats private, and prevent stale, pending or already-signed imports",async()=>{
+  const host=browser(),game=JSON.stringify(host.g.state),card={name:"Public four",ids:["dewfin","thicketowl","kilnclaw","cairnwatch"],gear:{dewfin:"opening-pennant",thicketowl:"mender-wrap"}},
+    other={name:"Visitors",ids:["gustlance","kilnbeak","arcbill","iceribbon"],gear:{arcbill:"prism-lens"}};
+  host.act("rental-desk");assert.equal(host.rentals.at(-1),undefined);
+  const slots=d=>plain(d.rows().filter(r=>r.id==="scout-slot").map(r=>r.label));
+  assert.equal(host.ui.borrowRental({...card,gear:{dewfin:"last-stitch",thicketowl:"last-stitch"}}),false);
+  assert.equal(host.ui.borrowRental(card),true);assert.equal(host.route,"draft|new");assert.equal(host.rules.list().length,0);
+  assert.deepEqual(slots(host),["Dewfin","Thicketowl","Kilnclaw","Cairnwatch"]);assert.equal(host.ui.addressFor(host.route),"#scout-table");
+  const copy=browser(host.store);copy.act("new");copy.act("rentals");const stale=copy.rentals.at(-1);
+  assert.deepEqual(plain(stale.card),{name:"My Scout four",ids:card.ids,gear:card.gear});
+  host.act("slot",2);host.act("gear");host.act("equip","last-stitch");assert.equal(stale.apply(other),false);
+  host.act("draft");assert.equal(host.ui.borrowRental(other),true);assert.match(host.view.title,/Which four/);host.act("rental-keep");
+  assert.deepEqual(slots(host),["Dewfin","Thicketowl","Kilnclaw","Cairnwatch"]);
+  host.ui.borrowRental(other);copy.act("slot",0);copy.act("gear");copy.act("equip","seam-hook");host.act("rental-replace");
+  assert.deepEqual(slots(host),["Dewfin","Thicketowl","Kilnclaw","Cairnwatch"]);assert.match(host.rows().find(r=>r.value===0).detail,/Seam Hook/);
+  host.act("rentals");const old=host.rentals.at(-1);assert.equal(old.apply(other),true);
+  copy.act("draft");copy.act("rentals");const open=copy.rentals.at(-1);
+  host.act("register-check");host.act("register");assert.equal(host.ui.borrowRental(card),false);await host.at("table|");
+  assert.equal(open.apply(card),false);open.back();assert.equal(copy.route,host.route);assert.equal(host.rules.list().length,1);
+  const invitation=host.hash,id=host.rules.list()[0].id,visitor=browser();await visitor.open(invitation);
+  visitor.act("join");visitor.act("rentals");const visiting=visitor.rentals.at(-1);
+  assert.equal(visitor.ui.addressFor(visitor.route),invitation);assert.doesNotMatch(JSON.stringify(visiting),/gustlance|arcbill|prism-lens/);
+  assert.equal(visiting.apply(card),true);assert.equal(visitor.route,"draft|"+id);assert.equal(visitor.ui.addressFor(visitor.route),invitation);
+  visitor.act("rentals");const guest=visitor.rentals.at(-1);
+  visitor.ui.borrowRental(other);assert.equal(visitor.route,"draft|new");assert.equal(visitor.rules.list().length,0);assert.equal(guest.apply(other),false);
+  await visitor.open(invitation);visitor.act("join");visitor.act("rentals");assert.deepEqual(plain(visitor.rentals.at(-1).card.ids),card.ids);
+  const newer=browser(visitor.store);await newer.open(invitation);await register(newer,true);
+  assert.equal(visitor.rentals.at(-1).apply(other),false);visitor.rentals.at(-1).back();assert.equal(visitor.route,"table|"+id);
+  assert.equal(copy.ui.borrowRental(card),true);assert.equal(copy.route,"draft|new");assert.equal(host.rules.list().length,1);
+  assert.equal(JSON.stringify(host.g.state),game);
+});
 test("fresh browsers build four, hide both choices until due, scout real attacks, receive late links, reveal six, and can enter their own or spectator battle",async()=>{
   const h=browser(),g=browser(),publicView=browser(),initial=JSON.stringify(h.g.state);
   h.act("new");assert.equal(h.rows().filter(r=>r.id==="scout-slot").length,4);
@@ -100,6 +132,8 @@ test("native paste accepts chat wrappers, does not join on inspection and delega
   d.type("My scout invitation: ["+link+"]( "+link+" )!");d.act("paste");await d.at("table|");assert.equal(d.hash,ticket);
   assert.equal(d.rules.list().length,0);d.act("desk");d.type("Open this [match](https://game.test/#scout-bout1=example).");d.act("paste");
   await new Promise(r=>setImmediate(r));assert.equal(d.shared.length,1);assert.equal(d.route,"desk");
+  const rental="Play this four: https://game.test/#rental-v1=card.";d.type(rental);d.act("paste");
+  await new Promise(r=>setImmediate(r));assert.equal(d.shared.at(-1),rental);assert.equal(d.route,"desk");
   await d.open(ticket+"%E2%80%9D");assert.equal(d.hash,ticket);await d.open(ticket+".bad!");assert.equal(d.route,"error");
   assert.equal(d.rules.list().length,0);assert.equal(d.ui.act("elsewhere",null,"desk"),false);
 });

@@ -6,11 +6,11 @@
   const group=(title,rows,columns=1)=>({title,rows,columns});
   const page=(title,kicker,subtitle,sections)=>({title,kicker,subtitle,sections});
   const path=(...parts)=>parts.join("|");
-  function create({game,row,image,go,render,notify,openBattle,openFinder,openSharedMessage,active=()=>true,rules=window.WilderScoutRules.create({game})}){
+  function create({game,row,image,go,render,notify,openBattle,openFinder,openRentals,openSharedMessage,active=()=>true,rules=window.WilderScoutRules.create({game})}){
     const species=game.species,gear=window.WilderSparringGear,dex=window.WilderKinDex;
     const catalog=Object.values(species).filter(k=>!k.bonus).sort((a,b)=>a.name.localeCompare(b.name));
     const previews=new Map(),drafts=new Map(),unsaved=new Set();
-    let problem="",pending=false,revision=0,finderVersion=0,displayed="",search={route:"",query:"",page:0};
+    let problem="",pending=false,revision=0,editorVersion=0,rentalOffer=null,displayed="",search={route:"",query:"",page:0};
     const art={src:"ui/scout-table.png",landscape:true,height:155};
     const show=(next,mode)=>go("scout-table",next,mode);
     const button=(cmd,label,value=null,detail="",extra={})=>row("scout-"+cmd,label,value,detail,extra);
@@ -63,6 +63,52 @@
         {ids:ids.slice(),gear:gear.normalize({left:raw.gear},ids,[]).left}:fill(trail());
     }
     const saveDraft=(id,t)=>put("roster:"+id,t);
+    function rentalFour(card){
+      const ids=card?.ids;
+      if(!Array.isArray(ids)||ids.length!==4||new Set(ids).size!==4||![...ids].every(known))return null;
+      const fitted=gear.validate({left:card.gear===undefined?{}:card.gear},ids,[]);
+      return fitted?{ids:ids.slice(),gear:fitted.left}:null;
+    }
+    function draftEditor(id){
+      const original=draft(id),snapshot=JSON.stringify(original),version=++editorVersion,started=revision,lastHost=saved("last-host")?.id;
+      return {original,current:()=>version===editorVersion&&started===revision&&!pending&&mayRegister(id,record(id))&&
+          (id!=="new"||saved("last-host")?.id===lastHost)&&JSON.stringify(draft(id))===snapshot,
+        leave:(view,slot)=>{
+          if(version===editorVersion)editorVersion++;
+          const signed=id==="new"&&saved("last-host")?.id;
+          if(signed&&signed!==lastHost&&record(signed)){show(path("table",signed),"replace");return;}
+          const editable=mayRegister(id,record(id));
+          show(editable?path(view,id,...(slot===undefined?[]:[slot])):path("table",id),"replace");
+        }};
+    }
+    function rentalDesk(id){
+      if(!openRentals||pending)return;
+      const editor=draftEditor(id),t=editor.original;
+      openRentals({label:id==="new"?"Host registration":"Visiting registration",card:{name:"My Scout four",ids:t.ids.slice(),gear:{...t.gear}},
+        back:()=>editor.leave("draft"),apply(card){
+          const incoming=rentalFour(card);
+          if(!incoming||!editor.current())return false;
+          saveDraft(id,incoming);editor.leave("draft");return true;
+        }});
+    }
+    function borrowRental(card){
+      const incoming=rentalFour(card);
+      if(!incoming||pending)return false;
+      const editor=draftEditor("new"),current=JSON.stringify(editor.original);
+      remember("#scout-table");
+      if(saved("roster:new")&&current!==saved("last-host")?.roster&&current!==JSON.stringify(fill(trail()))&&current!==JSON.stringify(incoming)){
+        rentalOffer={incoming,editor};show(path("rental","new"));
+      }else{
+        rentalOffer=null;saveDraft("new",incoming);editor.leave("draft");
+      }
+      return true;
+    }
+    function rentalReview(){
+      return page("Which four will host?","SCOUT TABLE   /   UNSENT REGISTRATION","Your host draft is saved. Choose the four you want to review for a new invitation.",[
+        group("Current draft",eachKin(rentalOffer.editor.original),2),group("Rental four",eachKin(rentalOffer.incoming),2),
+        group("New host registration",[button("rental-replace","Use the rental four",null,"Replace the unsent draft and review your four.",{tone:"primary"}),
+          button("rental-keep","Keep my current draft")])]);
+    }
     function pick(r){
       const raw=saved("order:"+r.id),ids=r.rosters[r.seat].ids;
       return Array.isArray(raw)&&raw.length<=3&&new Set(raw).size===raw.length&&raw.every(id=>ids.includes(id))?raw.slice():[];
@@ -73,7 +119,8 @@
         seatNames[r.seat]+" · "+stageCopy(r).short,{image:portrait(r.rosters[r.seat].ids[0])}))));
       sections.push(group("Play with a friend",[
         button("new","Register four kin",null,"Borrow from the full field guide or bring your own team.",{tone:"primary"}),
-        button("paste","Open a table link",null,"Paste an invitation, reply or scout report."),row("nav","Practice with a scout","scout-practice")]),
+        button("paste","Open a table link",null,"Paste an invitation, reply, scout report or rental card."),row("nav","Practice with a scout","scout-practice"),
+        ...(openRentals?[button("rental-desk","Rental Counter",null,"Borrow a four-kin team or open a saved card.")]:[])]),
         group("Other rings",[row("nav","Bellpost","bellpost"),row("nav","Sparring Hall","sparring")],2));
       return {...page("Scout Table","TWO-PLAYER SPARRING","Register four kin each. Study both rosters, secretly choose a lead and two reserves, then battle with those three.",sections),art,
         ...(rules.persistent===false?{status:"Session only · keep this tab open to retain your seat."}:{})};
@@ -85,7 +132,8 @@
           group("Your registration",t.ids.map((k,i)=>button("slot",name(k),i,caption(k,t.gear),{image:portrait(k)})),2),
           group("Registration",[button("register-check","Review these four",null,names(t.ids),{tone:"primary"})]),
           group("Start from a team",[button("import","Use traveling kin","trail",names(fill(trail()).ids)),
-            button("import","Use Hall trio and gear","hall",names(hall().ids))]),
+            button("import","Use Hall trio and gear","hall",names(hall().ids)),
+            ...(openRentals?[button("rentals","Rental Counter",null,"Save or share your four, or choose another team and its gear.")]:[])]),
           group("",[home()])]);
     }
     function registerCheck(id){
@@ -114,28 +162,21 @@
     }
     function findPartner(id,slot,fromCatalog=false){
       if(!openFinder||pending)return;
-      const original=draft(id),version=++finderVersion,started=revision;
-      const localCopy=JSON.stringify(original);
-      const leave=next=>{
-        if(version!==finderVersion)return;
-        finderVersion++;
-        show(mayRegister(id,record(id))?path(next,id,slot):path("table",id),"replace");
-      };
+      const editor=draftEditor(id),original=editor.original;
       const query=fromCatalog?search.query:"";
       const seed=window.WilderPartnerSearch?.searchSeed(query)||{query};
       // A human invitation seals the host's four. No opposing roster is public at registration.
       openFinder({anchor:original.ids[slot===0?1:0],slot,team:original.ids.slice(),gear:{...original.gear},foes:[],
-        ...seed,label:"Scout Table · slot "+(slot+1),back:()=>leave(fromCatalog?"catalog":"member"),
+        ...seed,label:"Scout Table · slot "+(slot+1),back:()=>editor.leave(fromCatalog?"catalog":"member",slot),
         apply(next){
           const t=draft(id);
-          if(version!==finderVersion||started!==revision||pending||!mayRegister(id,record(id))||
-            JSON.stringify(t)!==localCopy){
+          if(!editor.current()){
             notify("This registration has changed. Return to the table to review it.");return false;
           }
           if(!known(next)||t.ids.some((k,i)=>i!==slot&&k===next)){
             notify("Choose a kin outside the other three registered slots.");return false;
           }
-          replaceMember(id,t,slot,next);leave("member");return true;
+          replaceMember(id,t,slot,next);editor.leave("member",slot);return true;
         }});
     }
     function catalogPage(id,i){
@@ -288,12 +329,17 @@
       }catch{selectable(r);}
     }
     const mayRegister=(id,r)=>id==="new"||r?.stage===0&&!local(r)&&!r.archived;
+    function addressFor(value){
+      const [,id]=String(value||"desk").split("|");
+      return id&&id!=="new"&&record(id)?.hash||"#scout-table";
+    }
     function model(value){
       const [view,id,x]=String(value||"desk").split("|"),r=record(id),i=Number(x);
       displayed=String(value||"desk");
       if(view==="error")return page("This letter could not be opened","SCOUT TABLE",problem||"Choose a complete Scout Table link.",[
         group("Return to your table",[...(r?[button("open","Open latest saved table",id)]:[]),button("paste","Open another link"),home()])]);
       if(mayRegister(id,r)){
+        if(view==="rental"&&id==="new")return rentalOffer?rentalReview():registration(id);
         if(view==="draft")return registration(id);
         if(view==="register")return registerCheck(id);
         if([0,1,2,3].includes(i)){
@@ -345,14 +391,14 @@
         .finally(()=>{pending=false;if(active())render();});
     }
     function paste(){
-      const text=window.prompt?.("Paste a Scout Table or Bellpost link, or a message containing one.","");
+      const text=window.prompt?.("Paste a Scout Table, Bellpost or rental link, or a message containing one.","");
       if(!text?.trim())return;
       const token=++revision,previous=displayed;
       void (async()=>{
-        if(/#(?:scout-bout1|bellpost-v[123])=/.test(text)&&await openSharedMessage?.(text))return;
+        if(/#(?:scout-bout1|bellpost-v[123]|rental-v1)=/.test(text)&&await openSharedMessage?.(text))return;
         const markdown=text.match(/\]\(\s*<?[^#\s()<>]*(#scout-v1=[^\s)<>]+)>?\s*\)/u);
         const fragment=markdown?.[1]||text.match(/#scout-v1=\S+/u)?.[0]||text.match(/#scout-table(?=$|[\s.,!?;)\]}>])/u)?.[0];
-        if(!fragment){if(active()&&token===revision)notify("Choose a Scout Table or Bellpost link.");return;}
+        if(!fragment){if(active()&&token===revision)notify("Choose a Scout Table, Bellpost or rental link.");return;}
         const route=await loadFragment(fragment);
         if(route&&token===revision&&active()&&previous===displayed){if(route==="desk")remember("#scout-table");show(route);}
       })().catch(()=>{if(active()&&token===revision)notify("This letter could not be opened.");});
@@ -362,6 +408,15 @@
       const cmd=action.slice(6),[view,id,x]=String(current||"desk").split("|"),r=record(id),i=Number(x);
       if(cmd==="desk"){revision++;remember("#scout-table");show("desk");return true;}
       if(cmd==="paste"){paste();return true;}
+      if(cmd==="rental-desk"&&view==="desk"){openRentals?.();return true;}
+      if(view==="rental"&&id==="new"&&rentalOffer&&(cmd==="rental-keep"||cmd==="rental-replace")){
+        const {incoming,editor}=rentalOffer;rentalOffer=null;
+        if(cmd==="rental-replace"){
+          if(editor.current())saveDraft("new",incoming);
+          else notify("Your host draft changed. Review its latest four before borrowing.");
+        }
+        show(path("draft","new"),"replace");return true;
+      }
       if(cmd==="new"){show(path("draft","new"));return true;}
       if(cmd==="open"&&record(value)){show(path("table",value));return true;}
       if(cmd==="join"&&r&&mayRegister(id,r)){show(path("draft",id));return true;}
@@ -369,7 +424,13 @@
         const t=draft(id),slot=[0,1,2,3].includes(i);
         if(cmd==="draft")show(path("draft",id),"replace");
         else if(cmd==="register-check"&&view==="draft")show(path("register",id));
-        else if(cmd==="register"&&view==="register")transaction(()=>id==="new"?rules.invite(t):rules.join(r.hash,t));
+        else if(cmd==="register"&&view==="register")transaction(async()=>{
+          if(id!=="new")return rules.join(r.hash,t);
+          const result=await rules.invite(t);
+          if(result.ok)put("last-host",{id:result.record.id,roster:JSON.stringify(t)});
+          return result;
+        });
+        else if(cmd==="rentals"&&view==="draft")rentalDesk(id);
         else if(cmd==="import"&&view==="draft"&&["trail","hall"].includes(value)){saveDraft(id,value==="hall"?hall():fill(trail()));render();}
         else if(cmd==="slot"&&view==="draft"&&[0,1,2,3].includes(value))show(path("member",id,value));
         else if(cmd==="finder"&&(view==="member"||view==="catalog")&&slot)findPartner(id,i,view==="catalog");
@@ -411,7 +472,7 @@
       }
       return true;
     }
-    return {model,act,loadFragment};
+    return {model,act,loadFragment,borrowRental,addressFor};
   }
   window.WilderScoutTable=Object.freeze({create});
 })();

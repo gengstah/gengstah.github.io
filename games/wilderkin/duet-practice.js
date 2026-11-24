@@ -4,14 +4,14 @@
   const key="wilderkin.duet-practice.v1";
   const group=(title,rows,columns=1)=>({title,rows,columns});
   const front=s=>s.team[s.active];
-  function create({game,row,image,go,notify,playTone,openFinder,playFilm}){
+  function create({game,row,image,go,notify,playTone,openFinder,playFilm,backToRental}){
     const sim=window.WilderSparringBattle.create({game}),exercise=window.WilderDuetExercise.create({game,sim});
     const arena=window.WilderBellpostArena.create({game,row,image});
     const name=id=>game.species[id].name;
     const button=(action,label,value,detail,extra)=>row("drill-"+action,label,value,detail,extra);
     function show(view,mode="push"){stage=view;save();go("duet-practice",view,mode);}
     const sheet=pos=>arena.snapshot({seat:0,labels:["Your pair","Practice rival"]},pos);
-    let search,lesson,choice,returnToFinder,stage="ready",initialized=false,attempts=new Map(),shortcuts=new Map();
+    let search,lesson,choice,returnToFinder,rentalHash,stage="ready",initialized=false,attempts=new Map(),shortcuts=new Map();
     function set(seed,selected){
       const next=exercise.prepare(seed);
       if(!next)return false;
@@ -19,14 +19,14 @@
     }
     function save(){
       const {setup,anchor,partner,foe}=lesson;
-      try{window.sessionStorage?.setItem(key,JSON.stringify({setup,anchor,partner,foe,choice,stage}));}catch{}
+      try{window.sessionStorage?.setItem(key,JSON.stringify({setup,anchor,partner,foe,choice,stage,rentalHash}));}catch{}
     }
     function open(selection){
       search??=window.WilderPartnerSearch.create({game,sim});
       const seed=search.exercise({anchor:selection.anchor,foe:selection.foe,team:selection.team,rivals:selection.foes,
         gear:selection.gear,foeGear:selection.foeGear,role:selection.role},selection.partner);
       if(!set(seed,null)){notify("These two kin could not prepare this exercise. Choose another partner.");return false;}
-      initialized=true;returnToFinder=selection.returnToFinder;show("ready");return true;
+      initialized=true;returnToFinder=selection.returnToFinder;rentalHash=selection.rentalHash;show("ready");return true;
     }
     function initialize(){
       if(initialized)return;
@@ -34,6 +34,7 @@
       try{
         const saved=JSON.parse(window.sessionStorage?.getItem(key)||"null");
         if(saved&&set(saved,saved.choice)){
+          if(typeof saved.rentalHash==="string"&&saved.rentalHash.startsWith("#rental-v1=")&&saved.rentalHash.length<=640)rentalHash=saved.rentalHash;
           stage=/^warmup:[0-2]$/.test(saved.stage)?saved.stage:choice?"result":"ready";return;
         }
       }catch{}
@@ -48,7 +49,8 @@
       const actor=name(front(e.before.sides[e.before.turn]).id);
       return actor+" · "+e.move.label+" · "+e.move.detail;
     }
-    const back=()=>button("back","Back to partners",null,"Choose another pairing or return to your lineup.");
+    const back=()=>rentalHash?button("back","Back to the rental team",null,"Inspect all four kin or borrow this crew."):
+      button("back","Back to partners",null,"Choose another pairing or return to your lineup.");
     const who=k=>name(k.id)+" "+k.hp+"/"+k.maxHp+" HP";
     function readyPage(){
       const p=lesson.ready,ally=p.sides[0],target=front(p.sides[1]);
@@ -106,6 +108,7 @@
       const cmd=action.slice(6);
       if(cmd==="back"){
         if(returnToFinder)returnToFinder();
+        else if(rentalHash&&backToRental?.(rentalHash))return true;
         else if(lesson)openFinder({anchor:lesson.anchor,slot:1,team:lesson.setup.left,gear:lesson.setup.gear.left,
           foe:lesson.foe,foes:lesson.setup.right,foeGear:lesson.setup.gear.right,role:lesson.role,label:"Duet practice",
           back:()=>show(stage,"replace")},"kin:"+lesson.partner);

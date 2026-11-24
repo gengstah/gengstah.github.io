@@ -74,6 +74,7 @@
         const report=scoutReport(tape.scout,teams,first);
         if(!report)return null;
         fields.push(report.card.coach,report.card.die,codec.team(report.rosters[0],4));
+        if(report.card.coach==="rental")fields.push(report.card.rental.slice("#rental-v1=".length));
       }else if(tape.rival!==undefined){
         if(!window.WilderSparringTeams?.namedCrew?.(tape.rival,right))return null;
         fields.push("crew-"+tape.rival);
@@ -81,16 +82,18 @@
       return hallPrefix+fields.join(".");
     }
     function hallBook(hash) {
-      if(hash.length>640)return null;
+      if(hash.length>1200)return null;
       const f=hash.slice(hallPrefix.length).split(".");
-      if(f.length!==5&&f.length!==7||!/^([01])$/.test(f[2])||!/^[A-Z2]{1,64}$/.test(f[3]))return null;
+      const rental=f[4]==="rental";
+      if((rental?f.length!==9:f.length!==5&&f.length!==7)||!/^[01]$/.test(f[2])||!/^[A-Z2]{1,64}$/.test(f[3]))return null;
       const teams=[codec.readTeam(f[0]),codec.readTeam(f[1])],first=Number(f[2]);
       if(teams.some(t=>!t))return null;
       let report=null,coachLabel="Hall coach";
-      if(f.length===7){
+      if(f.length>=7){
         const four=codec.readTeam(f[6],4);
         if(!four||!/^[1-6]$/.test(f[5]))return null;
-        report=scoutReport({v:1,coach:f[4],ids:four.ids,gear:four.gear,picks:teams[0].ids,die:Number(f[5])},teams,first);
+        report=scoutReport({v:1,coach:f[4],ids:four.ids,gear:four.gear,picks:teams[0].ids,die:Number(f[5]),
+          ...(rental?{rental:"#rental-v1="+f[7]+"."+f[8]}:{})},teams,first);
         if(!report)return null;
         coachLabel=report.name;
       }else if(f[4]!=="hall"){

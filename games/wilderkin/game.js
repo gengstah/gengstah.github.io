@@ -36,6 +36,12 @@
   const fair=window.WilderCanvasGames.create({game,row,notify,go,render});
   const rentalControls={game,row,image:id=>image(id,false),go,render,notify,playTone,
     animate:fx=>{if(fx.kind==="duet")score.answer();return ui.animate(fx);}};
+  const rentalLibrary=window.WilderRentalCards?.create({game});
+  let rentalOrigin=null;
+  const openRentals=rentalLibrary?(context,card)=>{
+    rentalOrigin=context?(screen.name==="scout-table"?scouts.addressFor(screen.value):"#scout-practice"):null;
+    rentals.open(context,card);
+  }:null;
   let finderAddress="#partner-finder";
   const openFinder=window.WilderPartnerFinder?(context,view)=>{
     finderAddress=context?(screen.name==="scout-table"&&window.location.hash.startsWith("#scout-v1=")?window.location.hash:
@@ -47,10 +53,12 @@
   const reedbank=window.WilderReedbank.create({...rentalControls,active:()=>screen.name==="reedbank"});
   const guardSchool=window.WilderGuardLessons.create({...rentalControls,locate,travel,fight,active:()=>screen.name==="guard-school"});
   const bell=window.WilderSecondBell.create({...rentalControls,image:(id,owned=false)=>image(id,owned),locate,travel,fight});
-  const hall=window.WilderSparring.create({...rentalControls,openFinder,active:()=>screen.name==="sparring"});
+  const hall=window.WilderSparring.create({...rentalControls,openFinder,openRentals,active:()=>screen.name==="sparring"});
   const finder=window.WilderPartnerFinder?.create({...rentalControls,defaultContext:()=>hall.defaultPartners(),fieldGuide:id=>go("kin",id),
     openDrill:selection=>drill.open(selection)});
-  const drill=window.WilderDuetPractice?.create({...rentalControls,openFinder,playFilm:(tape,index)=>{
+  const drill=window.WilderDuetPractice?.create({...rentalControls,openFinder,backToRental:hash=>{
+    const card=rentalLibrary?.decode(hash);if(card)openRentals(null,card);return !!card;
+  },playFilm:(tape,index)=>{
     const hash=filmPractice.hallFilm(tape);
     return hash?openRoomSource(hash,index,null,false,true):false;
   }});
@@ -65,9 +73,16 @@
   const hallViewer=window.WilderHallFilm?.create({...rentalControls,openPractice:(r,i,ctx)=>films.open(r,i,ctx),share:copyOriginalFilm});
   const post=window.WilderBellpost?.create({...rentalControls,scoutRules,openSharedMessage,openScoutReport:hash=>followScout(hash,true),
     openFilmRoom:films?(r,index,context)=>films.open(r,index,context):null});
-  const scouts=window.WilderScoutTable?.create({...rentalControls,rules:scoutRules,openSharedMessage,openFinder,
+  const scouts=window.WilderScoutTable?.create({...rentalControls,rules:scoutRules,openSharedMessage,openFinder,openRentals,
     active:()=>screen.name==="scout-table",openBattle:table=>{
       const value=post.loadScouted(table);go("bellpost",value);return !value.startsWith("error");
+    }});
+  const rentals=window.WilderRentalCounter?.create({...rentalControls,library:rentalLibrary,borrowSolo:card=>hall.borrowRental(card),
+    challengeSolo:card=>hall.challengeRental(card),borrowTable:card=>scouts.borrowRental(card),share:shareRental,pasteRental,
+    tryPair:(card,backToCard)=>{
+      const nell=window.WilderScoutPractice.coachRoster("weir");
+      return drill.open({anchor:card.ids[0],partner:card.ids[1],team:card.ids,gear:card.gear,
+        foe:"pincoil",foes:nell.ids,foeGear:nell.gear,returnToFinder:backToCard,rentalHash:rentalLibrary.encode(card)});
     }});
   const replay=window.WilderSparringReview.create({...rentalControls,read:()=>hall.reviewRecord()});
   const pages=window.WilderPages.create({game,world,dex,row,member,image,go,back,render,notify,locate,root,openFinder,
@@ -89,10 +104,13 @@
   function addressRoom(next){
     const loc=window.location;
     const address=next.name==="partner-finder"?finderAddress:next.name==="duet-practice"?"#duet-practice":
+      next.name==="rental-counter"?rentalOrigin||rentals.hashFor(next.value)||"#rental-counter":
+      screen.name==="rental-counter"&&next.name==="scout-table"?scouts.addressFor(next.value):
+      screen.name==="rental-counter"&&next.name==="sparring"&&String(next.value).startsWith("scout-practice")?"#scout-practice":
       next.name==="film-room"?"#film-room":next.name==="hall-film"?hallViewer.hash():null;
     if(address!=null){if(loc.hash!==address)window.history.replaceState(null,"",address||loc.pathname+loc.search);}
-    else if(["film-room","hall-film","partner-finder","duet-practice"].includes(screen.name)&&
-      (["#film-room","#partner-finder","#duet-practice"].includes(loc.hash)||loc.hash.startsWith("#hall-film1="))){
+    else if(["film-room","hall-film","partner-finder","duet-practice","rental-counter"].includes(screen.name)&&
+      (["#film-room","#partner-finder","#duet-practice","#rental-counter"].includes(loc.hash)||loc.hash.startsWith("#hall-film1=")||loc.hash.startsWith("#rental-v1="))){
       if(next.name==="bellpost")post.restoreAddress(next.value);
       else window.history.replaceState(null,"",loc.pathname+loc.search);
     }
@@ -148,6 +166,7 @@
       case "film-room":model=films.model(screen.value);break;
       case "partner-finder":model=finder.model(screen.value);break;
       case "duet-practice":model=drill.model(screen.value);break;
+      case "rental-counter":model=rentals.model(screen.value);break;
       case "hall-film":model=hallViewer.model(screen.value);break;
       case "scout-table":model=scouts.model(screen.value);break;
       case "sparring-review":model=replay.model(screen.value);break;
@@ -513,6 +532,7 @@
     if (screen.name==="film-room" && films.key?.(e,screen.value)) return true;
     if (screen.name==="partner-finder" && finder.key(e,screen.value)) return true;
     if (screen.name==="duet-practice" && drill.key(e,screen.value)) return true;
+    if (screen.name==="rental-counter" && rentals.key(e,screen.value)) return true;
     if (screen.name==="scout-table" && scouts.key?.(e,screen.value)) return true;
     if (screen.name==="hollow" && pages.hollowKey(e,screen.value)) return true;
     if (screen.name==="search" && pages.typeKey(e)) return true;
@@ -554,6 +574,7 @@
     switch (id) {
       case "hall-open-film":if(screen.name==="sparring")return openLatestHall(value);return;
       case "nav":
+        if(value==="rental-counter"&&openRentals&&deferredLetter?.name!==value)return openRentals();
         if(value==="partner-finder"&&openFinder&&deferredLetter?.name!=="partner-finder")return openFinder();
         if (value==="world") return root();
         if (game.state.battle && ["station","landmarks","expedition"].includes(value)) return notify("Finish the encounter before returning to the trail.");
@@ -607,6 +628,7 @@
         if(screen.name==="film-room"&&films.act(id,value,screen.value))return;
         if(screen.name==="partner-finder"&&finder.act(id,value,screen.value))return;
         if(screen.name==="duet-practice"&&drill.act(id,value,screen.value))return;
+        if(screen.name==="rental-counter"&&rentals.act(id,value,screen.value))return;
         if(screen.name==="hall-film"&&hallViewer.act(id,value,screen.value))return;
         if(screen.name==="scout-table"&&scouts.act(id,value,screen.value))return;
         if (screen.name==="second-bell"&&bell.act(id,value))return;
@@ -621,7 +643,7 @@
   }
   function deferredButton(){
     const label={"scout-table":"Read your Scout Table letter","film-room":"Open the Film Room","hall-film":"Watch your Hall film",
-      "partner-finder":"Open Partner Finder","duet-practice":"Return to duet practice"};
+      "partner-finder":"Open Partner Finder","duet-practice":"Return to duet practice","rental-counter":"Open the rental team"};
     return row("nav",label[deferredLetter.name]||"Read your Bellpost letter",deferredLetter.name,"This encounter will remain here.");
   }
   function deliverScreen(dest){
@@ -633,6 +655,11 @@
     return dest;
   }
   function sharedScreen(hash) {
+    if(rentals&&(hash==="#rental-counter"||hash.startsWith("#rental-v1="))){
+      const card=rentalLibrary.decode(hash),invalid=!card&&hash!=="#rental-counter";
+      rentalOrigin=null;rentals.reset(card,invalid?"invalid":null);
+      return deliverScreen({name:"rental-counter",value:invalid?"invalid":null});
+    }
     if(hash==="#partner-finder"&&finder){finderAddress=hash;finder.reset?.();return deliverScreen({name:"partner-finder",value:null});}
     if(hash==="#duet-practice"&&drill)return deliverScreen({name:"duet-practice",value:null});
     if(hash==="#film-room"&&films)return deliverScreen({name:"film-room",value:null});
@@ -688,6 +715,21 @@
     if(hash)return openRoomSource(hash,index);
     notify("Finish a Hall battle against a coach to open its film.");
   }
+  async function shareRental(hash,name){
+    const url=window.location.origin+window.location.pathname+window.location.search+hash;
+    if(window.navigator?.share){
+      try{await window.navigator.share({title:"Wilderkin · "+name,url});return;}
+      catch(e){if(e?.name==="AbortError")return;}
+    }
+    try{
+      if(!window.navigator?.clipboard?.writeText)throw new Error();
+      await window.navigator.clipboard.writeText(url);notify("Rental team link copied.");
+    }catch{window.prompt("Copy the link for "+name,url);}
+  }
+  function pasteRental(){
+    const text=window.prompt("Paste a rental team link or a message containing one.","");
+    if(text?.trim())rentals.importCard(rentalLibrary.decode(rentalFragment(text)));
+  }
   async function copyOriginalFilm(hash){
     const loc=window.location,url=loc.origin+loc.pathname+loc.search+hash;
     try{
@@ -714,7 +756,17 @@
     }).catch(()=>{if(isCurrent())notify("The Scout Table letter could not be opened. Try copying the latest link again.");});
     return true;
   }
+  function rentalFragment(raw){
+    const match=typeof raw==="string"&&raw.match(/#rental-v1=[^\s<>\[\]()]+/u)?.[0];
+    return match?match.replace(/[.,;:!?'"`’”…。}*]+$/u,""):null;
+  }
   function openSharedMessage(raw){
+    const rental=rentalFragment(raw);
+    if(rental){
+      const dest=sharedScreen(rental);
+      if(dest)go(dest.name,dest.value);
+      return true;
+    }
     const hash=typeof raw==="string"&&raw.match(/#(?:hall-film1|scout-(?:v1|bout1)|bellpost-v[123])=\S+/u)?.[0];
     if(!hash)return false;
     if(followHallFilm(hash))return true;
@@ -739,6 +791,7 @@
     const dest=sharedScreen(window.location.hash);if(dest)go(dest.name,dest.value);
   });
   window.addEventListener("storage",e=>{
+    if(screen.name==="rental-counter"&&(!e.key||e.key.startsWith("wilderkin.rental.v1.")))render();
     if(screen.name==="bellpost"&&(!e.key||e.key.startsWith("wilderkin.bellpost.v1.")))render();
     if(screen.name==="scout-table"&&(!e.key||e.key.startsWith("wilderkin.scout.")))render();
   });

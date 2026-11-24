@@ -2,7 +2,7 @@ const test=require("node:test"),assert=require("node:assert/strict");
 const fs=require("node:fs"),vm=require("node:vm"),path=require("node:path");
 const {webcrypto}=require("node:crypto");
 const scripts=["atlas","bestiary","activities","story","campaign","duets","sparring-gear","sparring-signatures",
-  "sparring-battle","sparring-teams","scout-practice","engine","bellpost-rules","scout-rules","film-practice"].map(name=>{
+  "sparring-battle","sparring-teams","scout-practice","engine","bellpost-rules","scout-rules","rental-cards","film-practice"].map(name=>{
   const filename=path.join(__dirname,"../games/wilderkin",name+".js");
   return new vm.Script(fs.readFileSync(filename,"utf8"),{filename});
 });
@@ -35,7 +35,9 @@ function named(h,id){
     live:()=>false,show(){},readSetup:()=>({left:starter}),
     playFromPractice:(raw,moves,offset,first,scout)=>{setup={left:raw.left,right:raw.right,gear:raw.gear,first,scout};return true;}
   });
-  table.act("scout-pr-coach",id);table.act("scout-pr-register");
+  if(typeof id==="string")table.act("scout-pr-coach",id);
+  else assert.equal(table.challengeRental(id),true);
+  table.act("scout-pr-register");
   for(const pick of ["cindlet","sprigkit","dewfin"])table.act("scout-pr-pick",pick);
   table.act("scout-pr-lock");table.act("scout-pr-play");
   assert.ok(setup);
@@ -44,6 +46,31 @@ function named(h,id){
 const get=r=>{assert.equal(r.ok,true,r.message);return r.record;};
 const indexOfGear=g=>["relay-bell","last-stitch","seam-hook","mender-wrap","prism-lens","opening-pennant"].indexOf(g);
 const pack=(ids,gear)=>ids.map(k=>k+(gear[k]?"~"+indexOfGear(gear[k]):"")).join(",");
+
+test("a rental challenge film travels with both registered fours and supports playing its benched kin on a fresh device",async()=>{
+  for(const die of [1,6]){
+    const h=device(new Map(),die),guest=device();
+    const rentals=h.w.WilderRentalCards.create({game:h.g,storage:null});
+    const original=rentals.featured()[0].card;
+    const rival={...original,name:die===1?"Café. 風 & Rain":"🌿".repeat(36),gear:die===1?original.gear:{}};
+    const {tape,final}=named(h,rival),hash=h.p.hallFilm(tape),book=await guest.p.resolve(hash);
+    assert.ok(hash);assert.equal(tape.scout.rental,rentals.encode(rival));
+    assert.equal(book.source.labels[1],rival.name);assert.deepEqual(plain(book.source.pos),plain(final));
+    assert.deepEqual(plain(book.rosters[1]),plain({ids:rival.ids,gear:rival.gear}));
+    assert.deepEqual(plain(book.rosters[0]),plain({ids:tape.scout.ids,gear:tape.scout.gear}));
+    assert.equal(guest.map.size,0);
+    const unused=rival.ids.find(id=>!tape.right.includes(id)),ids=[unused,...tape.right.slice(0,2)];
+    const gear=Object.fromEntries(ids.filter(id=>rival.gear[id]).map(id=>[id,rival.gear[id]]));
+    const run=get(await guest.p.start({sourceHash:hash,pivot:0,returnIndex:1,seat:1,loadout:{ids,gear}}));
+    assert.deepEqual(plain(run.teams[1]),plain({ids,gear}));assert.equal(run.origin.first,die%2);
+    const resumed=get(await device(guest.map).p.resume());
+    assert.deepEqual(plain(run.pos),plain(resumed.pos));
+    assert.equal(guest.p.review(hash.replace(".rental.",".pike.")),null);
+    assert.equal(guest.p.review(hash+".extra"),null);
+    const wrong=rentals.encode({...rival,ids:["sprigkit","cindlet","dewfin","gustlance"],gear:{}});
+    assert.equal(h.p.hallFilm({...tape,scout:{...tape.scout,rental:wrong}}),null);
+  }
+});
 
 test("an ordinary Hall film carries 60 paid actions and four free replacements to an independent reader",async()=>{
   const h=device(),reader=device(),other=device(),career=plain(reader.g.state);
