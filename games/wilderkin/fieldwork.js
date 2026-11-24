@@ -161,8 +161,12 @@
   }
   const error = message=>({ok:false,kind:"error",message});
   function create({species,pools,regions}) {
-    const homes=new Map(),locations=new Map();
-    pools.forEach((pool,i)=>pool.forEach(id=>homes.set(id,i)));
+    const homes=window.WilderKinDex.homes,locations=new Map();
+    function recordedAt(state,id,region) {
+      const record=state.fieldwork?.[id],sites=homes[id];
+      if(!record?.complete||!sites?.includes(region))return false;
+      return sites.length===1 || (record.habitats||[sites[0]]).includes(region);
+    }
     function behavior(id) {
       const n=seed(id),types=preferred[species[id].type],motif=types[n%types.length];
       const pair=behaviors.filter(b=>b[0]===motif);
@@ -172,12 +176,16 @@
       const clean={};
       if(!raw || typeof raw!=="object")return clean;
       for(const [id,data] of Object.entries(raw)) {
-        if(!homes.has(id)||!data||typeof data!=="object")continue;
+        if(!Object.hasOwn(homes,id)||!data||typeof data!=="object")continue;
         const clues=signals.filter(s=>Array.isArray(data.clues)&&data.clues.includes(s));
         if(!clues.length)continue;
         const [, , , options]=behavior(id);
         const tried=options.filter(s=>Array.isArray(data.tried)&&data.tried.includes(s));
         clean[id]={clues,tried,complete:data.complete===true};
+        if(data.complete===true && homes[id].length>1){
+          clean[id].habitats=data.habitats===undefined?[homes[id][0]]:
+            [...new Set((Array.isArray(data.habitats)?data.habitats:[]).filter(region=>homes[id].includes(region)))];
+        }
       }
       return clean;
     }
@@ -193,8 +201,8 @@
       return locations.get(i);
     }
     function study(state,id) {
-      if(!homes.has(id))return null;
-      const r=homes.get(id),nearby=state.region===r;
+      if(!Object.hasOwn(homes,id))return null;
+      const nearby=homes[id].includes(state.region),r=nearby?state.region:homes[id][0];
       // Journal lookups across the atlas need no remote map generation.
       const spot=nearby?sightings(r).find(s=>s.species===id):null;
       const pos=nearby?(state.positions[r]||window.WilderWorld.regions[r].spawn):null;
@@ -204,7 +212,9 @@
       const offset=seed(id)%3,options=[correct,...others];
       const complete=record.complete,loc=regions[r],kin=species[id];
       const track=spoor[kin.skills.find(s=>s.kind==="guard")?.name];
+      const habitatRecorded=recordedAt(state,id,r);
       return {id,name:kin.name,title,region:r,location:loc.name,biome:loc.biome,theme:loc.theme,atSite,complete,motion,variant:correct,
+        habitatRecorded,canRecordHabitat:complete&&atSite&&!habitatRecorded,
         description:"In "+(habitat[loc.biome]||"a sheltered clearing")+" at "+loc.name+", "+kin.name+" keeps returning to the same spot.",
         clues:signals.map((code,n)=>({id:"read-"+code,label:clueNames[n],
           text:record.clues.includes(code)||complete?(n===0&&track?track+" ":"")+lines[n]:"",read:record.clues.includes(code)})),
@@ -219,6 +229,12 @@
       const encounter=study(state,id);
       if(!encounter)return error("That species has no field sighting.");
       if(!encounter.atSite)return error("Stand next to the kin on its home map between encounters.");
+      if(action==="record-habitat"){
+        if(!encounter.canRecordHabitat)return error("This habitat needs no further record.");
+        const record=state.fieldwork[id];
+        record.habitats=[...(record.habitats||[homes[id][0]]),encounter.region];
+        return {ok:true,kind:"field-habitat",message:encounter.location+" added to "+encounter.name+"’s existing field note."};
+      }
       if(encounter.complete)return error("This behavior is already recorded in your notebook.");
       const records=state.fieldwork||{},existing=records[id],record=existing||{clues:[],tried:[],complete:false};
       const [prefix,method]=String(action).split("-");
@@ -240,6 +256,7 @@
         return {ok:true,kind:"field-reaction",message:hint+" Study another sign to see what you missed."};
       }
       record.complete=true;
+      if(homes[id].length>1)record.habitats=[encounter.region];
       const item=rewardItem[motion];
       state.bag[item]=(state.bag[item]||0)+2;
       return {ok:true,kind:"field-note",message:encounter.title+" entered in your notebook. Found "+encounter.reward+"."};
@@ -252,9 +269,9 @@
       return {ok:true,kind:"invite",message:"Offer a Kinweave to "+observation.name+"."};
     }
     function notebook(state) {
-      return Object.keys(state.fieldwork||{}).filter(id=>homes.has(id)).map(id=>study(state,id)).sort((a,b)=>a.region-b.region||a.name.localeCompare(b.name));
+      return Object.keys(state.fieldwork||{}).filter(id=>Object.hasOwn(homes,id)).map(id=>study(state,id)).sort((a,b)=>a.region-b.region||a.name.localeCompare(b.name));
     }
-    return {sightings,study,observe,restore,canInvite,notebook};
+    return {sightings,study,observe,restore,canInvite,notebook,recordedAt};
   }
   const pigments={
     wood:["#c7debc","#91b36f","#628b58","#436957","#cfad7b","#82bcb0"],fen:["#b8d7bd","#82a981","#577d66","#365c51","#b3b279","#62a69d"],

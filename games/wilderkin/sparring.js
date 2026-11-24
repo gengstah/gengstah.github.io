@@ -84,13 +84,14 @@
       return cached.pos;
     }
     const live=()=>{const p=position();return p&&p.phase!=="done";};
+    const ember=window.WilderEmberPartners?.create({species,sim,row,image,show,live,playFromPractice});
     const library=window.WilderSparringLibrary?.create({species,sim,row,image,read:rec,save,show,render,live,playFromPractice});
     const cup=window.WilderCupSeries?.create({game,sim,row,image,show,render,notify,
       read:()=>rec().cup,save:value=>save({...rec(),cup:value}),startFight:m=>{
         playTone?.("battle");show("cup:match","replace");if(m.first===1)void take(null,true);
       }});
     const profile=p=>({species:p.id,name:kin(p.id),src:image(p.id),hp:p.hp,maxHp:p.maxHp,level:sim.rules.level,types:species[p.id].types,gear:held(p)});
-    const roster=(ids,prefix,gear)=>ids.map((id,i)=>({label:kin(id),image:image(id),detail:[species[id].types.join(" / "),piece(gear?.[id])?.name].filter(Boolean).join(" · "),badge:i===0?prefix:""}));
+    const roster=(ids,prefix,gear)=>ids.map((id,i)=>({label:kin(id),image:image(id),detail:[species[id].types.join(" / "),piece(gear?.[id])?.name,species[id].emberArt?.name].filter(Boolean).join(" · "),badge:i===0?prefix:""}));
     const packFor=s=>s.mode==="cpu"&&Object.hasOwn(kits,s.rival)&&window.WilderSparringGear?kits[s.rival]:null;
     function gearRows(p,m) {
       return p.sides.flatMap((side,i)=>{
@@ -121,6 +122,7 @@
       }
       if(ongoing)sections.push(group("Friend matches",[row("nav","Bellpost","bellpost","Play a friend on another device. Your Hall match stays on the floor.")]));
       if(cup)sections.push(group("Tournament desk",[link("Lantern Cup","cup","Register six, bring three, and play a best-of-three series.")]));
+      if(ember)sections.push(group("Practice with partners",[link("Ember partners","ember","Bring a wounded reserve back into the fight or challenge the rival’s guard.")]));
       if(r.lastReview)sections.push(group("Practice film",[row("nav","Replay your last rival match","sparring-review","Try a different decision on a recorded turn.")]));
       if(!ongoing)sections.push(group("Prepare",[
         link("Build your trio","edit:left:team",s.left.map(kin).join(" · ")),
@@ -215,9 +217,10 @@
         const skills=options.filter(o=>["attack","guard","heal"].includes(o.kind)).map((o,i)=>({...matchesRow(m,o),key:String(i+1)}));
         const signature=signatureButton(p,options);
         if(signature)skills.push(signature);
+        const art=species[member(side).id].emberArt;
         commands.push(group("Choose a skill",skills,2),
-          group("Team commands",[link("Switch kin","cmd:swap",standing(side)-1+" conscious reserves",{key:"S"}),
-            link("Duets","cmd:duet",side.beats+" / 3 beats",{key:"D"}),link("Coach’s read","coach","See a move and a possible reply.",{key:"H"})],3));
+          group("Team commands",[...(art?[link(art.name,"cmd:ember",member(side).emberArtSpent?"Used this match":"Ember technique · once per kin",{key:"E"})]:[]),link("Switch kin","cmd:swap",standing(side)-1+" conscious reserves",{key:"S"}),
+            link("Duets","cmd:duet",side.beats+" / 3 beats",{key:"D"}),link("Coach’s read","coach","See a move and a possible reply.",{key:"H"})],art?2:3));
       }
       commands.push(group("Match desk",[link("Equipment","equipment","Inspect both teams’ six slots."),link("Match log","log:0"),
         link(m.cupOpponent?"Concede this game":"Retire from match","retire")],2));
@@ -230,6 +233,14 @@
         background:m.cupOpponent?"ui/lantern-cup.png":"ui/sparring-hall.png",ally:profile(a),foe:profile(b),log,
         lineups:{left:strip(p.sides[0],0),right:strip(p.sides[1],1)},
         subtitle:sideName(m,0)+" "+standing(p.sides[0])+" standing · "+sideName(m,1)+" "+standing(p.sides[1])+" standing",sections:commands};
+    }
+    function emberPage(m,p){
+      const side=p.sides[p.turn],lead=member(side),art=species[lead.id].emberArt;
+      if(!art)return arena(m,p);
+      const moves=sim.options(p).filter(o=>o.kind==="ember-art");
+      return {title:art.name,kicker:kin(lead.id).toUpperCase()+"   /   EMBER TECHNIQUE",subtitle:art.description,
+        sections:[group("Choose your move",moves.length?moves.map(o=>({...matchesRow(m,o),detail:window.WilderEmberPartners?.forecastDetail(sim,p,o)||o.reason||o.detail})):[{label:"No conscious reserve",detail:"Banked Warmth needs a conscious reserve to receive its care."}]),
+          group("Battle floor",[link("Return to the match","match")])]};
     }
     function optionsPage(m,p,kind){
       const side=p.sides[p.turn],options=sim.options(p).filter(o=>o.kind===kind);
@@ -292,6 +303,9 @@
           reply?reply.move.label+" ended the read without contact.":"The final bell rang before a reply.";
         return [{label:"Action "+e.number+" · "+e.move.label,detail:sideName(m,e.side)+" · "+detail,image:image(e.actor)}];
       });
+      const emberMoves=events.filter(e=>e.move.kind==="ember-art");
+      if(emberMoves.length)sections.push(group("Ember techniques",emberMoves.map(e=>({label:"Action "+e.number+" · "+e.move.label,
+        detail:sideName(m,e.side)+" · "+e.move.detail,image:image(e.actor)}))));
       if(signatures.length)sections.push(group("Signature plays",signatures));
       sections.push(group("At the bell",p.sides.map((side,i)=>{
         const duets=played.filter(e=>e.side===i&&e.move.kind==="duet").length;
@@ -319,6 +333,7 @@
         if(!m.handoff&&(m.setup.mode==="local"||p.turn===0)&&p.phase==="move"){
           if(v==="coach")return coach(m,p);
           if(v==="cmd:signature")return signaturePage(m,p);
+          if(v==="cmd:ember")return emberPage(m,p);
           if(v==="cmd:duet"||v==="cmd:swap")return optionsPage(m,p,v.slice(4));
         }
         return arena(m,p);
@@ -330,12 +345,13 @@
       cupScreen=Boolean(cup&&(v==="cup"||v.startsWith("cup:")));
       if(cupScreen){
         const m=cup.field(),part=v.slice(4);
-        if(m&&(/^(match|equipment|coach|cmd:(signature|duet|swap)|log:\d+)$/.test(part)))
+        if(m&&(/^(match|equipment|coach|cmd:(signature|duet|swap|ember)|log:\d+)$/.test(part)))
           return fightPage(m,position(m),part);
         return cup.model(v);
       }
       const r=rec(),m=r.match,p=position(m);
       if(v==="guest"&&pending)return guest();
+      if(ember?.matches(v))return ember.model(v);
       if(library?.workshopRoute(v))return library.model(v);
       if(!v||v==="lobby")return pending&&!v?guest():lobby();
       const field=fightPage(m,p,v);if(field)return field;
@@ -352,14 +368,14 @@
       if(setup.mode==="cpu"&&first===1)void take(null);
       return true;
     }
-    function playFromPractice(raw,moves) {
-      if(busy||live()||!raw||(raw.mode!==undefined&&raw.mode!=="cpu")||!Array.isArray(moves)||moves.length!==2)return false;
+    function playFromPractice(raw,moves,expectedActions=2) {
+      if(busy||live()||!raw||(raw.mode!==undefined&&raw.mode!=="cpu")||!Array.isArray(moves)||moves.length!==expectedActions)return false;
       const setup=builder.restore({...raw,mode:"cpu"});
       if(!["left","right"].every(side=>Array.isArray(raw[side])&&raw[side].length===3&&setup[side].every((id,i)=>raw[side][i]===id)))return false;
       if(raw.gear!==undefined&&!window.WilderSparringGear?.validate(raw.gear,setup.left,setup.right))return false;
       const m={setup:cloneSetup(setup),first:0,moves:moves.slice(),handoff:false};
       const p=replay(sim,m);
-      if(!p||p.phase==="done"||p.ply!==2||p.turn!==0)return false;
+      if(!p||p.phase==="done"||p.ply!==expectedActions||p.turn!==0)return false;
       cached={match:m,length:m.moves.length,pos:p};
       save({...rec(),setup:cloneSetup(setup),match:m});playTone?.("battle");show("match","replace");
       return true;
@@ -373,7 +389,7 @@
     }
     function effect(p,move){
       const side=p.turn===0?"ally":"foe",partner=move.targetId;
-      const kind=move.kind==="signature"?(move.targetId?"swap":"heal"):move.kind==="replace"?"swap":move.kind;
+      const kind=move.id.startsWith("warmth:")?"heal":move.id==="vent:backdraft"?"attack":move.kind==="signature"?(move.targetId?"swap":"heal"):move.kind==="replace"?"swap":move.kind;
       const family=move.kind==="signature"&&window.WilderSparringSignatures.byId(move.signatureId)?.familyKey;
       if(family){
         const target=p.sides[p.turn].team.find(k=>k.id===partner),incomingKin=profile({...target,hp:target.hp+(move.heal||0)});
@@ -426,6 +442,7 @@
         if(id==="spar-cpu"&&m&&p?.turn===1){void take(null,true);return true;}
         return false;
       }
+      if(!busy&&ember?.act(id,value))return true;
       if(!busy&&library?.act(id,value))return true;
       if(typeof id!=="string"||!id.startsWith("spar-"))return false;
       if(busy)return true;
@@ -474,6 +491,7 @@
         if(skill?.available)act("spar-move",skill.id);return true;
       }
       const navigate=v=>show(inCup?"cup:"+v:v);
+      if(e.key.toLowerCase()==="e"&&species[member(p.sides[p.turn]).id].emberArt){navigate("cmd:ember");return true;}
       if(e.key==="4"&&signatureFor(p)){navigate("cmd:signature");return true;}
       const dest={d:"cmd:duet",s:"cmd:swap",h:"coach"}[e.key.toLowerCase()];
       if(dest){navigate(dest);return true;}return false;

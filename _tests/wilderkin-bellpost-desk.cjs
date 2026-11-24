@@ -33,7 +33,7 @@ test("clipboard, native share, selectable text and the address bar use a chat-sa
   host.click("post-new");host.click("post-confirm");host.click("post-copy");
   const url=host.clip(),invitation=code(url),id=host.route().split("|")[1];
   const rules=host.w.WilderBellpostRules.create({game:host.game}),legacy=rules.export(id);
-  assert.match(url,/^https:\/\/game\.test\/games\/wilderkin\/\?release=1#bellpost-v1=/);
+  assert.match(url,/^https:\/\/game\.test\/games\/wilderkin\/\?release=1#bellpost-v2=/);
   assert.match(invitation,/\.x\.x\.x\.x$/);assert.equal(host.hash(),invitation);
   assert.match(legacy,/\.{4}$/);assert.equal(rules.inspect(invitation).hash,legacy);
   let shared;
@@ -61,7 +61,7 @@ test("drafts remain personal to the invitation, campaign lead and equipped Hall 
   const battle=a.game.state.battle,party=JSON.stringify(a.game.state.party);
   a.click("post-new");assert.deepEqual(plain(a.rows().filter(r=>r.id==="post-slot").map(r=>r.label)),["Dewfin","Sprigkit","Cindlet"]);
   a.click("post-slot",2);a.click("post-swap",0);assert.equal(a.rows()[0].label,"Cindlet");a.click("post-confirm");a.click("post-copy");
-  const first=code(a.clip()),id=a.route().split("|")[1];assert.match(first,/^#bellpost-v1=/);
+  const first=code(a.clip()),id=a.route().split("|")[1];assert.match(first,/^#bellpost-v2=/);
   b.open(first);assert.equal(b.model().title,"You’re invited to Bellpost");b.click("post-join",id);
   b.click("post-slot",0);b.click("post-choose","dewfin");b.click("post-desk");
   assert.equal(b.rows().some(r=>r.id==="post-open"),false);

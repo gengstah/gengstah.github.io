@@ -1,9 +1,10 @@
 // Bellpost links carry both public trios and a deterministic Hall replay. The local desk owns its seat.
 (() => {
   "use strict";
-  const prefix="#bellpost-v1=",storePrefix="wilderkin.bellpost.v1.",indexKey=storePrefix+"index";
+  const packet=/^#bellpost-v([12])=/,storePrefix="wilderkin.bellpost.v1.",indexKey=storePrefix+"index";
+  const prefix=protocol=>"#bellpost-v"+protocol+"=";
   const tokenRE=/^[0-9a-f]{24}$/,speciesRE=/^[a-z][a-z0-9-]{0,39}$/;
-  // These positions form the version-1 wire alphabet. Append new commands under a new version.
+  // The original letters retain their meanings. Version 2 adds three target slots and a vent strike.
   const alphabet="ABCDEFGHIJKLMNOPQRSTUVW";
   const targetMoves=["swap","duet","replace","shelter","beacon","slipstream"];
   const equipment=["relay-bell","last-stitch","seam-hook","mender-wrap","prism-lens","opening-pennant"];
@@ -70,7 +71,7 @@
       }
       return loadout({ids,gear});
     }
-    function commandCode(pos,id) {
+    function commandCode(pos,id,protocol) {
       const [kind,arg]=id.split(":"),side=pos.sides[pos.turn];
       if(kind==="skill"){
         const skills=species[side.team[side.active].id].skills.filter(s=>!s.trained);
@@ -79,30 +80,37 @@
       }
       if(kind==="stance"&&arg==="thorn-read")return alphabet[4];
       const group=targetMoves.indexOf(kind),slot=side.team.findIndex(p=>p.id===arg);
+      if(protocol===2){
+        if(kind==="warmth"&&slot>=0)return "XYZ"[slot];
+        if(id==="vent:backdraft")return "2";
+      }
       return group>=0&&slot>=0?alphabet[5+3*group+slot]:null;
     }
-    function pack(id,left,visitor,right,tape="",resigned) {
-      return prefix+[id,packTeam(left),visitor||"",right?packTeam(right):"",tape,resigned??""].join(".");
+    function pack(protocol,id,left,visitor,right) {
+      return prefix(protocol)+[id,packTeam(left),visitor||"",right?packTeam(right):"","",""].join(".");
     }
     function decode(hash,events) {
-      if(typeof hash!=="string"||hash.length>limit||!hash.startsWith(prefix))return null;
-      const fields=hash.slice(prefix.length).split(".");
+      if(typeof hash!=="string"||hash.length>limit)return null;
+      const head=hash.match(packet);
+      if(!head)return null;
+      const protocol=Number(head[1]),fields=hash.slice(head[0].length).split(".");
       if(fields.length<2||fields.length>6)return null;
       // Chat clients can strip the final dots from older letters. Only the four optional fields may be empty.
       while(fields.length<6)fields.push("");
       for(let i=2;i<fields.length;i++)if(fields[i]==="x")fields[i]="";
-      hash=prefix+fields.join(".");
+      hash=head[0]+fields.join(".");
       const [id,a,guest,b,commands,flag]=fields;
-      if(!tokenRE.test(id)||commands.length>maxMoves||!/^[A-W]*$/.test(commands)||!/^([01])?$/.test(flag))return null;
+      const validCommands=protocol===1?/^[A-W]*$/:/^[A-Z2]*$/;
+      if(!tokenRE.test(id)||commands.length>maxMoves||!validCommands.test(commands)||!/^([01])?$/.test(flag))return null;
       const left=unpackTeam(a),right=b?unpackTeam(b):null;
       if(!left || (b ? !right||!tokenRE.test(guest) : guest||commands||flag))return null;
       let pos=null,lastMove=null;
       const moves=[];
       if(right){
-        pos=sim.start(left.ids,right.ids,0,{left:left.gear,right:right.gear});
+        pos=sim.start(left.ids,right.ids,0,{left:left.gear,right:right.gear},protocol);
         if(!pos)return null;
         for(const c of commands){
-          const move=sim.options(pos).find(m=>m.available && commandCode(pos,m.id)===c);
+          const move=sim.options(pos).find(m=>m.available && commandCode(pos,m.id,protocol)===c);
           if(!move)return null;
           const after=sim.apply(pos,move.id);
           if(!after)return null;
@@ -113,7 +121,7 @@
       const resigned=flag===""?undefined:Number(flag);
       if(resigned!==undefined && (pos.phase==="done"||pos.turn!==resigned))return null;
       const winner=resigned===undefined?pos?.winner??null:1-resigned;
-      return {id,guestId:guest||null,seat:null,teams:[left,right],first:0,moves,pos,winner,hash,
+      return {id,protocol,guestId:guest||null,seat:null,teams:[left,right],first:0,moves,pos,winner,hash,
         status:!right?"invite":winner===null?"active":"done",incomplete:winner===null&&lastMove?.kind==="replace",
         ...(resigned===undefined?{}:{resigned})};
     }
@@ -176,14 +184,15 @@
     function forSharing(hash) {
       const record=decode(hash);
       if(!record)return null;
-      return prefix+record.hash.slice(prefix.length).split(".").map(field=>field||"x").join(".");
+      const head=prefix(record.protocol);
+      return head+record.hash.slice(head.length).split(".").map(field=>field||"x").join(".");
     }
     function invite(team) {
       const left=loadout(team);
       if(!left)return fail("team","Choose three different standard kin and legal equipment.");
       let id=nonce();
       for(let tries=0;get(id)&&tries<5;tries++)id=nonce();
-      return store(decode(pack(id,left)),0,null);
+      return store(decode(pack(2,id,left)),0,null);
     }
     function join(hash,team) {
       const ticket=decode(hash),right=loadout(team);
@@ -191,11 +200,11 @@
       if(!right)return fail("team","Choose three different standard kin and legal equipment.");
       const local=get(ticket.id);
       if(local){
-        if(local.seat===1 && !local.archived && packTeam(local.teams[0])===packTeam(ticket.teams[0]) &&
+        if(local.seat===1 && !local.archived && local.protocol===ticket.protocol && packTeam(local.teams[0])===packTeam(ticket.teams[0]) &&
             packTeam(local.teams[1])===packTeam(right))return success(remember(local),"This browser has already joined.","duplicate");
         return fail("occupied","This browser already has a seat for that match.");
       }
-      const record=decode(pack(ticket.id,ticket.teams[0],nonce(),right));
+      const record=decode(pack(ticket.protocol,ticket.id,ticket.teams[0],nonce(),right));
       return store(record,1,null);
     }
     function receive(hash) {
@@ -205,6 +214,7 @@
       if(!current)return fail("spectator","This browser is viewing the public match. Open its invitation to join.");
       if(current.hash===incoming.hash)return success(remember(current),"Your desk already has this letter.","duplicate");
       if(current.archived)return fail("archived","This match is closed on your desk.");
+      if(current.protocol!==incoming.protocol)return fail("fork","This letter uses a different version of the battle rules.");
       if(packTeam(incoming.teams[0])!==packTeam(current.teams[0]) ||
           current.guestId && incoming.guestId && (incoming.guestId!==current.guestId || packTeam(incoming.teams[1])!==packTeam(current.teams[1])))
         return fail("fork","This letter belongs to a different lineup or guest.");
@@ -226,16 +236,16 @@
       const expected=expectedHash??seen.get(id)??r.hash;
       if(expected!==r.hash && decode(expected)?.hash!==r.hash)return fail("changed","Another tab updated this match. Reopen its latest turn.");
       if(r.pos.turn!==r.seat)return fail("turn","Wait for your friend’s next letter.");
-      const fields=r.hash.slice(prefix.length).split(".");
+      const head=prefix(r.protocol),fields=r.hash.slice(head.length).split(".");
       if(resign)fields[5]=String(r.seat);
       else {
         const move=typeof moveId==="string"&&sim.forecast(r.pos,moveId);
         if(!move?.available)return fail("move",move?.reason||"Choose a legal move for this turn.");
-        const code=commandCode(r.pos,moveId);
+        const code=commandCode(r.pos,moveId,r.protocol);
         if(!code)return fail("move","This move has no Bellpost command.");
         fields[4]+=code;
       }
-      const next=decode(prefix+fields.join("."));
+      const next=decode(head+fields.join("."));
       return next?store(next,r.seat,r):fail("invalid","This move cannot be recorded.");
     }
     function close(id,withdraw=false) {
@@ -248,12 +258,12 @@
       const r=get(id);
       if(!r)return null;
       if(!r.incomplete)return r.hash;
-      const fields=r.hash.slice(prefix.length).split(".");
+      const head=prefix(r.protocol),fields=r.hash.slice(head.length).split(".");
       fields[4]=fields[4].slice(0,-1);
-      return prefix+fields.join(".");
+      return head+fields.join(".");
     }
     function review(idOrHash) {
-      const hash=typeof idOrHash==="string"&&idOrHash.startsWith(prefix)?idOrHash:get(idOrHash)?.hash;
+      const hash=typeof idOrHash==="string"&&packet.test(idOrHash)?idOrHash:get(idOrHash)?.hash;
       const events=[],record=decode(hash,events);
       if(!record?.pos)return null;
       const local=get(record.id);

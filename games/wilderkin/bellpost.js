@@ -21,8 +21,11 @@
     const name=id=>game.species[id].name;
     const names=t=>t.ids.map(name).join(" · ");
     const piece=id=>window.WilderSparringGear.byId(id);
-    const buttons=t=>t.ids.map((id,i)=>({label:name(id),image:image(id,false),
-      detail:[game.species[id].types.join(" / "),piece(t.gear?.[id])?.name].filter(Boolean).join(" · "),badge:i===0?"LEAD":""}));
+    const emberNotes=(ids,protocol)=>protocol===1?[]:ids.filter(k=>game.species[k].emberArt).map(k=>{
+      const art=game.species[k].emberArt;return {label:name(k)+" · "+art.name,detail:art.description,image:image(k,false)};
+    });
+    const buttons=(t,protocol)=>t.ids.map((id,i)=>({label:name(id),image:image(id,false),
+      detail:[game.species[id].types.join(" / "),piece(t.gear?.[id])?.name,protocol!==1&&game.species[id].emberArt?.name].filter(Boolean).join(" · "),badge:i===0?"LEAD":""}));
     const record=id=>rules.get(id)||inbox.get(id)||null;
     const role=r=>r.seat===0?"Host":r.seat===1?"Guest":"Spectator";
     const myTurn=r=>r.status==="active"&&r.pos?.turn===r.seat;
@@ -83,36 +86,37 @@
     }
     function incoming(r){
       return page("You’re invited to Bellpost","TWO-PLAYER SPARRING","The host will take the first turn after you send your lineup.",[
-        group("Host’s trio",buttons(r.teams[0]),3),group("Your answer",[
+        group("Host’s trio",buttons(r.teams[0],r.protocol),3),group("Your answer",[
           control("join","Choose my trio",r.id,"Review your lineup before you accept.",{tone:"primary"}),
           control("desk","Bellpost desk")])]);
     }
     function lineup(id) {
       const t=draft(id),guest=id!=="new",other=guest&&record(id);
       if(guest&&(!other||other.seat!==null||other.status!=="invite"))return other?match(other):desk();
-      const trail=trailTrio(),hall=hallTrio();
+      const trail=trailTrio(),hall=hallTrio(),arts=emberNotes(t.ids,other?.protocol);
       return page(guest?"Choose your visiting trio":"Choose your Bellpost trio","LEVEL 20   /   "+(guest?"GUEST":"HOST"),
         "The first kin leads. Tap a slot to change its kin or reorder your team.",[
-          group("Your lineup",t.ids.map((k,i)=>control("slot",name(k),i,[game.species[k].types.join(" / "),piece(t.gear[k])?.name].filter(Boolean).join(" · "),
+          group("Your lineup",t.ids.map((k,i)=>control("slot",name(k),i,[game.species[k].types.join(" / "),piece(t.gear[k])?.name,other?.protocol!==1&&game.species[k].emberArt?.name].filter(Boolean).join(" · "),
             {image:image(k,false),badge:i===0?"LEAD":"SLOT "+(i+1)})),3),
           group("Match desk",[control("confirm",guest?"Accept and prepare return link":"Create match link",null,guest?"Send your lineup back for the host’s opening move.":"Your friend chooses their trio before you play.",{tone:"primary"})]),
           group("Bring a team",[
             control("use-trail","Use my trail trio",null,trail?names(trail):"Needs three conscious traveling kin.",{disabled:!trail}),
             control("use-hall","Use my Hall trio",null,names(hall)+(Object.keys(hall.gear).length?" · equipped gear":""))]),
-          ...(guest?[group("Host’s trio",buttons(other.teams[0]),3)]:[]),
+          ...(arts.length?[group("Your Ember techniques",arts)]:[]),
+          ...(guest?[group("Host’s trio",buttons(other.teams[0],other.protocol),3)]:[]),
           group("",[control("desk","Return to the Bellpost desk",null,"Keep this lineup draft.")])]);
     }
     let filter={id:null,slot:null,query:"",page:0};
     function picker(id,i) {
-      const t=draft(id),front=game.state.team;
+      const t=draft(id),front=game.state.team,artName=k=>id==="new"||record(id)?.protocol!==1?game.species[k].emberArt?.name:"";
       if(filter.id!==id||filter.slot!==i)filter={id,slot:i,query:"",page:0};
-      const all=owned(),matches=all.filter(k=>[name(k),game.kin(k,{owned:true}).name].some(n=>n.toLowerCase().includes(filter.query.toLowerCase())));
+      const all=owned(),matches=all.filter(k=>[name(k),game.kin(k,{owned:true}).name,artName(k)].filter(Boolean).some(n=>n.toLowerCase().includes(filter.query.toLowerCase())));
       const pages=Math.max(1,Math.ceil(matches.length/8));
       filter.page=Math.max(0,Math.min(pages-1,filter.page));
       const rows=matches.slice(8*filter.page,8*(filter.page+1)).map(k=>{
         const held=t.ids.indexOf(k);
         return control("choose",name(k),k,(held===i?"In this slot":held>=0?"Trade places with "+name(t.ids[i]):front.includes(k)?"Traveling companion":"Campaign reserve")+
-          " · "+game.species[k].types.join(" / "),{image:image(k,false),badge:game.state.lead===k?"TRAIL LEAD":""});
+          " · "+[game.species[k].types.join(" / "),artName(k)].filter(Boolean).join(" · "),{image:image(k,false),badge:game.state.lead===k?"TRAIL LEAD":""});
       });
       const sections=[group("Formation",[...t.ids.flatMap((k,j)=>j===i?[]:[control("swap",j===0?"Make "+name(t.ids[i])+" lead":"Trade with "+name(k),j)]),control("lineup","Back to trio")])];
       if(all.length>8)sections.push(group("Find a companion",[control("find",filter.query||"Search your collection")]));
@@ -127,10 +131,10 @@
     }
     function match(r,panel=""){
       if(r.status==="invite"&&r.archived)return page("Invitation withdrawn","BELLPOST","This device has closed the host seat.",[
-        group("Original trio",buttons(r.teams[0]),3),group("Match desk",[control("desk","Return to desk"),control("new","Create another invitation")])]);
+        group("Original trio",buttons(r.teams[0],r.protocol),3),group("Match desk",[control("desk","Return to desk"),control("new","Create another invitation")])]);
       if(r.status==="invite"&&r.seat===null)return incoming(r);
       const live=wire?.connected(r.id),result=r.status==="invite"?
-        page("Invitation ready","BELLPOST   /   HOST","Send your friend this invitation. Open their return link here to take the first turn.",[group("Your trio",buttons(r.teams[0]),3)]):
+        page("Invitation ready","BELLPOST   /   HOST","Send your friend this invitation. Open their return link here to take the first turn.",[group("Your trio",buttons(r.teams[0],r.protocol),3)]):
         arena.model(r,panel);
       const share=r.incomplete?[control("copy","Copy previous handoff",r.id,"Your replacement is ready. Choose its move before sending your new turn.")]:
         [...(!live&&typeof window.navigator?.share==="function"?[control("share",shareLabel(r),r.id,"Choose how to share this link.",{tone:"primary"})]:[]),
@@ -187,7 +191,7 @@
     }
     function loadFragment(hash){
       if(hash==="#bellpost")return "desk";
-      if(typeof hash!=="string"||!hash.startsWith("#bellpost-v1="))return null;
+      if(typeof hash!=="string"||!/^#bellpost-v[12]=/.test(hash))return null;
       let inspected=rules.inspect(hash);
       if(!inspected&&hash.length<=600){
         const trimmed=hash.replace(trailingPunctuation,"");
@@ -241,7 +245,7 @@
       const cmd=action.slice(5),i=Number(part);
       if(cmd==="desk"){rememberUrl("#bellpost");show("desk");return true;}
       if(cmd==="paste"){textBox("Paste a Bellpost link or message","",raw=>{
-        const letter=raw.match(/#bellpost-v1=\S+/u)?.[0]||raw.match(/#bellpost(?=$|[\s.,!?;)\]}>])/u)?.[0];
+        const letter=raw.match(/#bellpost-v[12]=\S+/u)?.[0]||raw.match(/#bellpost(?=$|[\s.,!?;)\]}>])/u)?.[0];
         const dest=letter&&loadFragment(letter);
         if(dest){if(dest==="desk")rememberUrl("#bellpost");show(dest);}else notify("Choose a Bellpost invitation or turn link.");
       });return true;}

@@ -19,7 +19,7 @@
     const maxHp=id=>species[id].baseHp+3*(level-5);
     const label=id=>species[id].name;
     const ready=(fighter,gearId)=>fighter.gear===gearId&&!fighter.spent;
-    function start(left,right,first=0,gear) {
+    function start(left,right,first=0,gear,protocol) {
       if(!validTeam(left)||!validTeam(right)||!integer(first,0,1))return null;
       const fitting=kit?kit.validate(gear,left,right):undefined;
       if(fitting===null||(!kit&&gear!==undefined))return null;
@@ -32,7 +32,7 @@
         if(pennant){team[0].spent=true;log.push("Side "+(i+1)+" · "+label(team[0].id)+" raised its Opening Pennant for 1 beat.");}
         return {active:0,beats:pennant?1:0,lastPart:null,cover:1,braced:false,pinned:false,team};
       });
-      return {v:1,first,turn:first,ply:0,limit,phase:"move",winner:null,sides,log};
+      return {v:1,...(protocol===1?{protocol:1}:{}),first,turn:first,ply:0,limit,phase:"move",winner:null,sides,log};
     }
     function verdict(p) {
       const [a,b]=p.sides,alive=standing(a)-standing(b);
@@ -43,6 +43,7 @@
     }
     function restore(raw) {
       if(raw?.v!==1||raw.limit!==limit||!integer(raw.ply,0,limit)||!integer(raw.first,0,1)||
+        (raw.protocol!==undefined&&raw.protocol!==1)||
         raw.turn!==(raw.first+raw.ply)%2||!Array.isArray(raw.sides)||raw.sides.length!==2||
         !Array.isArray(raw.log)||raw.log.length>8||raw.log.some(line=>typeof line!=="string"||line.length>400))return null;
       const sides=[];
@@ -51,9 +52,14 @@
           ![null,...Object.values(partFor)].includes(s.lastPart)||![1,.5,.25].includes(s.cover)||
           typeof s.braced!=="boolean"||typeof s.pinned!=="boolean")return null;
         const team=[],held=new Set();
-        for(const {id,hp,maxHp:cap,level:lv,recovery,exposed,gear,spent} of s.team) {
+        let spentArts=0;
+        for(const {id,hp,maxHp:cap,level:lv,recovery,exposed,gear,spent,emberArtSpent} of s.team) {
           if(cap!==maxHp(id)||lv!==level||!integer(hp,0,cap)||!integer(recovery,0,1)||typeof exposed!=="boolean")return null;
           const fighter={id,hp,maxHp:cap,level,recovery,exposed};
+          if(emberArtSpent!==undefined){
+            if(emberArtSpent!==true||raw.protocol===1||!species[id].emberArt)return null;
+            fighter.emberArtSpent=true;spentArts++;
+          }
           if(gear!==undefined){
             if(!kit?.byId(gear)||held.has(gear)||typeof spent!=="boolean")return null;
             if(gear==="opening-pennant"?spent!==(team.length===0):raw.ply===0&&spent)return null;
@@ -62,12 +68,20 @@
           team.push(fighter);
         }
         const side={active:s.active,beats:s.beats,lastPart:s.lastPart,cover:s.cover,braced:s.braced,pinned:s.pinned,team};
+        if(s.warmthBrace!==undefined){
+          const holder=active(side);
+          if(s.warmthBrace!==holder.id||!holder.hp||!holder.emberArtSpent||species[holder.id].emberArt?.id!=="banked-warmth"||
+              !side.braced||side.cover>.5)return null;
+          side.warmthBrace=holder.id;
+        }
         if(s.familyPassUsed!==undefined||s.thornRead!==undefined||s.team.some(p=>p.signatureSpent!==undefined)){
           if(!signatures?.restoreSide(s,side,sides.length,raw))return null;
         }
+        const actions=Math.floor((raw.ply+(sides.length===raw.first?1:0))/2);
+        if(spentArts+team.filter(k=>k.signatureSpent).length+Number(!!side.familyPassUsed)>actions)return null;
         sides.push(side);
       }
-      const p={v:1,first:raw.first,turn:raw.turn,ply:raw.ply,limit,sides,log:raw.log.slice()};
+      const p={v:1,...(raw.protocol===1?{protocol:1}:{}),first:raw.first,turn:raw.turn,ply:raw.ply,limit,sides,log:raw.log.slice()};
       if(!standing(sides[1-p.turn])||!active(sides[1-p.turn]).hp)return null;
       p.winner=verdict(p);p.phase=p.winner!==null?"done":active(sides[p.turn]).hp?"move":"replace";
       return p.phase===raw.phase&&p.winner===raw.winner?p:null;
@@ -89,6 +103,36 @@
     }
     const trait=p=>species[p.id].skills.find(s=>s.kind==="attack"&&s.type===species[p.id].type);
     const recover=(p,fraction)=>Math.min(p.maxHp-p.hp,Math.ceil(p.maxHp*fraction));
+    function strikeForecast(p,m,skill) {
+      const lead=active(p.sides[p.turn]),other=p.sides[1-p.turn],foe=active(other);
+      const guard=skill.kind==="guard",exploit=foe.exposed&&!guard,breaks=guard&&other.braced;
+      const multiplier=exploit?1.5:breaks?1.4:other.cover;
+      const lens=!guard&&ready(lead,"prism-lens")&&dex.effectiveness(skill.type,species[foe.id].types)<1;
+      if(lens)trigger(m,p.turn,lead,"strike ignores resistance");
+      const hit=Math.min(foe.hp,Math.max(1,Math.round(power(skill,foe,lens)*multiplier)));
+      m.damage=incoming(m,1-p.turn,foe,hit);
+      m.consumeMark=exploit;m.cover=guard?.5:1;
+      m.detail=m.damage+" damage"+(exploit?" · uses exposure":breaks?" · breaks brace":other.cover<1?" · into cover":"")+
+        (guard?" · halve the next hit":"");
+    }
+    function emberOptions(p,lead,bench) {
+      const art=species[lead.id].emberArt;
+      if(!art||p.protocol===1)return [];
+      const reason=lead.emberArtSpent?art.name+" used this match.":"";
+      const base={kind:"ember-art",emberArtId:art.id,name:art.name,label:art.name,type:art.type,cost:0,
+        available:!reason,reason,damage:0,heal:0,healLead:0,healPartner:0,cover:1};
+      const restore=kin=>Math.min(kin.maxHp-kin.hp,Math.floor(kin.maxHp/4));
+      if(art.id==="banked-warmth")return bench.map(mate=>{
+        const heal=restore(mate),why=reason||(!heal?label(mate.id)+" is already at full HP.":"");
+        return {...base,id:"warmth:"+mate.id,targetId:mate.id,label:art.name+" · "+label(mate.id),cover:.5,
+          heal,healPartner:heal,available:!why,reason:why,
+          detail:"Restore "+heal+" HP to "+label(mate.id)+" ("+(mate.hp+heal)+"/"+mate.maxHp+"). "+label(lead.id)+" stays and braces for the next hit."};
+      });
+      const heal=restore(lead),m={...base,id:"vent:backdraft",heal,healLead:heal};
+      strikeForecast(p,m,art);
+      m.detail+=" · "+label(lead.id)+" restores "+heal+" HP ("+(lead.hp+heal)+"/"+lead.maxHp+")";
+      return [m];
+    }
     function forecastMoves(p) {
       if(!p||p.phase==="done")return [];
       const side=p.sides[p.turn],other=p.sides[1-p.turn],lead=active(side),foe=active(other);
@@ -101,17 +145,7 @@
           m.heal=m.healLead=recover(lead,1/3);
           m.reason=!lead.recovery?"Recovery used this match.":!m.heal?"Already at full HP.":"";
           m.detail="Restore "+m.heal+" HP · "+lead.recovery+" personal recovery left";
-        } else {
-          const guard=skill.kind==="guard",exploit=foe.exposed&&!guard,breaks=guard&&other.braced;
-          const multiplier=exploit?1.5:breaks?1.4:other.cover;
-          const lens=!guard&&ready(lead,"prism-lens")&&dex.effectiveness(skill.type,species[foe.id].types)<1;
-          if(lens)trigger(m,p.turn,lead,"strike ignores resistance");
-          const hit=Math.min(foe.hp,Math.max(1,Math.round(power(skill,foe,lens)*multiplier)));
-          m.damage=incoming(m,1-p.turn,foe,hit);
-          m.consumeMark=exploit;m.cover=guard?.5:1;
-          m.detail=m.damage+" damage"+(exploit?" · uses exposure":breaks?" · breaks brace":other.cover<1?" · into cover":"")+
-            (guard?" · halve the next hit":"");
-        }
+        } else strikeForecast(p,m,skill);
         m.available=!m.reason;
         return m;
       });
@@ -136,9 +170,11 @@
           available:!reason,reason,cost:pair.cost,damage:hit,heal:healLead+healPartner,healLead,healPartner,cover:pair.counter,
           detail:label(mate.id)+" · "+effects.join(" · ")});
       }
+      moves.push(...emberOptions(p,lead,bench));
       for(const m of moves) {
         const part=partFor[m.kind];
         m.beatsAfter=m.kind==="duet"?Math.max(0,side.beats-m.cost):Math.min(3,side.beats+(side.lastPart!==part?1:0));
+        if(m.emberArtId)m.beatsAfter=side.beats;
         if(m.available&&m.kind==="swap"&&m.beatsAfter<3){
           const next=bench.find(a=>a.id===m.targetId);
           if(ready(next,"relay-bell")){
@@ -166,6 +202,14 @@
         moves.push(...signatures.options(side,bench,label,foe,species[lead.id].type));
         if(other.thornRead)for(const move of moves)signatures.forecastResponse(move,side,other,label);
       }
+      if(side.warmthBrace){
+        for(const move of moves){
+          const handoff=move.kind==="swap"||move.role==="relay"||(move.kind==="signature"&&move.targetId);
+          if(handoff)continue;
+          move.cover=Math.min(.5,move.cover||1);
+          move.detail+=" · banked warmth stays until hit";
+        }
+      }
       return moves;
     }
     function step(p,m,keepLog) {
@@ -177,20 +221,29 @@
       } else {
         side.pinned=false;
         side.cover=m.cover||1;side.braced=m.kind==="guard";
-        other.cover=1;other.braced=false;
+        if(m.damage>0)delete other.warmthBrace;
+        other.cover=other.warmthBrace ? .5 : 1;
+        other.braced=Boolean(other.warmthBrace);
         if(m.damage)foe.hp-=m.damage;
         if(m.consumeMark)foe.exposed=false;
         if(m.role==="lure")other.pinned=true;
         if(m.role==="mark"&&foe.hp)foe.exposed=true;
         if(m.kind==="heal")lead.recovery=0;
+        if(m.emberArtId)lead.emberArtSpent=true;
         if(m.healLead)lead.hp+=m.healLead;
         if(m.healPartner)side.team[slot].hp+=m.healPartner;
         if(m.reserveHeal)side.team.find(a=>a.id===m.reserveHeal.id).hp+=m.reserveHeal.amount;
         if(m.rivalBeatsAfter!==undefined)other.beats=m.rivalBeatsAfter;
         if(m.gearEvents)for(const e of m.gearEvents)sides[e.side].team.find(a=>a.id===e.holderId).spent=true;
         if(m.kind==="swap"||m.role==="relay")side.active=slot;
-        side.beats=m.beatsAfter;side.lastPart=partFor[m.kind]||null;
+        side.beats=m.beatsAfter;
+        if(!m.emberArtId)side.lastPart=partFor[m.kind]||null;
         if(m.signatureId||other.thornRead)signatures.resolve(m,lead,side,other,slot);
+        if(m.emberArtId==="banked-warmth")side.warmthBrace=lead.id;
+        if(side.warmthBrace){
+          if(side.warmthBrace===active(side).id)side.braced=true;
+          else delete side.warmthBrace;
+        }
         next.ply++;next.turn=1-p.turn;
         next.winner=verdict(next);next.phase=next.winner!==null?"done":foe.hp?"move":"replace";
         if(next.phase==="done"&&side.thornRead)delete side.thornRead;

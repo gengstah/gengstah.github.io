@@ -44,6 +44,8 @@
         if(side.cover<1)effects.push(side.cover===.25?"quarter cover":"half cover");
         if(side.pinned)effects.push("pinned");
         if(!p.recovery)effects.push("recovery spent");
+        const art=species[p.id].emberArt;
+        if(art)effects.push(art.name+" "+(p.emberArtSpent?"used":"ready"));
         if(p.gear)effects.push(window.WilderSparringGear.byId(p.gear).name+" "+(p.spent?"used":"ready"));
         const signature=window.WilderSparringSignatures?.byId(p.id);
         if(signature&&!signature.family)effects.push(signature.name+" "+(side.thornRead?"awaiting a reply":p.signatureSpent?"used":"unused"));
@@ -59,7 +61,7 @@
       const rows=book.events.slice(page*perPage,(page+1)*perPage).map((e,i)=>
         link(turnLabel(e)+" · "+e.move.label,"t"+(page*perPage+i),
           [sideName(e.before.turn,book.human),actor(e.before,e.before.turn),...(e.move.gearEvents||[]).map(g=>window.WilderSparringGear.byId(g.gearId).name)].join(" · "),
-          {badge:e.move.kind==="signature"?"SIGNATURE":e.move.kind==="duet"?"DUET":undefined}));
+          {badge:e.move.kind==="ember-art"?"EMBER":e.move.kind==="signature"?"SIGNATURE":e.move.kind==="duet"?"DUET":undefined}));
       const nav=[];
       if(page>0)nav.push(link("Earlier turns","p"+(page-1)));
       if(page<count-1)nav.push(link("Later turns","p"+(page+1)));
@@ -131,6 +133,12 @@
           detail:sideName(i,human)+" · "+(k.spent?"Used in this variation. Still ready in the recorded match.":"Still ready in this variation. Used in the recorded match.")}];
       }));
       if(changes.length)sections.push(group("Equipment after the exchange",changes));
+      const arts=end.sides.flatMap((side,i)=>side.team.flatMap((p,j)=>{
+        const real=original.sides[i].team[j],art=species[p.id].emberArt;
+        return art&&Boolean(real.emberArtSpent)!==Boolean(p.emberArtSpent)?[{label:name(p.id)+" · "+art.name,
+          detail:sideName(i,human)+" · "+(p.emberArtSpent?"Used in this variation. Ready in the recording.":"Ready in this variation. Used in the recording.")}]:[];
+      }));
+      if(arts.length)sections.push(group("Ember technique after the exchange",arts));
       if([...actual,...other].some(e=>e.move.kind==="signature"||e.move.thornResponse)){
         const changes=end.sides.flatMap((side,i)=>{
           const real=original.sides[i],rows=[];

@@ -92,6 +92,7 @@
     switch (screen.name) {
       case "world":model=worldModel();break;
       case "battle":model=battleModel();break;
+      case "ember-targets":model=emberTargets();break;
       case "wild-offer":model=wildOffer();break;
       case "replacement":model=replacementModel(replacement);break;
       case "outcome":model=outcomeModel();break;
@@ -191,6 +192,14 @@
       return row("skill",s.name,s.id,special?(special.reason||special.detail):detail,{tone:s.kind==="attack"?"primary":undefined,disabled:special?!special.available:f?!f.available:s.kind==="heal"&&p.hp>=p.maxHp,key:String(i+1)});
     });
     const duet=game.duets();
+    const ember=game.emberTechnique?.();
+    if(ember){
+      const warmth=ember.id==="banked-warmth";
+      const detail=ember.reason || (warmth?"Heal a reserve · stay in front · take "+ember.returnDamage:
+        "Deal "+ember.damage+" · heal "+ember.healing+" HP"+(ember.finishes?" · KO before reply":" · take "+ember.returnDamage))+" · once";
+      skills.push(row(warmth?"nav":"ember-technique",ember.name,warmth?"ember-targets":null,detail,
+        {disabled:!ember.available,key:"5",tone:ember.available?"primary":undefined}));
+    }
     const actions=[row("nav","Trail duets","duets",duet.beats+" / "+duet.max+" beats",{key:"R",tone:duet.options.some(o=>o.available)?"primary":undefined}),row("nav","Switch kin","switch",escort?"Shell Escort ready · preview protected entries":"Preview each incoming kin’s HP"),
       ...(!b.secondBell?[row("nav","Satchel","bag")]:[]),row("retreat",b.secondBell?"Withdraw from exhibition":"Retreat")];
     const pass=game.familyTechnique();
@@ -204,6 +213,10 @@
     const title=b.secondBell?"Second Bell · Warden "+scene().warden:wild?"Wild encounter":b.kind==="expedition"?"Expedition patrol":"Warden "+scene().warden+"’s trial";
     const health=partyDisplay(b.enemy,false),conditions=game.conditions[b.condition];
     const warnings=[];
+    if(intent.emberArt==="backdraft")warnings.push(enemy.name+" will use Backdraft: Ember damage and up to "+Math.floor(b.enemy.maxHp/4)+" HP recovered.");
+    if(intent.emberArt==="banked-warmth")warnings.push(enemy.name+" will brace and restore "+intent.heal+" HP to "+spec(intent.patientId,false).name+".");
+    if(b.enemy.emberBrace)warnings.push(enemy.name+" has Banked Warmth cover. An exposed strike or a breakthrough duet can pierce it.");
+    if(b.emberBrace===p.id)warnings.push("Banked Warmth · "+kin.name+" takes half damage on its next hit.");
     if(intent.warning)warnings.push(enemy.name+" is ready to use "+intent.skill.name+" · "+intent.skill.type+".");
     if (intent?.charged) warnings.push(enemy.name+" is preparing "+intent.skill.name+".");
     if (intent?.guarding) warnings.push(enemy.name+" is braced. A guarding strike breaks through.");
@@ -219,6 +232,15 @@
         ...(b.secondBell?[{title:"Published formation · Lv. "+b.secondBell.level,text:b.secondBell.roster.map(id=>spec(id,false).name).join(" → ")}]:[]),
         ...(conditions?[{title:conditions.name,text:conditions.description+(b.weather?" "+b.weather+" skills gain 20% damage.":"")}]:[]),
         ...(tactic?[{title:tactic.title,text:tactic.description+" "+tactic.counter}]:[])]};
+  }
+  function emberTargets() {
+    const b=game.state.battle,art=game.emberTechnique?.();
+    if(!b || art?.id!=="banked-warmth")return battleModel();
+    const name=spec(b.activeId).name;
+    return {title:art.name,kicker:"EMBER ART  /  "+name,subtitle:name+" stays in front and takes half damage on the next hit. This turn’s reply deals "+art.returnDamage+" damage.",
+      sections:[{title:"Warm one reserve",text:art.reason||"One use this battle. Costs no beats.",rows:art.targets.map(p=>row("ember-technique",p.name,p.id,
+        p.reason||"Heal "+p.heal+" HP · "+p.hp+" → "+p.hpAfter+" / "+p.maxHp,
+        {image:image(p.id),disabled:!art.available||!p.available}))}]};
   }
   function wildCommands(call) {
     const lead=game.state.battle.activeId,rows=call.options.filter(o=>o.actor===lead).map(o=>{
@@ -300,6 +322,7 @@
         await ui.animate({...fx,side:"ally"});
       }
       const now=game.state.battle;
+      if(res.foeHeal)await ui.animate({type:"Ember",kind:"heal",side:"foe",name:res.replySkill.name});
       if(res.foeShifted && now){
         ui.show({...battleModel(),id:"battle:"});
         await ui.animate({type:spec(now.enemy.id,false).type,kind:"swap",side:"foe",name:spec(now.enemy.id,false).name});
@@ -450,6 +473,14 @@
     }
     if (screen.name==="world" && key==="e") {if (!e.repeat) action("interact");return true;}
     if (screen.name==="battle" && key==="r") {if(!e.repeat) go("duets");return true;}
+    if(screen.name==="battle" && key==="5"){
+      const art=game.emberTechnique?.();
+      if(art?.available && !e.repeat){
+        if(art.id==="banked-warmth")go("ember-targets");
+        else action("ember-technique");
+      }
+      return true;
+    }
     if (screen.name==="battle" && /^[1-4]$/.test(key)) {
       const skill=spec(game.state.battle.activeId).skills[Number(key)-1];if (skill && !e.repeat) useSkill(skill.id);return true;
     }
@@ -488,6 +519,11 @@
         if(screen.name==="outcome"&&outcome?.recruited===value)bell.act(id,value);
         return;
       case "skill":return useSkill(value);
+      case "ember-technique":{
+        const art=game.emberTechnique();
+        if(!art?.available)return notify(art?.reason||"This kin has no Ember art here.");
+        return resolveBattle(()=>game.useEmberTechnique(value),{type:art.type,kind:art.id==="banked-warmth"?"heal":"attack",name:art.name});
+      }
       case "answer-call":{
         const [skill,partner]=String(value).split("|"),b=game.state.battle,call=game.wildCall();
         const move=call?.options.find(o=>o.actor===b.activeId&&o.skill===skill&&o.partner===partner);
@@ -540,6 +576,7 @@
     if(hash==="#updates")return {name:"updates",value:null};
     if(hash==="#grove")return {name:"sparring",value:"bench:grove"};
     if(hash==="#workshop")return {name:"sparring",value:"bench:workshop"};
+    if(hash==="#ember-partners")return {name:"sparring",value:"ember"};
     return hall.loadFragment(hash)?{name:"sparring",value:null}:null;
   }
   restorePlayer();

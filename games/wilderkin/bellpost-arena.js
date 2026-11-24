@@ -17,10 +17,10 @@
     let cached=null;
 
     function tape(r){
-      const token=JSON.stringify([r.teams,r.first,r.moves]);
+      const token=JSON.stringify([r.protocol,r.teams,r.first,r.moves]);
       if(cached?.token===token)return cached.events;
       const [a,b]=r.teams;
-      let pos=sim.start(a.ids,b.ids,r.first,{left:a.gear||{},right:b.gear||{}});
+      let pos=sim.start(a.ids,b.ids,r.first,{left:a.gear||{},right:b.gear||{}},r.protocol);
       const events=[];
       for(const id of r.moves){
         const move=sim.forecast(pos,id),after=move?.available?sim.apply(pos,id):null;
@@ -47,6 +47,7 @@
         const before=e.before.sides[i],after=e.after.sides[i],side=sideName(r,i);
         for(const [j,p] of after.team.entries()){
           const delta=p.hp-before.team[j].hp;
+          if(p.emberArtSpent&&!before.team[j].emberArtSpent&&species[p.id].emberArt)rows.push({label:name(p.id)+" spent "+species[p.id].emberArt.name,detail:side+" · its technique is used for this match."});
           if(delta)rows.push({label:name(p.id)+" "+(delta>0?"+":"−")+Math.abs(delta)+" HP",
             detail:side+" · "+before.team[j].hp+" → "+p.hp+" / "+p.maxHp+" HP"+(p.hp===0?" · knocked out":""),image:image(p.id)});
         }
@@ -86,6 +87,8 @@
         return group(sideName(r,i)+" · "+status.join(" · "),s.team.map((p,j)=>{
           const gear=item(p.gear),sig=window.WilderSparringSignatures?.byId(p.id);
           const detail=[p.hp+"/"+p.maxHp+" HP",species[p.id].types.join(" / ")];
+          const art=r.protocol===1?null:species[p.id].emberArt;
+          if(art)detail.push(art.name+" · "+(p.emberArtSpent?"used":"ready"));
           if(p.exposed)detail.push("exposed");
           if(!p.recovery)detail.push("recovery spent");
           if(sig)detail.push(sig.name+" "+(window.WilderSparringSignatures.used(s,p.id)?"used":"ready"));
@@ -110,7 +113,9 @@
         if(p.phase==="replace")page.sections.push(group("Free replacement · you act again",
           opts.map((o,i)=>({...moveRow(o),key:String.fromCharCode(65+i)})),2));
         else if(panel==="partners"){
-          const sections=[group("Battle floor",[back()])];
+          const sections=[group("Battle floor",[back()])],art=species[front(p.sides[p.turn]).id].emberArt;
+          const tech=opts.filter(o=>o.kind==="ember-art");
+          if(r.protocol!==1&&art&&tech.length)sections.push(group(art.name+" · once per kin",tech.map(o=>({...moveRow(o),detail:window.WilderEmberPartners?.forecastDetail(sim,p,o)||o.reason||o.detail}))));
           for(const [kind,title] of [["signature","Signature"],["duet","Duets"],["swap","Switch kin"]]){
             const moves=opts.filter(o=>o.kind===kind);if(moves.length)sections.push(group(title,moves.map(moveRow),2));
           }
@@ -118,7 +123,8 @@
         }else{
           const skills=opts.filter(o=>["attack","guard","heal"].includes(o.kind)).map((o,i)=>({...moveRow(o),key:String(i+1)}));
           const special=opts.find(o=>o.kind==="signature"),sig=special&&window.WilderSparringSignatures.byId(special.signatureId);
-          const panelLabel=sig?sig.name+" & team moves":"Team moves";
+          const art=r.protocol===1?null:species[front(p.sides[p.turn]).id].emberArt;
+          const panelLabel=art?art.name+" & team moves":sig?sig.name+" & team moves":"Team moves";
           skills.push(button("panel",panelLabel,"partners","Switch kin or call a duet · "+p.sides[p.turn].beats+"/3 beats",{key:"D"}));
           page.sections.push(group("Choose a move",skills,2));
         }

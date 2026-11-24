@@ -56,9 +56,11 @@
     const compareGrove=(side,i)=>visit(where(side,"grove",i),"Compare Grove signatures","Mossbell and Fernprickle");
     const signatureCost=s=>s.cost+" "+(s.cost===1?"beat":"beats")+(s.family?" · one team pass":" · once per match");
     function signatureDetails(id) {
-      const move=signature(id);
-      return move?[{title:move.name+" · "+signatureCost(move),text:move.effect+" "+move.tradeoff+" "+move.counter+
-        (move.family?" Herons and gliders share one pass per team each match.":"")}]:[];
+      const move=signature(id),art=species[id].emberArt,sections=[];
+      if(art)sections.push({title:art.name+" · once per kin",text:art.description});
+      if(move)sections.push({title:move.name+" · "+signatureCost(move),text:move.effect+" "+move.tradeoff+" "+move.counter+
+        (move.family?" Herons and gliders share one pass per team each match.":"")});
+      return sections;
     }
     const navigate=v=>go("sparring",v);
     const kit=side=>read().gear?.[side]||{};
@@ -98,6 +100,7 @@
       }
       const clean=cleanKit(ids,gear),equipment=ids.filter(id=>clean[id]).map(id=>({holder:id,...gearDesk.byId(clean[id])}));
       return {attackTypes,coverage,uncovered:affinities.filter(t=>!coverage.includes(t)),defense,equipment,signatures:ids.map(signature).filter(Boolean),
+        emberArts:roster.filter(k=>k.emberArt).map(k=>({id:k.id,art:k.emberArt})),
         holes:defense.filter(d=>d.weak.length>=2&&!d.resists.length),duets:pairs};
     }
     function answers(ids,target) {
@@ -114,7 +117,7 @@
       const rows=ids.map((id,i)=>{
         const k=species[id];
         const equipped=gearDesk?.byId(kit(side)[id]);
-        const details=[stats(k),signature(id)?.name,equipped?.name].filter(Boolean);
+        const details=[stats(k),k.emberArt?.name,signature(id)?.name,equipped?.name].filter(Boolean);
         if(details.length===1)details.push("Change or reorder");
         return visit(where(side,"member",i),k.name,details.join(" · "),{image:paint(id),badge:label(i)});
       });
@@ -180,7 +183,7 @@
     function list(side) {
       const f=filters[side],q=f.query.trim().toLowerCase();
       return catalog.filter(k=>(f.affinity==="All"||k.types.includes(f.affinity))&&(!f.family||signature(k.id)?.familyKey===f.family)&&
-        (!q||k.name.toLowerCase().includes(q)||k.id.includes(q)||signature(k.id)?.name.toLowerCase().includes(q)));
+        (!q||k.name.toLowerCase().includes(q)||k.id.includes(q)||k.emberArt?.name.toLowerCase().includes(q)||signature(k.id)?.name.toLowerCase().includes(q)));
     }
     function travelingParty(side,slot) {
       const state=game.state;
@@ -213,13 +216,16 @@
       f.page=Math.max(0,Math.min(pages-1,f.page));
       const party=f.page===0&&f.affinity==="All"&&!f.query.trim()&&!f.family?travelingParty(side,i):[];
       const passes=["beacon-pass","slipstream-pass"].map(id=>window.WilderSparringSignatures?.byId(id)).filter(move=>move?.family);
-      const rows=found.slice(f.page*pageSize,(f.page+1)*pageSize).map(k=>visit(where(side,"candidate",i)+":"+k.id,k.name,[k.types.join(" / "),signature(k.id)?.name].filter(Boolean).join(" · "),
+      const arts=["charquill","kilnbeak"].map(id=>species[id]).filter(k=>k?.emberArt);
+      const rows=found.slice(f.page*pageSize,(f.page+1)*pageSize).map(k=>visit(where(side,"candidate",i)+":"+k.id,k.name,[k.types.join(" / "),k.emberArt?.name,signature(k.id)?.name].filter(Boolean).join(" · "),
         {image:paint(k.id),badge:read()[side].includes(k.id)?label(read()[side].indexOf(k.id)):""}));
       return {title:"Choose a loaner",kicker:own(side).toUpperCase()+"   /   "+label(i).toUpperCase(),sections:[
-        group("Find a kin",[visit(where(side,"search",i),f.query?"Name · "+f.query:"Search by name"),
+        group("Find a kin",[visit(where(side,"search",i),f.query?"Search · "+f.query:"Search by name or technique"),
           visit(where(side,"affinity",i),"Affinity · "+f.affinity),...(signature("mossbell")?[compareGrove(side,i)]:[])],2),
         ...(passes.length?[group("Browse by handoff",passes.map(move=>action("family",move.name,side+":"+i+":"+(f.family===move.familyKey?"all":move.familyKey),
           f.family===move.familyKey?"Clear family filter":move.familyKey==="beacon"?"Herons · expose the rival":"Gliders · heal the incoming kin",{badge:f.family===move.familyKey?"SELECTED":""})),2)]:[]),
+        ...(arts.length?[group("Browse by Ember technique",arts.map(k=>action("ember",k.emberArt.name,side+":"+i+":"+k.id,
+          f.query===k.emberArt.name?"Clear technique filter":k.emberArt.summary,{badge:f.query===k.emberArt.name?"SELECTED":""})),2)]:[]),
         ...(party.length?[group("Traveling party",party,2)]:[]),
         group(found.length+" matching kin",rows.length?rows:[{label:"No matching kin",detail:"Change the name or affinity."}],2),
         ...(pages>1?[group("Page "+(f.page+1)+" of "+pages,[
@@ -270,6 +276,9 @@
           else signatures.push({owner,move,ids:[move.speciesId]});
         }
       }
+      const arts=[[side,ids],[otherSide,rival]].flatMap(([owner,team])=>team.filter(id=>species[id].emberArt).map(id=>{
+        const art=species[id].emberArt;return {label:species[id].name+" · "+art.name,detail:art.description,badge:own(owner),image:paint(id)};
+      }));
       const switches=report.defense.filter(d=>d.weak.length&&d.resists.length).sort((a,b)=>b.weak.length-a.weak.length).slice(0,2);
       const defense=report.holes.length?report.holes.map(h=>h.type+" threatens "+names(h.weak)+". Nobody resists it.").join(" "):
         "No unresisted shared weakness. "+switches.map(d=>species[d.resists[0]].name+" resists "+d.type+" for "+names(d.weak)+".").join(" ");
@@ -277,7 +286,7 @@
         group("Against their three",rival.map(id=>{
           const k=species[id],best=answers(ids,id)[0];
           return {label:k.name,detail:best.kin+" · "+best.name+" ×"+Number(best.mult.toFixed(2))+" · incoming up to ×"+Number(best.risk.toFixed(2)),image:paint(id)};
-        })),...(signatures.length?[group("Signature moves",signatures.map(({owner,move,ids})=>({
+        })),...(arts.length?[group("Ember techniques",arts)]:[]),...(signatures.length?[group("Signature moves",signatures.map(({owner,move,ids})=>({
           label:names(ids)+" · "+move.name,badge:own(owner)+" · "+signatureCost(move),detail:move.effect+" "+move.counter+
             (move.family?" Herons and gliders share this use.":""),image:paint(ids[0])
         })))]:[]),...(equipment.length?[group("Visible equipment",equipment.map(g=>({label:species[g.holder].name+" · "+g.name,
@@ -305,9 +314,9 @@
       if(screen==="pick")return picker(side,i);
       if(screen==="candidate")return standard(species,id)?candidate(side,i,id):picker(side,i);
       if(screen==="affinity")return {title:"Filter by affinity",kicker:"LOANER CATALOG",sections:[group("Matches either affinity",["All",...affinities].map(t=>action("affinity",t,side+":"+i+":"+t,"",{badge:filters[side].affinity===t?"SELECTED":""})),2)]};
-      if(screen==="search")return {title:"Search by name",kicker:"LOANER CATALOG",subtitle:filters[side].query||"Enter a name",sections:[
+      if(screen==="search")return {title:"Search by name or technique",kicker:"LOANER CATALOG",subtitle:filters[side].query||"Type a kin or technique name",sections:[
         group("Search",[visit(where(side,"pick",i),"Show "+list(side).length+" matches","",{tone:"primary"}),
-          action("key","Delete letter",side+":delete"),action("key","Clear",side+":clear")],2),
+          action("key","Space",side+": "),action("key","Delete letter",side+":delete"),action("key","Clear",side+":clear")],2),
         {grid:{cols:6,cells:[..."ABCDEFGHIJKLMNOPQRSTUVWXYZ-"].map(c=>action("key",c,side+":"+c))}}]};
       return teamPage(side);
     }
@@ -315,7 +324,7 @@
       const f=filters[side];
       if(c==="delete")f.query=f.query.slice(0,-1);
       else if(c==="clear")f.query="";
-      else if(/^[A-Z-]$/i.test(c)&&f.query.length<40)f.query+=c.toLowerCase();
+      else if(/^[A-Z -]$/i.test(c)&&f.query.length<40)f.query+=c.toLowerCase();
       f.page=0;render();
     }
     function key(e,value) {
@@ -323,7 +332,7 @@
       if(prefix!=="edit"||!Object.hasOwn(filters,side)||view!=="search"||e.ctrlKey||e.metaKey||e.altKey)return false;
       if(e.key==="Enter")navigate(where(side,"pick",slot));
       else if(e.key==="Backspace")setKey(side,"delete");
-      else if(/^[A-Z-]$/i.test(e.key))setKey(side,e.key);
+      else if(/^[A-Z -]$/i.test(e.key))setKey(side,e.key);
       else return false;
       return true;
     }
@@ -350,6 +359,10 @@
       const i=Number(slot),team=read()[side];
       if(command==="page"){filters[side].page+=Math.sign(Number(slot))||0;render();}
       else if(command==="key")setKey(side,slot);
+      else if(command==="ember"&&[0,1,2].includes(i)&&["charquill","kilnbeak"].includes(target)&&species[target].emberArt){
+        const name=species[target].emberArt.name;
+        Object.assign(filters[side],{family:"",query:filters[side].query===name?"":name,affinity:"All",page:0});navigate(where(side,"pick",i));
+      }
       else if(command==="family"&&[0,1,2].includes(i)&&["beacon","slipstream","all"].includes(target)){
         Object.assign(filters[side],{family:target==="all"?"":target,query:"",affinity:"All",page:0});
         navigate(where(side,"pick",i));

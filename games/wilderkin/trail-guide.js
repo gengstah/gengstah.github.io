@@ -73,7 +73,7 @@ window.WilderPages = {
     }
     function localSpecies(id,action="open-kin",wild=action==="track") {
       const base=game.species[id],p=member(id),k=wild?base:own(id);
-      return row(action,k.name,id,[k.types.join(" / "),k.ability,window.WilderFamilyTechniques.forKin(id)?.name,guardStatus(game.guardTraining(id),p),p?"Befriended":null].filter(Boolean).join(" · "),
+      return row(action,k.name,id,[k.types.join(" / "),k.emberArt?.name,k.ability,window.WilderFamilyTechniques.forKin(id)?.name,guardStatus(game.guardTraining(id),p),p?"Befriended":null].filter(Boolean).join(" · "),
         {image:image(id,!wild),badge:p&&!wild?"Lv. "+p.level:undefined});
     }
     function atlas() {
@@ -133,7 +133,7 @@ window.WilderPages = {
         const pass=window.WilderFamilyTechniques.forKin(k.id),guard=game.guardTraining(k.id);
         const status={"All":true,"Seen":state.seen.includes(k.id),"Owned":held.has(k.id),"Reserve":held.has(k.id)&&!state.team.includes(k.id),"Local":game.pools[state.region].includes(k.id),"Carriers":!!k.ability};
         return status[filter.collection] && (filter.affinity==="All"||k.types.includes(filter.affinity)) &&
-          [k.name,own(k.id).name,game.growthInfo(k.id)?.formName||"",k.ability||"",pass?.family,pass?.name,guard?.family,guard?.name,guard?.guard,...k.types,format(entryNo.get(k.id))].join(" ").toLowerCase().includes(query);
+          [k.name,own(k.id).name,game.growthInfo(k.id)?.formName||"",k.ability||"",k.emberArt?.name,pass?.family,pass?.name,guard?.family,guard?.name,guard?.guard,...k.types,format(entryNo.get(k.id))].join(" ").toLowerCase().includes(query);
       });
       const perPage=10,count=Math.ceil(entries.length/perPage);filter.guidePage=Math.max(0,Math.min(filter.guidePage,count-1));
       const found=entries.slice(filter.guidePage*perPage,filter.guidePage*perPage+perPage);
@@ -146,13 +146,17 @@ window.WilderPages = {
       return page("Field guide",ordinary(state.seen)+" DISCOVERED  /  "+ordinary(state.party.map(p=>p.id))+" BEFRIENDED",sections,"Track 500 regional species and the abilities they bring to a crossing.");
     }
     function kinPage(id) {
-      const k=own(id),p=member(id),home=game.homes[id].find(i=>s().visited.includes(i))??game.homes[id][0];
+      const k=own(id),p=member(id),homes=game.homes[id],local=homes.includes(s().region);
+      const home=local?s().region:homes.find(i=>s().visited.includes(i))??homes[0];
       if(k.bonus && !s().stillwake?.revealed && !p)return guide();
-      const controls=k.bonus?[nav("stillwake","The fourth sounding","Read the witnesses’ accounts.")]:[open("study",id,"Field observations"),home===s().region?wayTo("wild","tracks","Follow local tracks"):open("region",home,"Find its habitat",game.regions[home].name)];
+      const controls=k.bonus?[nav("stillwake","The fourth sounding","Read the witnesses’ accounts.")]:[open("study",id,"Field observations")];
+      if(!k.bonus&&local)controls.push(wayTo("wild","tracks","Follow local tracks"));
+      else if(!k.bonus&&homes.length===1)controls.push(open("region",home,"Find its habitat",game.regions[home].name));
       if(!s().battle&&game.pools[s().region].includes(id)&&game.wildCall?.(id))controls.unshift(open("wild-scout",id,"Scout "+k.name+"’s call","Choose your lead for this encounter."));
       if(game.growthInfo(id))controls.unshift(open("growth",id,"Growth and disciplines",k.discipline?.name||"See training and forms."));
       const signature=window.WilderSparringSignatures?.byId(id);
       const family=window.WilderFamilyTechniques.forKin(id);
+      if(k.emberArt)controls.push(open("sparring","ember","Try "+k.emberArt.name,"Borrow both Ember herons for a practice exchange."));
       if(family)controls.push(nav("reedbank","Practice "+family.name,"Borrow a scout at Brookside Mill."));
       else if(signature)controls.push(open("sparring","bench:grove:"+id,"Try "+signature.name,"Practice this Hall signature at the Thornbridge crossing."));
       const guard=game.guardTraining(id);
@@ -172,6 +176,9 @@ window.WilderPages = {
       });
       return page(k.name,"FIELD GUIDE  /  "+format(entryNo.get(id)),[
         heading(k.types.join(" / "),controls.filter(Boolean),2),...(family?[{title:family.name+" · "+family.family+" family",text:family.summary+" Your team can use one family pass per battle. It costs one beat."}]:[]),
+        ...(homes.length>1?[heading("Habitats",homes.map((r,i)=>open("region",r,game.regions[r].name,
+          (i===0?"Native habitat":"Trail roost")+(s().region===r?" · You are here":""))).reverse(),2)]:[]),
+        ...(k.emberArt?[{title:k.emberArt.name,text:k.emberArt.description}]:[]),
         ...guardSection(id),heading("Skills",k.skills.map(skill=>info(skill.name+" · "+skill.type,skill.description))),heading("Duets with your party",duets,2)],
         k.description,{src:image(id),caption:p?"Level "+p.level+" · "+p.hp+"/"+p.maxHp+" HP · "+p.xp+"/"+game.xpNeeded(p.level)+" XP":"Wild kin · "+k.types.join(" / ")});
     }
@@ -385,7 +392,7 @@ window.WilderPages = {
       return page("Field notebook",entries.filter(d=>d.complete).length+" BEHAVIORS RECORDED",[
         heading("Sightings in "+here().name,local.map(site=>{
           const d=game.study(site.species);
-          return open("study",d.id,d.name,d.title,{badge:mark(d),image:image(d.id,false)});
+          return open("study",d.id,d.name,d.title,{badge:d.complete&&!d.habitatRecorded?"NEW HABITAT":mark(d),image:image(d.id,false)});
         }),2),...(entries.length?[{title:"Your observations"},...pages(entries.map(d=>open("study",d.id,d.title,d.name+" · "+d.location,{badge:mark(d)})),"notebookPage",6)]:[])],
         "Follow a wild kin, read its signs and choose an approach. The first two solved sightings per region each chart one unfinished commission leg.");
     }
@@ -395,6 +402,8 @@ window.WilderPages = {
       const sections=[],local=s().region===d.region,owned=!!member(id);
       if(d.atSite||d.complete)sections.push(window.WilderFieldwork.panel(d));
       if(d.complete)sections.push({title:"Recorded behavior",text:d.answer});
+      if(d.canRecordHabitat)sections.push(heading("Local survey",[row("field-observe","Record this habitat",id+"|record-habitat",
+        "Add the "+d.location+" sighting to your field note.")]));
       const signs=d.clues.filter(c=>c.text);
       if(signs.length) sections.push(...signs.map(c=>({title:c.label,text:c.text})));
       if(!d.atSite) {
@@ -555,7 +564,8 @@ window.WilderPages = {
         return open("growth",id,g.formName,g.baseName+"’s two camp disciplines",{image:"art/growth/"+g.formId+".png"});
       });
       const lodge=game.wardens.find(i=>!s().wardenLessons.includes(i))??0;
-      return page("What’s new in Wilderkin","FIELD DISPATCH   /   BELLPOST",[
+      return page("What’s new in Wilderkin","FIELD DISPATCH   /   EMBER PARTNERS",[
+        heading("Ember partners",[open("sparring","ember","Meet Charquill and Kilnbeak","Tend a wounded reserve with Charquill or strike and recover with Kilnbeak.")]),
         heading("Battle a friend",[nav("bellpost","Open the Bellpost desk","Invite a friend, exchange turn links or connect on the same Wi-Fi.")]),
         heading("Calls on the trail",[nav("wild-calls","Follow a wild call","Scout a local kin, pick a lead and aim its move at a field target.")]),
         heading("Warden exhibitions",[nav("second-bell","Enter the Second Bell","Scout a Warden’s published formation and challenge it with your traveling party.")]),

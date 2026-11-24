@@ -227,7 +227,10 @@ function playCampaign(itinerary) {
       if(g.team().every(p=>p.hp<p.maxHp*.55))rest();
       train(g.team().sort((a,b)=>b.hp-a.hp)[0].id);
       site("wild");ok(g.startBattle("wild",id));assert.equal(s().battle.enemy.level,r.wildLevel);
-      ok(g.useSkill("trail-feint"));ok(g.useSkill("trail-feint"));meter.skills+=2;
+      // A vent-scale opponent can heal once while the party is preparing a Kinweave.
+      for(let feints=0;feints<4&&!g.captureStatus().available;feints++){
+        ok(g.useSkill("trail-feint"));meter.skills++;
+      }
       ok(g.recruit());meter.captures++;
     }
     const requests=fair.quests.filter(q=>q.region===i);

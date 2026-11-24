@@ -53,7 +53,7 @@ test("strict fragment, roster, gear, legal move and resignation parsing rejects 
     {ids:away.ids,gear:{gustlance:"relay-bell",cindlet:"relay-bell"}},{ids:away.ids,gear:null}
   ])assert.equal(h.invite(t).code,"team");
   const variants=[
-    hash.replace("v1=","v2="),hash+"A",hash+".",hash.replace("mossbell~5","mossbell~9"),
+    hash.replace("v2=","v3="),hash+"A",hash+".",hash.replace("mossbell~5","mossbell~9"),
     hash.replace("mossbell~5","__proto__"),hash.replace("mossbell~5","dewfin"),
     hash.replace("mossbell~5","mossbell%7E5"),hash.slice(0,-2)+"."+("A".repeat(65))+".",
     hash.slice(0,-2)+".C.", hash.slice(0,-2)+".Z.",hash+"1",hash.repeat(20)
@@ -95,6 +95,45 @@ test("public copies survive chat punctuation handling and preserve the original 
   const empty=seated(),noMoves=ok(empty.h.resign(empty.id));
   const safe=empty.h.forSharing(noMoves.hash);assert.ok(safe.endsWith(".x.0"));
   assert.equal(ok(empty.g.receive(safe)).hash,noMoves.hash);assert.equal(empty.g.export(empty.id),noMoves.hash);
+});
+
+test("the film published before Ember arts retains its original moves, winning seat and every final HP",()=>{
+  const hash="#bellpost-v1=c7f3e4a7edc7326261e78c1f.cindlet,sprigkit,dewfin.e29a2db9d5aa54a7505ee8b7.dewfin,cindlet,sprigkit.GBBBBBBBBANINJABBBBBBBNBMBBBBBBBB.x";
+  const film=desk().review(hash);
+  assert.equal(film.record.protocol,1);assert.equal(film.record.winner,0);
+  assert.equal(film.events.length,33);assert.equal(film.events.at(-1).move.id,"skill:slick-slide");
+  assert.deepEqual(copy(film.final.sides.map(s=>s.team.map(k=>k.hp))),[[0,0,3],[0,0,0]]);
+});
+
+test("both Ember arts travel between seats in new letters, while legacy matches retain their command set",()=>{
+  const left={ids:["dewfin","charquill","sprigkit"]},right={ids:["kilnbeak","cindlet","mossbell"]};
+  const {h,g,id,ticket}=seated(left,right);
+  assert.equal(ticket.protocol,2);
+  function deliver(from,to,command){
+    const next=ok(from.play(id,command)),letter=from.forSharing(from.export(id));
+    assert.equal(ok(to.receive(letter)).hash,next.hash);
+    assert.deepEqual(copy(desk().review(letter).final),copy(next.pos));
+    return next;
+  }
+  deliver(h,g,"skill:slick-slide");
+  const vent=deliver(g,h,"vent:backdraft");
+  assert.match(vent.hash,/\.B2\.$/);
+  assert.equal(g.receive(vent.hash.replace("v2=","v1=")).code,"invalid");
+  deliver(h,g,"swap:charquill");
+  deliver(g,h,"skill:reed-lunge");
+  const before=h.get(id).pos,after=deliver(h,g,"warmth:dewfin"),healed=after.pos.sides[0].team[0];
+  assert.ok(healed.hp>before.sides[0].team[0].hp);
+  assert.equal(after.pos.sides[0].active,1);assert.equal(after.pos.sides[0].cover,.5);
+  assert.match(after.hash,/X\.$/);assert.equal(after.moves.at(-1),"warmth:dewfin");
+  const oldInvite=ticket.hash.replace("v2=","v1="),legacy=desk();
+  const v1=ok(legacy.join(oldInvite,right));
+  assert.equal(v1.protocol,1);assert.equal(h.receive(v1.hash).code,"fork");
+  assert.equal(legacy.join(ticket.hash,right).code,"occupied");
+  const first=desk().inspect(v1.hash.replace(/\.\.$/,".B."));
+  assert.equal(first.pos.turn,1);
+  assert.equal(sim.options(first.pos).some(m=>m.id==="vent:backdraft"),false);
+  assert.equal(legacy.inspect(first.hash.slice(0,-1)+"2."),null);
+  assert.equal(legacy.export(id),v1.hash);
 });
 
 test("restoring stripped fields and public placeholders still requires whole teams and lawful commands",()=>{

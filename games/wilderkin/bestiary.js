@@ -133,6 +133,14 @@
 
   const legacyIDs = ["sprigkit","cindlet","dewfin","mossbell","coalmoth","glimmeray"];
   const legacyAbilities = { mossbell:"Lullsong", coalmoth:"Glowpath", glimmeray:"Raftwake" };
+  const emberArts={
+    1:Object.freeze({id:"banked-warmth",name:"Banked Warmth",type:"Ember",cost:0,uses:1,power:0,
+      summary:"Warm an injured reserve and brace for the next hit.",
+      description:"Once per battle, share banked heat with a conscious reserve to restore up to a quarter of its maximum HP. The user stays in front under half cover."}),
+    13:Object.freeze({id:"backdraft",name:"Backdraft",type:"Ember",cost:0,uses:1,power:6,
+      summary:"Vent an Ember strike and recover your own HP.",
+      description:"Once per battle, strike with Ember and restore up to a quarter of your maximum HP. The strike can use an opening, even at full health."})
+  };
   const designs = new Map();
   const additions = {};
   for (const [f,clan] of families.entries()) {
@@ -149,6 +157,7 @@
         description:"Recover one third of this companion’s maximum health."});
       additions[id] = {
         id, name, type:primary, types:affinities, baseHp:clan.hp+(m%5)-2, skills,
+        ...(emberArts[m]?{emberArt:emberArts[m]}:{}),
         ability, description:clan.observation+" You can recognize "+name+" by "+feature+". "+behavior
       };
       designs.set(id,{shape:clan.shape,morph:m,secondary:dual ? clan.affinity : null});
@@ -225,6 +234,15 @@
     }
   }
 
+  const nativePools=encounterPools.slice();
+  const homes=Object.fromEntries(allIDs.map(id=>[id,[]]));
+  nativePools.forEach((pool,i)=>pool.forEach(id=>homes[id].push(i)));
+  // The roosts are extra wild sightings. Keep the original trail addresses and challenge lineups.
+  for(const [region,id] of [[0,"charquill"],[1,"kilnbeak"]]){
+    encounterPools[region]=[...nativePools[region],id];
+    homes[id].push(region);
+  }
+
   function spriteUrl(id) {
     const design = designs.get(id);
     return design ? window.WilderKinArt.sprite(id,design) : "art/"+id+".png";
@@ -246,6 +264,6 @@
       summary:"Pincer Block exposes a charging rival for the next ordinary attack. Against a Warden’s Reserve relay, it holds that rival in place."}
   };
   window.WilderGuardSchool = {forKin:id=>guardRoles[designs.get(id)?.shape] || null};
-  window.WilderKinDex = {expand, encounterPools, effectiveness, types, abilities, spriteUrl,
+  window.WilderKinDex = {expand, encounterPools, nativePools, homes, effectiveness, types, abilities, spriteUrl,
     shapeOf:id=>designs.get(id)?.shape || null};
 })();

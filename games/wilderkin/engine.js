@@ -81,8 +81,7 @@
   const regions = window.WilderAtlas.regions;
   const wardens = regions.map((r, i) => r.warden ? i : -1).filter(i => i >= 0);
   const pools = dex.encounterPools;
-  const homes = Object.fromEntries(Object.keys(species).map(id => [id, []]));
-  pools.forEach((pool, i) => pool.forEach(id => homes[id].push(i)));
+  const homes = {...dex.homes},nativePools=dex.nativePools;
   if(species.stillwake)homes.stillwake=[regions.length-1];
   const count = n => Number.isSafeInteger(n) && n >= 0 ? n : 0;
   const enrolled = (id, party) => party.some(p => p.id === id);
@@ -130,7 +129,7 @@
   function publishedBell(s,i) {
     if (!wardens.includes(i)) return null;
     const party=s.team.map(id=>s.party.find(p=>p.id===id));
-    return window.WilderSecondBell?.card({region:i,regions,wardens,pools,species,dex,party,crests:s.crests})||null;
+    return window.WilderSecondBell?.card({region:i,regions,wardens,pools:nativePools,species,dex,party,crests:s.crests})||null;
   }
 
   function readBellMark(s,i,mark) {
@@ -210,7 +209,7 @@
       || unique(saved.party.map(p => p.id)).length !== saved.party.length) return null;
     fresh.party = saved.party;
     if (Array.isArray(saved.trainedGuards)) {
-      fresh.trainedGuards=fresh.party.filter(p=>saved.trainedGuards.includes(p.id)&&guardSchool?.forKin(p.id)).map(p=>p.id);
+      fresh.trainedGuards=[...new Set(saved.trainedGuards)].filter(id=>enrolled(id,fresh.party)&&guardSchool?.forKin(id));
     }
     fresh.firstOuting=window.WilderOpening?.restore(saved.firstOuting)??"closed";
     fresh.stillwake=window.WilderStillwake?.restore(saved.stillwake,fresh.party)||{};
@@ -286,7 +285,7 @@
     const battle = saved.battle;
     const exhibition=battle && (battle.mode==="second-bell" || Object.hasOwn(battle,"secondBell"));
     const bell=exhibition ? readBellFight(fresh,battle) : null;
-    const opponentPool=bell?bell.roster:pools[fresh.region];
+    const opponentPool=bell?bell.roster:(battle?.kind==="wild"?pools:nativePools)[fresh.region];
     if (battle && ["wild","warden","expedition"].includes(battle.kind) && validFighter(battle.enemy) && battle.enemy.hp > 0
       && (!exhibition||bell) && opponentPool.includes(battle.enemy.id) && fresh.team.includes(battle.activeId) && fresh.party.some(p => p.id === battle.activeId && p.hp > 0)
       && Number.isSafeInteger(battle.turn) && battle.turn >= 1 && Array.isArray(battle.log)) {
@@ -308,6 +307,17 @@
         log: battle.log.filter(entry => typeof entry === "string").slice(-8)
       };
       const rest=fresh.battle.remaining;
+      if (Array.isArray(battle.emberUsers)) {
+        fresh.battle.emberUsers=[...new Set(battle.emberUsers)].filter(id=>fresh.team.includes(id)&&species[id].emberArt);
+        if (battle.emberBrace===battle.activeId && fresh.battle.emberUsers.includes(battle.activeId) &&
+            species[battle.activeId].emberArt.id==="banked-warmth") fresh.battle.emberBrace=battle.activeId;
+      }
+      if (!species[battle.enemy.id].emberArt || battle.enemy.emberArtSpent!==true) delete fresh.battle.enemy.emberArtSpent;
+      if (!fresh.battle.enemy.emberArtSpent || species[battle.enemy.id].emberArt?.id!=="banked-warmth" ||
+          battle.enemy.emberBrace!==true)delete fresh.battle.enemy.emberBrace;
+      if (Array.isArray(battle.reserveEmber) && rest.length===battle.reserveEmber.length) {
+        fresh.battle.reserveEmber=rest.map((id,i)=>Boolean(species[id].emberArt && battle.reserveEmber[i]===true));
+      }
       if (bell) Object.assign(fresh.battle,{mode:"second-bell",secondBell:bell});
       if (resumed && battle.wildCall) {
         const call=readWildCall(fresh,battle);
@@ -541,7 +551,7 @@
 
   function startBattle(kind,track) {
     if (state.battle) return error("You are already in an encounter.");
-    const r=regions[state.region], pool=pools[state.region];
+    const r=regions[state.region], pool=(kind==="wild"?pools:nativePools)[state.region];
     if (kind==="second-bell") {
       const card=secondBell();
       if (!card?.available) return error(card?.reason||"There is no Second Bell exhibition here.");
@@ -662,7 +672,7 @@
     return commit("victory", message);
   }
 
-  function foeIntent(enemyId=state.battle?.enemy.id) {
+  function foeIntent(enemyId=state.battle?.enemy.id,rotating=false) {
     const b = state.battle;
     if (!b) return null;
     const r = regions[state.region];
@@ -682,11 +692,23 @@
     const skill = charged ? signature : {name:r.basicMove, type:"Neutral", power:5};
     const guarding = b.kind!=="wild" && !charged && (b.turn+r.ordinal)%4===0;
     const base={skill,charged,guarding,power:skill.power+(charged ? rhythm + (laterTrial ? 2 : 0) : 0)};
-    return b.kind==="warden"&&coaches?coaches.intent(r,b,base,signature):base;
+    const intent=b.kind==="warden"&&coaches?coaches.intent(r,b,base,signature):base;
+    const art=species[enemyId].emberArt;
+    const spent=rotating?b.reserveEmber?.[0]:b.enemy.emberArtSpent;
+    if(!art || spent || usingLoaners || intent.charged || intent.call || b.turn%3!==2) return intent;
+    if(art.id==="backdraft") return {...intent,skill:art,power:art.power,emberArt:art.id};
+    // A forced rotation is previewed with exactly the reserve order it will create.
+    const ids=rotating?[...b.remaining.slice(1),b.enemy.id]:b.remaining;
+    const hp=rotating?[...b.remaining.slice(1).map((id,i)=>b.reserveHp?.[i+1]??hpAt(id,b.enemy.level)),b.enemy.hp]:b.reserveHp;
+    const patient=ids.findIndex((id,i)=>hp?.[i]>0 && hp[i]<hpAt(id,b.enemy.level));
+    if(patient<0)return intent;
+    const max=hpAt(ids[patient],b.enemy.level),heal=Math.min(max-hp[patient],Math.floor(max/4));
+    return {...intent,skill:art,power:0,support:true,emberArt:art.id,patient,patientId:ids[patient],heal};
   }
 
   function returnHit(defender,guardFactor,intent=foeIntent(),covered=state.battle.cover>0) {
     if(intent.support || guardFactor===0)return 0;
+    if(state.battle.emberBrace===defender.id)guardFactor=Math.min(guardFactor,.5);
     const hit=damage(intent.power,state.battle.enemy.level,intent.skill.type,defender);
     return Math.max(1,Math.floor(hit*guardFactor*(covered ? .4 : 1)));
   }
@@ -707,6 +729,7 @@
 
   function changeFront(battle,id) {
     battle.shellGuard=null;
+    delete battle.emberBrace;
     battle.activeId=id;
   }
 
@@ -719,9 +742,22 @@
     const intent=foeIntent(),skill=intent.skill;
     const interrupted=guardFactor===0;
     const dealt=interrupted?0:Math.min(active.hp,returnHit(active,guardFactor,intent));
+    if(dealt>0 && battle.emberBrace===active.id)delete battle.emberBrace;
     if(!interrupted&&!intent.support&&battle.cover>0)battle.cover--;
     active.hp -= dealt;
     let reply = intent.support?"":interrupted?enemySpecies.name+" lost its charged response.":enemySpecies.name + " used " + skill.name + " for " + dealt + " damage.";
+    if(intent.emberArt && !interrupted){
+      enemy.emberArtSpent=true;
+      if(intent.emberArt==="banked-warmth"){
+        battle.reserveHp[intent.patient]+=intent.heal;
+        enemy.emberBrace=true;
+        reply=enemySpecies.name+" used "+skill.name+", restored "+intent.heal+" HP to "+species[intent.patientId].name+" and braced for the next hit.";
+      }else{
+        const healed=quarterHeal(enemy);
+        enemy.hp+=healed;
+        reply+=" "+enemySpecies.name+" recovered "+healed+" HP.";
+      }
+    }
     const survivedCharge=active.hp>0 && intent.charged && dealt>0;
     const learnedGuard=lesson && survivedCharge && !lesson.learned ? lesson.name : null;
     if (lesson && survivedCharge) {
@@ -739,6 +775,7 @@
       }
     }
     const response=applyCoaching(false,lesson?.learned && lesson.id==="pincer");
+    if(battle.emberBrace && battle.emberBrace!==battle.activeId)delete battle.emberBrace;
     if(response?.message)reply+=(reply?" ":"")+response.message;
     if (active.hp === 0) {
       const ready=team().filter(p=>p.hp>0);
@@ -762,7 +799,8 @@
     battle.log = [...battle.log, firstMessage, reply].slice(-8);
     const outcome=commit("turn", firstMessage + " " + reply);
     if (learnedGuard) outcome.learnedGuard=learnedGuard;
-    return intent.support?{...outcome,skipCounterFx:true,foeShifted:!!response?.shifted,replySkill:skill}:outcome;
+    return intent.support?{...outcome,skipCounterFx:true,foeShifted:!!response?.shifted,replySkill:skill,
+      ...(intent.emberArt==="banked-warmth"?{foeHeal:true}:{})}:outcome;
   }
 
   function wardenLesson(i=state.region) {
@@ -779,6 +817,7 @@
   function nextFoe(b) {
     const incoming=makeMember(b.remaining.shift(),b.enemy.level);
     if(b.reserveHp?.length)incoming.hp=b.reserveHp.shift();
+    if(b.reserveEmber?.shift())incoming.emberArtSpent=true;
     if(b.beaconReserve===0){incoming.beaconMarked=true;delete b.beaconReserve;}
     else if(b.beaconReserve>0)b.beaconReserve--;
     b.enemy=incoming;b.opening=false;
@@ -787,10 +826,12 @@
   function rotateFoe() {
     const b=state.battle,outgoing=b.enemy;
     if(!b.reserveHp?.length)b.reserveHp=b.remaining.map(id=>hpAt(id,outgoing.level));
+    if(outgoing.emberArtSpent && !b.reserveEmber)b.reserveEmber=b.remaining.map(()=>false);
     nextFoe(b);
     // Queue position distinguishes two members of the same species.
     if(outgoing.beaconMarked)b.beaconReserve=b.remaining.length;
     b.remaining.push(outgoing.id);b.reserveHp.push(outgoing.hp);
+    if(b.reserveEmber)b.reserveEmber.push(outgoing.emberArtSpent===true);
   }
   function applyCoaching(knockedOut,pincer=false) {
     if(!state.battle?.coach)return null;
@@ -801,6 +842,16 @@
     if(b.coach)b.coach.action=part;
     if (part!==b.lastPart) b.beats=Math.min(3,b.beats+1);
     b.lastPart=part;
+  }
+
+  function throughEmberCover(amount,pierces=false) {
+    return amount>0 && state.battle.enemy.emberBrace && !pierces ? Math.max(1,Math.floor(amount/2)) : amount;
+  }
+
+  function hurtFoe(amount) {
+    const foe=state.battle.enemy;
+    foe.hp-=amount;
+    if(amount>0)delete foe.emberBrace;
   }
 
   function duetPair(id,partnerId) {
@@ -818,7 +869,8 @@
     };
     const brace=intent.guarding && role!=="rush" ? .55 : 1;
     const combined=projectedStrike(lead)+projectedStrike(partner);
-    const damageDone=Math.min(foe.hp-(role==="lure"?1:0),Math.max(1,Math.round(combined*.82*score.strength*brace)));
+    const strike=throughEmberCover(Math.max(1,Math.round(combined*.82*score.strength*brace)),role==="rush");
+    const damageDone=Math.min(foe.hp-(role==="lure"?1:0),strike);
     const restore=p=>role==="mend" ? Math.min(p.maxHp-p.hp,Math.ceil(p.maxHp/4)) : 0;
     const healLead=restore(lead),healPartner=restore(partner),switchLead=role==="relay";
     const defender=switchLead?partner:lead,defenderName=ownedKin(defender.id).name;
@@ -862,7 +914,7 @@
     if(b.coach)b.coach.action=option.switchLead?"switch":"duet";
     if(!usingLoaners&&!b.secondBell&&state.growth.cindlet&&[lead.id,partnerId].includes("cindlet"))state.growth.cindlet.demonstrated=true;
     b.beats-=option.cost;b.lastPart=null;b.lastAttack=null;
-    b.enemy.hp-=option.damage;
+    hurtFoe(option.damage);
     lead.hp+=option.healLead;partner.hp+=option.healPartner;
     if (option.opens) b.opening=true;
     if (option.switchLead) changeFront(b,partnerId);
@@ -912,7 +964,7 @@
       }
       case "turn-the-lock":
         guard=.5;
-        if(b.remaining.length){shift=b.remaining[0];intent=foeIntent(shift);details.push("Send "+species[b.enemy.id].name+" to the back at "+b.enemy.hp+" HP. "+species[shift].name+" comes forward.");}
+        if(b.remaining.length){shift=b.remaining[0];intent=foeIntent(shift,true);details.push("Send "+species[b.enemy.id].name+" to the back at "+b.enemy.hp+" HP. "+species[shift].name+" comes forward.");}
         else details.push("Expose the lone foe for your next attack.");
         break;
     }
@@ -920,7 +972,7 @@
       if(b.opening){hit=Math.round(hit*1.5);details.push("Strike the opening.");}
       if(b.condition==="echo"&&b.lastAttack===id){hit=Math.max(1,Math.round(hit*.75));details.push("Echo dulls the repeat.");}
     }
-    hit=Math.min(hit,b.enemy.hp);
+    hit=Math.min(throughEmberCover(hit,b.opening && skill.kind==="attack"),b.enemy.hp);
     if(hit)details.push(hit+" damage.");
     const effect=details.join(" "),replyHp=receiver.hp+(receiver.id===target?healing:0);
     const returnDamage=hit===b.enemy.hp||!guard?0:Math.min(replyHp,returnHit(receiver,guard,intent,b.cover>0||id==="wattle-ward"));
@@ -937,7 +989,7 @@
     if(b.coach)b.coach.action=({"wattle-ward":"guard","briar-seam":"guard","backdraft-cut":"guard","cinder-handoff":"switch","harbor-pool":"care","turn-the-lock":"switch"})[skill.id]||"strike";
     b.beats=b.beats-skill.cost+plan.gain;b.lastPart=null;b.lastAttack=skill.kind==="attack"?skill.id:null;
     if(skill.kind==="attack")b.opening=false;
-    b.enemy.hp-=plan.damage;
+    hurtFoe(plan.damage);
     const note=ownedKin(lead.id).name+" used "+skill.name+". ";
     if(skill.id==="wattle-ward")b.cover=2;
     if(skill.id==="briar-seam"||skill.id==="turn-the-lock"&&!plan.shift)b.opening=true;
@@ -955,17 +1007,17 @@
     const b=state.battle;
     return b?forecastOrdinaryFor(member(b.activeId),id):null;
   }
-  function forecastOrdinaryFor(active,id) {
+  function forecastOrdinaryFor(active,id,art=null) {
     const b=state.battle,user=ownedKin(active.id),enemy=b.enemy;
-    const skill=id===trailFeint.id && b.kind==="wild"?trailFeint:user.skills.find(s=>s.id===id);
+    const skill=art || (id===trailFeint.id && b.kind==="wild"?trailFeint:user.skills.find(s=>s.id===id));
     if(!skill || skill.trained)return null;
     const intent=foeIntent(),guard=skill.kind==="guard";
     const guardFactor=guard ? (b.condition==="ledge" ? .33 : .5) : 1;
     const exposed=skill.kind==="attack" && Boolean(b.opening||enemy.beaconMarked||enemy.pincerOpening);
     const braced=intent.guarding && !exposed,repeated=b.condition==="echo" && b.lastAttack===id;
-    let hit=0,healing=0,reason="";
+    let hit=0,healing=art ? quarterHeal(active) : 0,reason="";
     if(skill.kind==="feint"){
-      hit=Math.min(enemy.hp-1,Math.ceil(enemy.maxHp/4));
+      hit=Math.min(enemy.hp-1,throughEmberCover(Math.ceil(enemy.maxHp/4)));
       if(!hit)reason="This Wilderkin is ready to befriend.";
     }else if(skill.kind==="heal"){
       healing=Math.min(active.maxHp-active.hp,Math.ceil(active.maxHp/3));
@@ -974,12 +1026,69 @@
       const base=damage(skill.power,active.level,skill.type,enemy);
       const braceEffect=braced ? (guard ? (b.condition==="ledge" ? 1.65 : 1.4) : .55) : 1;
       const raw=base*braceEffect*(repeated ? .75 : 1)*(exposed ? 1.5 : 1);
-      hit=Math.min(enemy.hp,Math.max(1,Math.round(raw)));
+      hit=Math.min(enemy.hp,throughEmberCover(Math.max(1,Math.round(raw)),exposed));
     }
     reason=wildWaitingReason()||reason;
     const finishes=hit===enemy.hp;
     const returnDamage=(reason || finishes) ? 0 : Math.min(active.hp+healing,returnHit(active,guardFactor,intent));
     return {available:!reason,reason,skill,damage:hit,healing,returnDamage,finishes,guardFactor,exposed,braced,repeated};
+  }
+
+  function quarterHeal(p) {
+    return Math.min(p.maxHp-p.hp,Math.floor(p.maxHp/4));
+  }
+
+  function emberTechnique() {
+    const b=state.battle,art=b && !usingLoaners && species[b.activeId].emberArt;
+    if(!art)return null;
+    const active=member(b.activeId),used=!!b.emberUsers?.includes(active.id);
+    const blocked=b.pendingFallen?"Choose a replacement first.":wildWaitingReason() || (used?ownedKin(active.id).name+" has used "+art.name+" this battle.":"");
+    if(art.id==="backdraft"){
+      const plan=forecastOrdinaryFor(active,art.id,{...art,kind:"attack"});
+      return {...art,...plan,targets:[],used,available:!blocked,reason:blocked};
+    }
+    const targets=team().filter(p=>p.id!==active.id).map(p=>{
+      const heal=p.hp>0?quarterHeal(p):0;
+      return {id:p.id,name:ownedKin(p.id).name,hp:p.hp,maxHp:p.maxHp,heal,hpAfter:p.hp+heal,
+        available:heal>0,reason:p.hp===0?"Needs a rest.":heal===0?"Already at full health.":""};
+    });
+    const reason=blocked || (targets.some(p=>p.available)?"":"A conscious reserve must be missing HP.");
+    return {...art,targets,used,available:!reason,reason,returnDamage:Math.min(active.hp,returnHit(active,.5))};
+  }
+
+  function useEmberTechnique(targetId) {
+    const plan=emberTechnique();
+    if(!plan || !plan.available)return error(plan?.reason||"Your active companion has no Ember art here.");
+    const b=state.battle,active=member(b.activeId),name=ownedKin(active.id).name;
+    const warmth=plan.id==="banked-warmth";
+    const target=warmth && plan.targets.find(p=>p.id===targetId && p.available);
+    if(warmth && !target)return error("Choose a conscious injured reserve.");
+    if(!warmth && targetId!=null)return error("Backdraft heals its own user.");
+    (b.emberUsers??=[]).push(active.id);
+    if(b.coach)b.coach.action=warmth?"care":"strike";
+    if(warmth){
+      member(target.id).hp+=target.heal;
+      b.emberBrace=active.id;
+      return counterattack(name+" used "+plan.name+", restored "+target.heal+" HP to "+target.name+" and braced for the next hit.");
+    }
+    active.hp+=plan.healing;
+    const message=strikeMessage(name,plan)+" "+name+" recovered "+plan.healing+" HP.";
+    return b.enemy.hp===0?winBattle(message):counterattack(message);
+  }
+
+  function strikeMessage(name,plan) {
+    const b=state.battle,enemy=b.enemy,{skill,damage:hit,exposed,repeated,braced}=plan;
+    if(exposed){
+      b.opening=false;
+      delete enemy.beaconMarked;
+      delete enemy.pincerOpening;
+    }
+    b.lastAttack=skill.id;
+    hurtFoe(hit);
+    const multiplier=dex.effectiveness(skill.type,species[enemy.id].types);
+    const pairing=multiplier>1?" Elemental advantage!":multiplier<1?" The target resisted.":"";
+    return name+" used "+skill.name+" for "+hit+" damage."+pairing+(exposed?" Struck the opening!":"")+
+      (repeated?" Echo dulled the repeat.":"")+(braced?skill.kind==="guard"?" Broke its guard!":" It braced for the strike.":"");
   }
 
   function useSkill(id) {
@@ -993,10 +1102,10 @@
       return special?trainedTurn(special,active):error("Choose a skill your active companion knows.");
     }
     if(!plan.available)return error(plan.reason);
-    const {skill,damage:hit,healing,exposed,braced,repeated}=plan;
+    const {skill,damage:hit,healing}=plan;
     if (skill.kind==="feint") {
       earnBeat("strike");
-      battle.enemy.hp -= hit;
+      hurtFoe(hit);
       return counterattack(user.name + " held back, dealing " + hit + " damage.");
     }
     if (skill.kind === "heal") {
@@ -1007,16 +1116,7 @@
     }
     const enemy = battle.enemy;
     earnBeat(skill.kind==="guard"?"guard":"strike");
-    if (exposed) {
-      battle.opening=false;
-      delete enemy.beaconMarked;
-      delete enemy.pincerOpening;
-    }
-    battle.lastAttack=id;
-    enemy.hp -= hit;
-    const multiplier = dex.effectiveness(skill.type, species[enemy.id].types);
-    const pairing = multiplier > 1 ? " Elemental advantage!" : multiplier < 1 ? " The target resisted." : "";
-    let message = user.name + " used " + skill.name + " for " + hit + " damage." + pairing + (exposed?" Struck the opening!":"") + (repeated ? " Echo dulled the repeat." : "") + (braced ? skill.kind==="guard" ? " Broke its guard!" : " It braced for the strike." : "");
+    let message=strikeMessage(user.name,plan);
     const lesson=skill.kind==="guard" ? guardTraining(active.id) : null;
     if (lesson?.learned && lesson.id==="shell" && !battle.shellGuard) {
       battle.shellGuard=active.id;
@@ -1142,7 +1242,8 @@
 
   function openingForecast(quarry,lead) {
     if (!lead) return {strike:null,warning:null};
-    const level=regions[homes[quarry][0]].wildLevel,foe=makeMember(quarry,level);
+    const where=homes[quarry].includes(state.region)?state.region:homes[quarry][0];
+    const level=regions[where].wildLevel,foe=makeMember(quarry,level);
     const summarize=(s,base,lv,target)=>{
       const hit=Math.min(target.hp,damage(base,lv,s.type,target));
       return {name:s.name,type:s.type,damage:hit,finishes:hit===target.hp};
@@ -1227,9 +1328,9 @@
   function observe(id,action) {
     const res=field.observe(state,id,action);
     if(res.kind==="field-note") walking?.remember(state,"note",id);
-    if(res.kind==="field-note" && count(state.surveys[state.region])<campaign.length(state.region)) {
-      const recorded=pools[state.region].filter(kin=>state.fieldwork[kin]?.complete).length;
-      if(recorded<=2) res.message+=" The station accepts your wildlife report."+finishLeg();
+    if((res.kind==="field-note"||res.kind==="field-habitat") && count(state.surveys[state.region])<campaign.length(state.region)) {
+      const recorded=pools[state.region].filter(kin=>field.recordedAt(state,kin,state.region)).length;
+      if(recorded<=2) res.message+=" The station accepts your wildlife report."+finishLeg(res.kind==="field-note");
     }
     if(res.ok) save();
     return res;
@@ -1358,7 +1459,7 @@
     const total=campaign.length(index), completed=count(state.surveys[index]);
     const done=completed>=total;
     const work=campaign.leg(index,Math.min(total-1,completed),{
-      region:regions[index],pool:pools[index],species,dex,bag:state.bag,owned:member,team:team()
+      region:regions[index],pool:nativePools[index],species,dex,bag:state.bag,owned:member,team:team()
     });
     return {...work,title:done?"Field commission complete":work.title,
       description:done?"The passage is charted for travelers.":work.description,
@@ -1373,7 +1474,7 @@
   }
   function passageReport(i=state.region) {
     if(!validRegion(i)||i<3)return null;
-    const pool=pools[i],studies=pool.filter(id=>state.fieldwork[id]?.complete).length;
+    const pool=pools[i],studies=pool.filter(id=>field?.recordedAt(state,id,i)).length;
     const observed=Math.min(3,pool.length),legs=Math.ceil(campaign.length(i)/3);
     const requirements=[
       {label:"File "+observed+" local wildlife observations ("+studies+"/"+observed+")",done:studies>=observed},
@@ -1393,12 +1494,11 @@
     return commit("report","Report filed. The station recognizes your survey for onward travel and the Warden trial. The remaining commission is open.");
   }
 
-  function finishLeg() {
+  function finishLeg(awardSupplies=true) {
     const i=state.region;
     state.surveys[i]=Math.min(campaign.length(i),count(state.surveys[i])+1);
     state.forageReady=true;
-    // Every charted waypoint includes modest raw supplies. A long detour also awards a full salvage cache.
-    state.bag.reed++; state.bag.sap++;
+    if(awardSupplies){state.bag.reed++;state.bag.sap++;}
     return state.surveys[i]===campaign.length(i)
       ? " Field commission complete in "+regions[i].name+"! The route is charted."
       : " Leg "+state.surveys[i]+" of "+campaign.length(i)+" charted.";
@@ -1417,7 +1517,7 @@
       const message=job.kind==="read"?"The formation recognizes the signal and opens a path.":"The crew puts your field supplies to work.";
       return commit("charted",message+finishLeg());
     }
-    const pool=pools[i], initial=pool.indexOf(job.focus);
+    const pool=nativePools[i], initial=pool.indexOf(job.focus);
     const foes=Array.from({length:choice.foes},(_,n)=>pool[(initial+n)%pool.length]);
     const weather=job.kind==="tactic" ? species[job.focus].types[0] : null;
     return beginEncounter("expedition",foes,regions[i].wildLevel,job.title+" — "+choice.label+".",{
@@ -1545,7 +1645,7 @@
   }
   window.WilderGame = {
     firstOuting:window.WilderOpening?.create({state:()=>state,commit,setLead,sightings:()=>field?.sightings(state.region)||[]}),
-    wardenLesson,wardenForecast,guardTraining,guardPractice,switchForecast,ordinaryForecast,replacements,replaceFainted,
+    wardenLesson,wardenForecast,guardTraining,guardPractice,switchForecast,ordinaryForecast,emberTechnique,useEmberTechnique,replacements,replaceFainted,
     passageReport,filePassage,secondBell,wildCall,answerWildCall,captureStatus,
     pinRegion,setWalker,walkerPose:(time,reduced)=>walking?.pose(state,time,reduced),walkerInfo:()=>walking.info(state),walkerSense:()=>walking.sense(state,field.sightings(state.region),expedition(),objective()),
     stillwake:window.WilderStillwake?.create({state:()=>state,commit,regions,species,makeMember,story,duetPair}),

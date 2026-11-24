@@ -4,8 +4,8 @@ const {readFileSync}=require("node:fs");
 const path=require("node:path");
 const vm=require("node:vm");
 
-function load() {
-  const records=new Map();
+function load(raw) {
+  const records=new Map(raw?[["wilderkin.trail.v3",raw]]:[]);
   const document={createElement(){
     const canvas={};
     const noop=()=>{};
@@ -16,12 +16,12 @@ function load() {
   }};
   const window={localStorage:{getItem:k=>records.get(k)??null,setItem:(k,v)=>records.set(k,v)}};
   const ctx=vm.createContext({document,window});
-  for(const name of ["atlas","bestiary","activities","campaign","story","fieldwork","world","engine"]) {
+  for(const name of ["atlas","bestiary","activities","campaign","story","duets","fieldwork","world","call-habitats","wild-calls","engine"]) {
     const filename=path.join(__dirname,"../games/wilderkin",name+".js");
     vm.runInContext(readFileSync(filename,"utf8"),ctx,{filename});
   }
   const game=window.WilderGame;
-  return {game,world:window.WilderWorld,field:window.WilderFieldwork.create(game)};
+  return {game,world:window.WilderWorld,field:window.WilderFieldwork.create(game),reload:()=>load(records.get("wilderkin.trail.v3"))};
 }
 const distance=(a,b)=>Math.abs(a.x-b.x)+Math.abs(a.y-b.y);
 function reachable(world,index) {
@@ -37,12 +37,16 @@ function reachable(world,index) {
 }
 test("every local kin has a distinct stable hotspot reachable from the regional trailhead",()=>{
   const {game,world,field}=load(),species=new Set(),motions=new Set(),variants=new Set();
+  let total=0;
   for(let i=0;i<game.regions.length;i++) {
     const spots=field.sightings(i),connected=reachable(world,i);
     assert.equal(spots,field.sightings(i));
     assert.equal(spots.length,game.pools[i].length);
+    total+=spots.length;
     for(const p of spots) {
-      assert.ok(!species.has(p.species));species.add(p.species);
+      assert.ok(game.homes[p.species].includes(i));
+      if(species.has(p.species))assert.ok(["charquill","kilnbeak"].includes(p.species));
+      species.add(p.species);
       assert.ok(connected.has(p.x+","+p.y),i+"/"+p.species);
       assert.ok(world.regions[i].sites.every(l=>distance(l,p)>=2));
       assert.ok(spots.every(q=>p===q||distance(q,p)>=2));
@@ -51,7 +55,7 @@ test("every local kin has a distinct stable hotspot reachable from the regional 
       motions.add(study.motion);variants.add(study.variant);
     }
   }
-  assert.equal(species.size,500);assert.equal(motions.size,8);assert.equal(variants.size,16);
+  assert.equal(species.size,500);assert.equal(total,502);assert.equal(motions.size,8);assert.equal(variants.size,16);
 });
 test("wild observations persist through wrong approaches and award exactly once beside the animal",()=>{
   const {field,world,game}=load(),s=game.state,p=field.sightings(0)[0],id=p.species;
@@ -93,6 +97,13 @@ test("a first-time observer can solve each behavior with one clue and a single r
       s.positions[i]=p;
       const study=field.study(s,p.species);
       assert.equal(study.choices.length,3);
+      if(study.complete){
+        assert.ok(["charquill","kilnbeak"].includes(p.species));assert.ok(study.canRecordHabitat);
+        const before=JSON.stringify(s.bag);
+        assert.equal(field.observe(s,p.species,"record-habitat").kind,"field-habitat");
+        assert.equal(JSON.stringify(s.bag),before);assert.ok(!field.study(s,p.species).canRecordHabitat);
+        continue;
+      }
       assert.equal(study.clues.filter(c=>c.text).length,0);
       assert.ok(field.observe(s,p.species,study.clues[i%3].id).ok);
       assert.ok(field.observe(s,p.species,"try-"+study.variant).ok);
@@ -120,5 +131,68 @@ test("the campaign accepts two distinct field notes per region and peaceful invi
       assert.equal(s.party.find(kin=>kin.id===id).level,game.regions[0].wildLevel);
       assert.ok(!game.inviteField(id).ok);assert.equal(s.bag.kinweave,weaves-1);
     }
+  }
+});
+const migrantHomes=[["charquill",116,0],["kilnbeak",113,1]];
+const ok=result=>assert.ok(result.ok,result.message);
+function arriveAtBird(g,id,region){
+  g.state.region=region;
+  if(!g.state.visited.includes(region))g.state.visited.push(region);
+  const marker=g.sightings().find(p=>p.species===id);assert.ok(marker);
+  assert.ok(g.setPosition(marker.x,marker.y));
+  assert.equal(g.study(id).region,region);assert.ok(g.study(id).atSite);
+}
+test("both roosts and both native habitats have reachable sightings, matching scout forecasts and genuinely local wild recruits",()=>{
+  for(const [id,native,roost] of migrantHomes)for(const region of [roost,native]){
+    const {game:g,world}=load();
+    assert.deepEqual(Array.from(g.homes[id]),[native,roost]);assert.equal(g.pools[roost].at(-1),id);
+    const four=world.sightingTiles(roost,4);
+    assert.deepEqual(Array.from(g.sightings(roost).slice(0,4),s=>[s.x,s.y]),Array.from(four,p=>[p.x,p.y]));
+    g.state.region=2;assert.equal(g.study(id).region,native);
+    arriveAtBird(g,id,region);
+    const card=g.wildCall(id),opening=card.strike;
+    ok(g.startBattle("wild",id));
+    const strike=g.species.sprigkit.skills.find(s=>s.name===opening.name);
+    assert.equal(g.ordinaryForecast(strike.id).damage,opening.damage);
+    assert.equal(g.ordinaryForecast(strike.id).returnDamage,card.warning.damage);
+    assert.equal(g.state.battle.enemy.level,g.wildLevel(region));
+    ok(g.answerWildCall("leaf-flurry"));ok(g.recruit());
+    assert.equal(g.state.party.find(k=>k.id===id).level,g.wildLevel(region));
+  }
+});
+test("one behavior can register two distinct sites in either order; only the first study awards loot and each station counts its own sighting",()=>{
+  for(const [id,native,roost] of migrantHomes)for(const [first,other] of [[roost,native],[native,roost]]){
+    const run=load(),g=run.game;
+    g.state.crests=Array.from(g.wardens);g.state.party.push(g.loaner("cragroll",7));
+    arriveAtBird(g,id,first);
+    ok(g.observe(id,"read-trace"));ok(g.observe(id,"try-"+g.study(id).variant));
+    assert.deepEqual(Array.from(g.state.fieldwork[id].habitats),[first]);
+    assert.equal(g.state.surveys[first],1);assert.equal(g.state.surveys[other],undefined);
+    const second=run.reload(),restored=second.game;
+    assert.deepEqual(Array.from(restored.state.fieldwork[id].habitats),[first]);
+    assert.match(restored.passageReport(native).requirements[0].label,first===native?/\(1\/3\)/:/\(0\/3\)/);
+    arriveAtBird(restored,id,other);
+    assert.ok(restored.study(id).canRecordHabitat);assert.ok(!restored.study(id).habitatRecorded);
+    assert.equal(restored.notebook().length,1);
+    const bag=JSON.stringify(restored.state.bag);
+    assert.equal(restored.observe(id,"record-habitat").kind,"field-habitat");
+    assert.equal(JSON.stringify(restored.state.bag),bag);
+    assert.deepEqual(Array.from(second.reload().game.state.fieldwork[id].habitats),[first,other]);
+    assert.equal(restored.state.surveys[other],1);assert.ok(restored.study(id).habitatRecorded);
+    assert.equal(restored.observe(id,"record-habitat").ok,false);assert.equal(restored.state.surveys[other],1);
+    ok(restored.inviteField(id));assert.equal(restored.state.party.find(k=>k.id===id).level,restored.wildLevel(other));
+    arriveAtBird(restored,id,first);assert.equal(restored.inviteField(id).ok,false);
+    assert.equal(restored.notebook().length,1);
+  }
+});
+test("old completed bird notes credit their native site; restoration drops foreign, duplicate, and incomplete habitat claims",()=>{
+  const {game:g,field}=load();
+  for(const [id,native,roost] of migrantHomes){
+    const old={clues:["trace"],tried:[],complete:true};
+    assert.deepEqual(Array.from(field.restore({[id]:old})[id].habitats),[native]);
+    assert.deepEqual(Array.from(field.restore({[id]:{...old,habitats:[999,native,roost,roost,String(roost)]}})[id].habitats),[native,roost]);
+    assert.equal(field.restore({[id]:{...old,complete:false,habitats:[native]}})[id].habitats,undefined);
+    g.state.fieldwork=field.restore({[id]:old});arriveAtBird(g,id,roost);
+    assert.ok(g.study(id).canRecordHabitat);
   }
 });
