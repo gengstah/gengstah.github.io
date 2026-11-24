@@ -255,7 +255,7 @@ test("walk from Mossbrook to Iona, rehearse an opener and take Dewfin’s guard 
   assert.match(rec[2].detail,/Dewfin 30 → 24 HP/);assert.match(rec[2].detail,/Practice/);
   const b=boot("#third-beat",a.save());
   assert.match(b.model().kicker,/2 OF 3 BELLS/);
-  assert.match(b.model().sections.find(s=>s.title==="The storm bell").rows[0].detail,/6 damage.*24 HP/);
+  assert.match(b.model().sections.find(s=>s.title==="The storm bell").text,/6 damage.*24 HP/);
   assert.equal(b.g.state.thirdBeat.warden,undefined);
 });
 

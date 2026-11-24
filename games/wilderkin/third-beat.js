@@ -75,8 +75,11 @@
     if(value==="song"&&call)sections.unshift({title:"The call across the water",text:call.map(p=>p.name+" sounds "+p.note).join(". ")+". The ferryman answers from the far bank."});
     for(const p of parts){
       const n=book[p.id];
-      sections.push(n?{title:p.name,rows:[row("open-kin",g.kin(n.third,{owned:true}).name+" · "+g.species[n.third].skills.find(s=>s.id===n.skill).name,n.third,
-        describe(g,n)+(p.id==="guard"?" Took "+n.damageTaken+" damage and held on at "+n.hpAfter+" HP.":p.id==="warden"?" Warden "+g.regions[n.region].warden+" yielded.":""),{image:image(n.third,true),badge:"RECORDED"})]}:{title:p.name,text:p.task});
+      if(!n){sections.push({title:p.name,text:p.task});continue;}
+      const witness=p.id==="guard"?" Took "+n.damageTaken+" damage and held on at "+n.hpAfter+" HP.":
+        p.id==="warden"?" Warden "+g.regions[n.region].warden+" yielded.":"";
+      sections.push({title:p.name,text:describe(g,n)+witness,rows:[row("open-kin",g.kin(n.third,{owned:true}).name+" · "+
+        g.species[n.third].skills.find(s=>s.id===n.skill).name,n.third,"",{image:image(n.third,true),badge:"RECORDED"})]});
     }
     return {title:"Three-Bell Landing",kicker:"IONA RILL   /   "+count+" OF 3 BELLS",art:{src:"ui/iona-rill.png",landscape:true,height:142},
       subtitle:count===3?"“Hear that? They know your team on the other bank.”":count?"“There’s your first phrase. Let’s see how it sounds in rough water.”":"“Two bells tell the ferryman to cast off. The third tells him who’s coming home.” Iona holds out her mallet.",
