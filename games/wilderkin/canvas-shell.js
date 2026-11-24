@@ -600,6 +600,7 @@
         for(const part of parts)sy+=section(part,x,sy,w,t);
         sy+=party(x,sy,w,model.party,t)+10;
       }else if(model.kind==="battle") {
+        if(model.lineups)sy+=matchTeams(model.lineups,x,sy,w)+4;
         sy+=battle(x,sy,w,t)+12;
         for(const part of parts)sy+=section(part,x,sy,w,t);
       }else{
@@ -607,11 +608,31 @@
       }
       return sy;
     }
+    function matchTeams(lineups,x,y,w) {
+      const half=(w-4)/2,h=44;
+      [lineups.left,lineups.right].forEach((side,i)=>{
+        const sx=x+i*(half+4),accent=i?"#896182":"#4a785b",sz=half>=205?32:25;
+        rect(c,sx,y,half,h,"#f8f3df",C.line);
+        const teamX=sx+8;
+        side.team.forEach((kin,slot)=>{
+          const px=teamX+slot*(sz+2),top=y+(h-sz-4)/2;
+          if(slot===side.active)rect(c,px,top,sz,sz+5,i?"#f1e2e4":"#e0edcf",accent);
+          c.save();c.globalAlpha=kin.hp?1:.36;picture(kin.src,px+2,top+1,sz-4,sz-3);c.restore();
+          hpBar(px+3,top+sz,sz-6,kin);
+        });
+        const right=sx+half-6,space=right-(teamX+3*(sz+2))-3;
+        c.font=getFont(10,"mono",650);
+        label(c,fit(c,side.label,space),right,y+8,10,accent,"mono",650,"right");
+        label(c,side.beats+"/3 beats",right,y+22,10,C.ink,"mono",700,"right");
+      });
+      return h;
+    }
     function fighterStat(p,x,y,w,h,side) {
       const types=Array.isArray(p.types)?p.types.join(" · "):p.types||"";
       rect(c,x,y,w,h,side==="ally"?"#eaf0da":"#f0e7d3",C.line);
       const pad=8,inner=w-pad*2;
-      label(c,side==="ally"?"COMPANION":"RIVAL",x+pad,y+5,9,side==="ally"?C.moss:C.brass,"mono",700);
+      const sideLabel=model.lineups?.[side==="ally"?"left":"right"]?.label||(side==="ally"?"Companion":"Rival");
+      label(c,sideLabel.toUpperCase(),x+pad,y+5,9,side==="ally"?C.moss:C.brass,"mono",700);
       c.font=getFont(11,"mono",650);label(c,"Lv "+p.level,x+w-pad,y+5,11,C.secondary,"mono",650,"right");
       c.font=getFont(width<550?18:23,"title",650);
       label(c,fit(c,p.name,inner),x+pad,y+17,width<550?18:23,C.ink,"title",650);
@@ -663,12 +684,13 @@
         c.restore();
       }
       if(active?.kind==="duet" && active.partner){
-        const partnerSize=tile*.71, xx=points.ally.x+tile*.64, yy=points.ally.y+tile*.19;
+        const side=active.side,allied=side==="ally",partnerSize=tile*.71;
+        const xx=points[side].x+(allied?1:-1)*tile*.64,yy=points[side].y+tile*.19;
         c.save();
         c.globalAlpha=reduced.matches?1:Math.min(1,elapsed*7,(1-elapsed)*8);
-        picture(active.partner,xx-partnerSize/2,yy-partnerSize/2,partnerSize,partnerSize,"contain",!rightFacing.has(active.partner));
+        picture(active.partner,xx-partnerSize/2,yy-partnerSize/2,partnerSize,partnerSize,"contain",allied?!rightFacing.has(active.partner):rightFacing.has(active.partner));
         c.restore();
-        impact({...active,type:active.partnerType,kind:"attack"},elapsed,{ally:{x:xx,y:yy},foe:points.foe},tile*.77);
+        impact({...active,type:active.partnerType,kind:"attack"},elapsed,{...points,[side]:{x:xx,y:yy}},tile*.77);
       }
       if(active){
         impact(active,elapsed,points,tile);
@@ -837,6 +859,10 @@
       const narration=[model.kicker,model.title,model.subtitle,model.status];
       if(model.objective)narration.push(model.objective.title,model.objective.description);
       if(model.log)narration.push(...(Array.isArray(model.log)?model.log:[model.log]));
+      if(model.lineups)for(const side of [model.lineups.left,model.lineups.right]){
+        narration.push(side.label+", "+side.beats+" of 3 duet beats");
+        side.team.forEach((k,i)=>narration.push((k.name||k.id)+(i===side.active?", active":"")+", "+k.hp+" of "+k.maxHp+" health"));
+      }
       for(const side of [model.ally,model.foe,...(model.party||[])])if(side)narration.push(side.name+", level "+side.level+", "+side.hp+" of "+side.maxHp+" health");
       for(const s of model.sections||[]){
         narration.push(s.title,s.text);

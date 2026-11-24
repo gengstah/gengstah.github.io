@@ -112,6 +112,7 @@
       story:story.restore(null),refit:0,animationSpeed:1,music:1,growth:growth?.restore(null)||{},
       fieldwork:field?.restore(null)||{},caravan:window.WilderCaravans?.restore(null,[])||{},
       circuit:window.WilderTrials?.restore(null)??null,pins:[],destination:null,
+      sparring:window.WilderSparring?.restore(null,{species})??null,
       walking:walking?.restore(null,[])||{},hollows:window.WilderHollows?.restore(null)||{}
     };
   }
@@ -151,6 +152,7 @@
     fresh.fieldwork=field?.restore(saved.fieldwork)||{};
     fresh.caravan=window.WilderCaravans?.restore(saved.caravan,fresh.party)||{};
     fresh.circuit=window.WilderTrials?.restore(saved.circuit)??null;
+    fresh.sparring=window.WilderSparring?.restore(saved.sparring,{species})??null;
     fresh.pins=unique((Array.isArray(saved.pins)?saved.pins:[]).filter(validRegion));
     fresh.destination=fresh.pins.includes(saved.destination)?saved.destination:null;
     fresh.walking=walking?.restore(saved.walking,fresh.party)||{};
@@ -1108,6 +1110,10 @@
     if(usingLoaners) throw new Error("Finish the loaner turn before recording its result.");
     state.circuit=record;save();
   }
+  function saveSparring(record) {
+    if(usingLoaners) throw new Error("Finish the loaner turn before saving a sparring match.");
+    state.sparring=record;save();
+  }
   function pinRegion(i,action) {
     if(!validRegion(i))return error("Select a region in the atlas.");
     if(action==="remove"){
@@ -1131,7 +1137,7 @@
     pinRegion,setWalker,walkerPose:(time,reduced)=>walking?.pose(state,time,reduced),walkerInfo:()=>walking.info(state),walkerSense:()=>walking.sense(state,field.sightings(state.region),expedition(),objective()),
     stillwake:window.WilderStillwake?.create({state:()=>state,commit,regions,species,makeMember,story,duetPair}),
     hollows:window.WilderHollows?.create({state:()=>state,commit,regions,species,items}),
-    withLoaners,saveCircuit,loaner:(id,level)=>validSpecies(id)&&integer(level,1,MAX_LEVEL)?makeMember(id,level):null,
+    withLoaners,saveCircuit,saveSparring,loaner:(id,level)=>validSpecies(id)&&integer(level,1,MAX_LEVEL)?makeMember(id,level):null,
     caravan:window.WilderCaravans?.create({state:()=>state,commit,hpAt,regions,species,items}),
     sightings:(i=state.region)=>field?.sightings(i)||[],study:id=>field.study(state,id),
     notebook:()=>field.notebook(state),canInvite:id=>field.canInvite(state,id),observe,inviteField,cycleAnimationSpeed,cycleMusic,

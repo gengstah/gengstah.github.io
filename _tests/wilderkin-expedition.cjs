@@ -5,7 +5,7 @@ const {readFileSync} = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
-const scripts = ["atlas","bestiary","activities","campaign","story","duets","caravans","fieldwork","walking-partner","hollows","trials","growth","stillwake","wardens","opening","world","engine"].map(name => {
+const scripts = ["atlas","bestiary","activities","campaign","story","duets","caravans","fieldwork","walking-partner","hollows","trials","growth","stillwake","wardens","opening","sparring-battle","sparring-teams","sparring","world","engine"].map(name => {
   const filename=path.join(__dirname,"../games/wilderkin",name+".js");
   return new vm.Script(readFileSync(filename,"utf8"),{filename});
 });

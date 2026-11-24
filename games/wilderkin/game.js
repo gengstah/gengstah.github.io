@@ -15,7 +15,7 @@
   const shortcuts=[
     ["world","Explore","E"],["expedition","Expedition","X"],["quests","Quests","Q"],["chronicle","Story","C"],
     ["bag","Satchel","B"],["guide","Field guide","G"],["party","Party","P"],["atlas","Atlas","M"],["games","Field games","F"],
-    ["notebook","Field notebook","N"],["circuit","Loaner Circuit","L"],["walker","Walking partner","T"],["hollows","Hidden hollows","H"],["station","Field station",""],["landmarks","Landmarks",""],["settings","Settings","?"]
+    ["notebook","Field notebook","N"],["sparring","Sparring Hall","V"],["circuit","Loaner Circuit","L"],["walker","Walking partner","T"],["hollows","Hidden hollows","H"],["station","Field station",""],["landmarks","Landmarks",""],["settings","Settings","?"]
   ];
   let screen={name:"world",value:null}, history=[], player, route=[], arrival=null, tween=null, lastStep=0;
   let outcome=null, soundCtx, resolving=false, startingMove=false;
@@ -31,7 +31,11 @@
   };
   const score=window.WilderScore.create({context:audioContext});
   const fair=window.WilderCanvasGames.create({game,row,notify,go,render});
-  const circuit=window.WilderTrials.create({game,row,image:id=>image(id,false),go,render,notify,playTone,animate:fx=>{if(fx.kind==="duet")score.answer();return ui.animate(fx);},active:()=>screen.name==="circuit"});
+  const rentalControls={game,row,image:id=>image(id,false),go,render,notify,playTone,
+    animate:fx=>{if(fx.kind==="duet")score.answer();return ui.animate(fx);}};
+  const circuit=window.WilderTrials.create({...rentalControls,active:()=>screen.name==="circuit"});
+  const hall=window.WilderSparring.create({...rentalControls,active:()=>screen.name==="sparring"});
+  const replay=window.WilderSparringReview.create({...rentalControls,read:()=>hall.reviewRecord()});
   const pages=window.WilderPages.create({game,world,dex,row,member,image,go,back,render,notify,locate,root,
     fight,playTone,resolveBattle,travel,reset,atSite:nearestSite});
   function playTone(kind="click") {
@@ -76,6 +80,8 @@
       case "outcome":model=outcomeModel();break;
       case "play":model=fair.model(screen.value);break;
       case "circuit":model=circuit.model();break;
+      case "sparring":model=hall.model(screen.value);break;
+      case "sparring-review":model=replay.model(screen.value);break;
       default:model=pages.model(screen.name,screen.value);break;
     }
     if (!model) throw new Error("Unknown game screen: "+screen.name);
@@ -103,6 +109,7 @@
         row("nav","Expedition","expedition","Regional commission",{key:"X"}),
         row("nav","The Missing Beat","chronicle","Finch’s journal",{key:"C"}),
         row("nav","Wildlife nearby","notebook","Follow a Wilderkin’s behavior",{key:"N"}),
+        row("nav","Sparring Hall","sparring","Build a trio and battle",{key:"V"}),
         ...(localHollow?[row("view",localHollow.title,"hollow|"+localHollow.id,"Side trail at the trailpost")]:[]),
         row("nav","Field station","station","Requests and local games"),
       ]}]};
@@ -282,6 +289,7 @@
     if (e.altKey || e.ctrlKey || e.metaKey || e.type==="keyup") return false;
     if (resolving || ui.busy) return true;
     if (screen.name==="circuit" && circuit.key(e)) return true;
+    if (screen.name==="sparring" && hall.key(e,screen.value)) return true;
     if (screen.name==="hollow" && pages.hollowKey(e,screen.value)) return true;
     if (screen.name==="search" && pages.typeKey(e)) return true;
     const key=e.key.length===1?e.key.toLowerCase():e.key;
@@ -324,14 +332,20 @@
       case "swap":return resolveBattle(()=>game.swap(value),{type:spec(value).type,kind:"swap",name:spec(value).name});
       default:
         if (screen.name==="circuit" && circuit.act(id,value)) return;
+        if (screen.name==="sparring" && hall.act(id,value)) return;
+        if (screen.name==="sparring-review" && replay.act(id,value)) return;
         if (fair.act(id,value)) return;
         return pages.act(id,value);
     }
   }
   restorePlayer();
   if (window.location.hash==="#updates") screen={name:"updates",value:null};
+  else if(hall.loadFragment(window.location.hash)) screen={name:"sparring",value:null};
   else if (game.state.battle) screen={name:"battle",value:null};
   else if(circuit.hasInvitation()) screen={name:"circuit",value:null};
-  window.addEventListener("hashchange",()=>{if(window.location.hash==="#updates")go("updates");});
+  window.addEventListener("hashchange",()=>{
+    if(window.location.hash==="#updates")go("updates");
+    else if(hall.loadFragment(window.location.hash))go("sparring");
+  });
   render();
 })();

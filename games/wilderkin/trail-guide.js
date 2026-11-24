@@ -162,6 +162,7 @@ window.WilderPages = {
       if (!switching) rows.push(row("reserve","Open reserve roster",null,(s().party.length-s().team.length)+" companions at camp"),nav("formations","Trail formations","Save or recall a party and leader."),nav("mentoring","Camp mentorship","Train a companion from your reserve."));
       if(!switching)rows.push(nav("walker","Walking partner","Check in or change who follows you."));
       if(!switching)rows.push(nav("growth-ledger","Starter growth","Compare forms and study their techniques."));
+      if(!switching)rows.push(nav("sparring","Practice at the Sparring Hall","Build both teams from level-20 loaners."));
       return page(switching?"Send out a Wilderkin":"Traveling party","COMPANIONS",[heading("Your team",rows)],switching?"Changing kin spends this turn.":"Select a companion to read its skills or make it your leader.");
     }
     function growthLedger() {
@@ -353,6 +354,7 @@ window.WilderPages = {
       const i=s().region,local=fair.games.filter(g=>g.region===i),notices=fair.quests.filter(q=>q.region===i);
       const sections=[heading("Fieldwork",[nav("expedition","Regional commission",game.expedition().title),nav("licenses","Training ledger")],2)];
       sections.unshift(heading("Loaner Circuit",[nav("circuit","Enter the circuit","Draft a team and scout the next bout.")]));
+      sections.unshift(heading("Sparring Hall",[nav("sparring","Build a trio and spar","Scout eight rival teams or play another person on this device.")]));
       if(i>=3)sections.push(heading("Route survey",[nav("passage","Naturalist’s report")]));
       if (!s().landmark || s().landmark!=="activities") sections.unshift(heading("Local station",[wayTo("activities","station","Walk to the station")]));
       sections.push(heading("Games",local.length?local.map(g=>open("game-info",g.id,g.name,game.gamePass(g.id).reason)):[nav("games","Games register","Find a host region.")]));
@@ -458,7 +460,8 @@ window.WilderPages = {
         return open("growth",id,g.formName,g.baseName+"’s two camp disciplines",{image:"art/growth/"+g.formId+".png"});
       });
       const lodge=game.wardens.find(i=>!s().wardenLessons.includes(i))??0;
-      return page("What’s new in Wilderkin","FIELD DISPATCH   /   GROWTH & LODGES",[
+      return page("What’s new in Wilderkin","FIELD DISPATCH   /   SPARRING HALL",[
+        heading("Sparring Hall",[nav("sparring","Build your team and battle","Choose three of 500 loaners, scout a rival and spar at level 20.")]),
         heading("Meet the grown forms",forms),
         heading("On the trail",[
           ...(game.firstOuting.offer()?[nav("first-outing","Choose your first trail partner","Walk to a Mossbell sighting together.")]:[]),
@@ -469,12 +472,12 @@ window.WilderPages = {
           nav("stillwake","Investigate the fourth sounding","Follow an unlisted signal across the trail."),
           nav("circuit","Draft a loaner team","Try a three-bout course with a fresh squad.")]),
         heading("Adventure",[row("root",s().battle?"Return to your battle":"Explore the map",null,"",{tone:"primary"})])],
-        "Your first three companions can learn new moves at camp. Choose a partner to see its grown form and training requirements.");
+        "The hall lends both sides a full trio. Test a team against a rival, share your lineup or play someone beside you.");
     }
     function help() {
       return page("Controls","TRAIL HANDBOOK",[
         {title:"Explore",text:"Click or tap a landmark to walk there. Move with WASD or the arrow keys. Press E to interact. In combat, 1–4 select your kin’s skills."},
-        {title:"Journal shortcuts",text:"Q quests · X expedition · C chronicle · G field guide · N wildlife notebook · P party · M atlas · B satchel · F field games · L loaner circuit · R battle duets · ? settings."},
+        {title:"Journal shortcuts",text:"Q quests · X expedition · C chronicle · G field guide · N wildlife notebook · P party · M atlas · B satchel · F field games · V sparring hall · L loaner circuit · R battle duets · ? settings."},
         {title:"Menus",text:"Tap Menu or press F1 for all screens. Scroll or swipe to see more. Tab moves between controls, Enter selects, and Escape goes back."}]);
     }
     function model(name,value) {
