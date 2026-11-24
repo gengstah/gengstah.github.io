@@ -101,6 +101,8 @@
   const growth=window.WilderGrowth;
   const coaches=window.WilderWardens;
   const guardSchool=window.WilderGuardSchool;
+  const fittings=window.WilderTrailFittings;
+  const pendingFittingEvents=[];
   const calls=window.WilderWildCalls;
   const wildCard=id=>validSpecies(id) ? calls?.forKin(id,species[id]) : null;
 
@@ -111,6 +113,7 @@
       team: starters.slice(), visited: [0], quests: {}, clears: {}, rests: 0,
       sound: true, wins: 0, bag:{reed:5,sap:5,ore:2,kinweave:4,balm:3,tonic:1,sparkseed:1,broth:0},reports:[],
       surveys:{},localWins:{},licenses:[],passes:[],crafted:{},landmark:null,forageReady:true,wardenLessons:[],relayClears:[],trainedGuards:[],bellMarks:{},
+      trailFittings:fittings?.empty()||{claimed:[],gear:{}},fittingNotes:{},
       stillwake:window.WilderStillwake?.restore(null)||{},
       story:story.restore(null),refit:0,animationSpeed:1,music:1,growth:growth?.restore(null)||{},
       fieldwork:field?.restore(null)||{},caravan:window.WilderCaravans?.restore(null,[])||{},
@@ -186,7 +189,7 @@
     return clean;
   }
 
-  let lastStoredTrail=null;
+  let lastStoredTrail=null,lastValidTrail=null;
   function loadGame() {
     for (const key of [SAVE_KEY,...LEGACY_KEYS]) {
       try {
@@ -194,7 +197,7 @@
         if(key===SAVE_KEY)lastStoredTrail=raw;
         if (raw) {
           const decoded=readSave(JSON.parse(raw));
-          if (decoded) return decoded;
+          if(decoded){lastValidTrail=raw;return decoded;}
         }
       } catch {
         // A damaged newer record can coexist with an intact older save.
@@ -234,6 +237,8 @@
       if (!Array.isArray(saved.crests) || !saved.crests.includes(i)) break;
       fresh.crests.push(i);
     }
+    fresh.trailFittings=fittings?.restore(saved.trailFittings,fresh)||fresh.trailFittings;
+    fresh.fittingNotes=window.WilderFittingNotes?.restore(saved.fittingNotes)||{};
     fresh.met = unique([...(Array.isArray(saved.met) ? saved.met.filter(i => wardens.includes(i)) : []), ...fresh.crests]);
     fresh.wardenLessons=fresh.crests.filter(i=>Array.isArray(saved.wardenLessons)&&saved.wardenLessons.includes(i));
     for (const i of wardens) {
@@ -320,6 +325,10 @@
       if (Array.isArray(battle.reserveEmber) && rest.length===battle.reserveEmber.length) {
         fresh.battle.reserveEmber=rest.map((id,i)=>Boolean(species[id].emberArt && battle.reserveEmber[i]===true));
       }
+      if(!exhibition&&resumed&&battle.trailFittings){
+        const kit=fittings?.restoreFight(fresh,battle.trailFittings);
+        if(kit)fresh.battle.trailFittings=kit;
+      }
       if (bell) Object.assign(fresh.battle,{mode:"second-bell",secondBell:bell});
       if (resumed && battle.wildCall) {
         const call=readWildCall(fresh,battle);
@@ -351,21 +360,59 @@
   let canSave = true;
   let usingLoaners=false;
 
+  const changedTrail=()=>({...error("Your trail changed in another tab. Its latest position is open."),code:"changed"});
+  function decodeTrail(raw){
+    try{return raw?readSave(JSON.parse(raw)):null;}catch{return null;}
+  }
+  function replaceTrail(next){
+    for(const key of Object.keys(state))if(!Object.hasOwn(next,key))delete state[key];
+    Object.assign(state,next);
+  }
+  function adoptTrail(latest){
+    // A deletion starts a fresh trail. A damaged foreign write never destroys the last known valid career.
+    const supplied=decodeTrail(latest);
+    if(supplied||latest==null)lastValidTrail=latest;
+    const next=supplied||decodeTrail(lastValidTrail)||newGame();
+    replaceTrail(next);lastStoredTrail=latest;pendingFittingEvents.length=0;
+    const EventType=window.Event||(typeof Event==="function"?Event:null);
+    if(EventType)window.dispatchEvent?.(new EventType("wilder-trail-updated"));
+    return false;
+  }
+  function currentForEdit(){
+    if(usingLoaners)return true;
+    try{
+      const latest=window.localStorage.getItem(SAVE_KEY);
+      return latest===lastStoredTrail||adoptTrail(latest);
+    }catch{return true;}
+  }
   function save() {
-    if(usingLoaners) return;
+    if(usingLoaners)return true;
     try {
+      // localStorage has no atomic compare-and-swap. Compare before writing and check the published bytes afterwards.
+      const latest=window.localStorage.getItem(SAVE_KEY);
+      if(latest!==lastStoredTrail)return adoptTrail(latest);
       const raw=JSON.stringify(state);
       window.localStorage.setItem(SAVE_KEY,raw);
-      lastStoredTrail=raw;
-      canSave = true;
+      const published=window.localStorage.getItem(SAVE_KEY);
+      if(published!==raw&&published!==latest)return adoptTrail(published);
+      canSave=published===raw;
+      if(canSave)lastValidTrail=raw;
+      lastStoredTrail=published;
     } catch {
-      canSave = false;
+      canSave=false;
     }
+    return true;
   }
 
   function commit(kind, message) {
-    save();
-    return result(kind, message);
+    const fittingEvents=pendingFittingEvents.splice(0);
+    if(fittingEvents.length){
+      const lines=fittingEvents.map(e=>e.text);
+      message+=" "+lines.join(" ");
+      if(state.battle)state.battle.log=[...state.battle.log,...lines].slice(-8);
+    }
+    if(!save())return changedTrail();
+    return fittingEvents.length?{...result(kind,message),fittingEvents}:result(kind,message);
   }
 
   function trailSaveIsCurrent(){
@@ -439,8 +486,7 @@
     state.landmark = null;
     walking?.step(state,old,{x,y});
     state.positions[state.region] = { x, y };
-    save();
-    return true;
+    return save();
   }
 
   function travel(index) {
@@ -491,6 +537,40 @@
       if (state.lead === replace) state.lead = id;
     }
     return commit("team", ownedKin(id).name + " joined your traveling party.");
+  }
+  function trailFittings(){return fittings?.describe(state,usingLoaners)||{gear:{},items:[],groups:[],atCamp:false,inBattle:!!state.battle};}
+  function claimFittings(id){
+    if(usingLoaners)return error("Finish this encounter before claiming fittings.");
+    if(!currentForEdit())return changedTrail();
+    const group=trailFittings().groups.find(g=>g.id===id);
+    if(!group?.available)return error(group?.reason||"Choose a fitting kit offered at camp.");
+    state.trailFittings.claimed.push(id);
+    return commit("fittings","Claimed the "+group.name+" at camp.");
+  }
+  function equipFitting(id,item,fromId){
+    if(usingLoaners||state.battle)return error("Finish this encounter before changing fittings.");
+    if(!fittings)return error("The fitting case is unavailable.");
+    if(!currentForEdit())return changedTrail();
+    const held=Object.keys(state.trailFittings.gear).find(k=>state.trailFittings.gear[k]===item);
+    if(held&&held!==id&&fromId!==held)return error("Confirm the transfer from "+ownedKin(held).name+".");
+    if(fromId!==undefined&&fromId!==null&&fromId!==held)return error("The previous holder has changed.");
+    const update=fittings.apply(state,{[id]:item});
+    if(!update.ok)return error(update.message);
+    return commit("fittings",ownedKin(id).name+(item?" equipped "+fittings.byId(item).name+".":" returned its fitting to the kit."));
+  }
+  function fittingReady(id,piece){
+    const kit=state.battle?.trailFittings;
+    return !usingLoaners&&!!kit&&kit.gear[id]===piece&&!kit.spent.includes(piece);
+  }
+  function fitEvent(id,holder,effect,preview,extra={}){
+    const subject=ownedKin(holder).name+"’s "+fittings.byId(id).name+" ";
+    return {id,holder,...extra,text:subject+effect,preview:subject+preview};
+  }
+  function activateFitting(event){
+    if(!event||!fittingReady(event.holder,event.id))return;
+    const b=state.battle;
+    b.trailFittings.spent.push(event.id);pendingFittingEvents.push(event);
+    window.WilderFittingNotes?.record(state,{item:event.id,holder:event.holder,text:event.text,foe:b.enemy.id,region:state.region,turn:b.turn,kind:b.kind});
   }
   function setLead(id) {
     if (state.battle) return error("Use a battle switch to change your active companion.");
@@ -555,6 +635,15 @@
     if (!options.secondBell && !state.seen.includes(enemy.id)) state.seen.push(enemy.id);
     state.battle={kind,activeId:ready.id,enemy,remaining:ids.slice(1),turn:1,
       commissioned:null,bonus:null,weather:null,condition:null,lastAttack:null,beats:1,lastPart:null,opening:false,familyUsed:false,shellGuard:null,cover:0,reserveHp:[],...options,log:[message]};
+    if(fittings&&!usingLoaners&&!options.secondBell&&["wild","expedition","warden"].includes(kind)){
+      const kit=fittings.fight(state);
+      if(kit){
+        const b=state.battle;b.trailFittings=kit;
+        if(fittingReady(b.activeId,"opening-pennant")&&b.beats<3){
+          b.beats++;activateFitting(fitEvent("opening-pennant",b.activeId,"raised the opening meter to "+b.beats+"/3 beats.","will add an opening beat ("+b.beats+"/3).",{beats:1}));
+        }
+      }
+    }
     return commit("battle",message);
   }
 
@@ -590,8 +679,8 @@
     return beginEncounter(kind,roster,r.wardenLevel,"Warden "+r.warden+" gives the signal.",options);
   }
 
-  function damage(power, level, type, defender) {
-    const modifier = dex.effectiveness(type, species[defender.id].types);
+  function damage(power, level, type, defender, neutral=false) {
+    const modifier = neutral?1:dex.effectiveness(type, species[defender.id].types);
     return Math.max(1, Math.round((power + (level - 5) * 0.47) * modifier * (state.battle?.weather === type ? 1.2 : 1)));
   }
 
@@ -722,6 +811,13 @@
     return Math.max(1,Math.floor(hit*guardFactor*(covered ? .4 : 1)));
   }
 
+  function replyPlan(p,guard,intent=foeIntent(),covered=state.battle.cover>0,hp=p.hp){
+    const raw=returnHit(p,guard,intent,covered);
+    if(hp>1&&raw>=hp&&fittingReady(p.id,"last-stitch")){
+      return {returnDamage:hp-1,fittingEvents:[fitEvent("last-stitch",p.id,"held at 1 HP through a "+raw+" HP hit.","will keep "+ownedKin(p.id).name+" at 1 HP through the incoming "+raw+" HP hit.",{hpAfter:1,damage:hp-1})]};
+    }
+    return {returnDamage:Math.min(raw,hp),fittingEvents:[]};
+  }
   function guardTraining(id) {
     const lesson=usingLoaners ? null : guardSchool?.forKin(id);
     return lesson ? {...lesson,learned:state.trainedGuards.includes(id)} : null;
@@ -750,7 +846,8 @@
     const active = member(battle.activeId);
     const intent=foeIntent(),skill=intent.skill;
     const interrupted=guardFactor===0;
-    const dealt=interrupted?0:Math.min(active.hp,returnHit(active,guardFactor,intent));
+    const incoming=replyPlan(active,guardFactor,intent),dealt=incoming.returnDamage;
+    incoming.fittingEvents.forEach(activateFitting);
     if(dealt>0 && battle.emberBrace===active.id)delete battle.emberBrace;
     if(!interrupted&&!intent.support&&battle.cover>0)battle.cover--;
     active.hp -= dealt;
@@ -884,7 +981,7 @@
     const healLead=restore(lead),healPartner=restore(partner),switchLead=role==="relay";
     const defender=switchLead?partner:lead,defenderName=ownedKin(defender.id).name;
     const falls=damageDone===foe.hp,opens=role==="mark"&&!falls;
-    const returnDamage=falls?0:Math.min(defender.hp+restore(defender),returnHit(defender,score.counter,intent));
+    const {returnDamage,fittingEvents}=falls?{returnDamage:0,fittingEvents:[]}:replyPlan(defender,score.counter,intent,battle.cover>0,defender.hp+restore(defender));
     const reason=wildWaitingReason() || (!partner.hp ? ownedKin(partner.id).name+" needs to recover." :
       battle.beats<cost ? "Needs "+(cost-battle.beats)+" more "+(cost-battle.beats===1?"beat.":"beats.") : "");
     const details=[damageDone+" damage"];
@@ -895,7 +992,7 @@
     const knockedOut=!falls && returnDamage>=defender.hp+restore(defender);
     details.push(falls?"foe falls before its reply":defenderName+" takes "+returnDamage+" in reply"+(knockedOut?" and faints":""));
     return {partnerId:partner.id,name,type:species[partner.id].type,role:score.label,cost,available:!reason,
-      reason,preview:details.join(" · "),damage:damageDone,returnDamage,healLead,healPartner,switchLead,opens,counter:score.counter};
+      reason,preview:details.join(" · "),damage:damageDone,returnDamage,fittingEvents,healLead,healPartner,switchLead,opens,counter:score.counter};
   }
 
   function duets() {
@@ -984,11 +1081,11 @@
     hit=Math.min(throughEmberCover(hit,b.opening && skill.kind==="attack"),b.enemy.hp);
     if(hit)details.push(hit+" damage.");
     const effect=details.join(" "),replyHp=receiver.hp+(receiver.id===target?healing:0);
-    const returnDamage=hit===b.enemy.hp||!guard?0:Math.min(replyHp,returnHit(receiver,guard,intent,b.cover>0||id==="wattle-ward"));
+    const {returnDamage,fittingEvents}=hit===b.enemy.hp||!guard?{returnDamage:0,fittingEvents:[]}:replyPlan(receiver,guard,intent,b.cover>0||id==="wattle-ward",replyHp);
     details.push(returnDamage?ownedKin(receiver.id).name+" takes "+returnDamage+" in reply"+(returnDamage===replyHp?" and faints.":"."):"No return hit.");
     if(b.beats<skill.cost)reason="Needs "+skill.cost+" beats; you have "+b.beats+".";
     reason=wildWaitingReason()||reason;
-    return {available:!reason,reason,effect,detail:details.join(" "),kind:skill.kind,cost:skill.cost,damage:hit,returnDamage,
+    return {available:!reason,reason,effect,detail:details.join(" "),kind:skill.kind,cost:skill.cost,damage:hit,returnDamage,fittingEvents:reason?[]:fittingEvents,
       guard,healing,tax,gain,target,shift,replySkill:intent.skill};
   }
 
@@ -1012,6 +1109,32 @@
 
   const trailFeint={id:"trail-feint",name:"Hold back",kind:"feint"};
 
+  function strikeProjection(active,skill,foe,item,brace=1,repeated=false,exposed=false){
+    const resistant=dex.effectiveness(skill.type,species[foe.id].types)<1;
+    const lens=skill.kind==="attack"&&item==="prism-lens"&&resistant;
+    const base=damage(skill.power,active.level,skill.type,foe,lens);
+    const hitAt=opening=>{
+      const raw=Math.max(1,Math.round(base*brace*(repeated?.75:1)*opening));
+      return Math.min(foe.hp,foe.emberBrace&&!exposed?Math.max(1,Math.floor(raw/2)):raw);
+    };
+    const normal=hitAt(exposed?1.5:1);
+    const hooked=exposed&&item==="seam-hook"?hitAt(2):normal;
+    const events=[];
+    if(lens)events.push(fitEvent(item,active.id,"made "+skill.name+" neutral against "+species[foe.id].name+" for "+normal+" damage.","will neutralize resistance to "+skill.name+" for "+normal+" damage.",{damage:normal}));
+    if(hooked>normal)events.push(fitEvent(item,active.id,"raised the exposed strike from "+normal+" to "+hooked+" damage.","will raise the exposed strike from "+normal+" to "+hooked+" damage.",{damage:hooked,extra:hooked-normal}));
+    return {hit:hooked,events};
+  }
+  function trailFittingPreview(id,item,foeId){
+    if(state.battle||usingLoaners||!fittings||!member(id)||!pools[state.region].includes(foeId)||!["prism-lens","seam-hook"].includes(item))return null;
+    const level=regions[state.region].wildLevel,foe=makeMember(foeId,level),active=member(id),exposed=item==="seam-hook";
+    const choices=ownedKin(id).skills.filter(k=>k.kind==="attack"&&!k.trained).map(skill=>{
+      const before=strikeProjection(active,skill,foe,null,1,false,exposed).hit;
+      const {hit:after,events}=strikeProjection(active,skill,foe,item,1,false,exposed);
+      return events.length?{skill:skill.name,skillId:skill.id,foe:foeId,level,before,after,delta:after-before,
+        condition:exposed?"Exposed wild foe at full HP, without guard or weather.":"Resisted strike against a full-HP wild foe, without guard or weather."}:null;
+    }).filter(Boolean);
+    return choices.sort((a,b)=>b.delta-a.delta||b.after-a.after)[0]||null;
+  }
   function ordinaryForecast(id) {
     const b=state.battle;
     return b?forecastOrdinaryFor(member(b.activeId),id):null;
@@ -1025,6 +1148,7 @@
     const exposed=skill.kind==="attack" && Boolean(b.opening||enemy.beaconMarked||enemy.pincerOpening);
     const braced=intent.guarding && !exposed,repeated=b.condition==="echo" && b.lastAttack===id;
     let hit=0,healing=art ? quarterHeal(active) : 0,reason="";
+    const fittingEvents=[];
     if(skill.kind==="feint"){
       hit=Math.min(enemy.hp-1,throughEmberCover(Math.ceil(enemy.maxHp/4)));
       if(!hit)reason="This Wilderkin is ready to befriend.";
@@ -1032,15 +1156,24 @@
       healing=Math.min(active.maxHp-active.hp,Math.ceil(active.maxHp/3));
       if(!healing)reason=user.name+" is already at full health.";
     }else{
-      const base=damage(skill.power,active.level,skill.type,enemy);
       const braceEffect=braced ? (guard ? (b.condition==="ledge" ? 1.65 : 1.4) : .55) : 1;
-      const raw=base*braceEffect*(repeated ? .75 : 1)*(exposed ? 1.5 : 1);
-      hit=Math.min(enemy.hp,throughEmberCover(Math.max(1,Math.round(raw)),exposed));
+      const item=b.trailFittings?.gear[active.id],ready=item&&fittingReady(active.id,item)?item:null;
+      const strike=strikeProjection(active,skill,enemy,ready,braceEffect,repeated,exposed);
+      hit=strike.hit;fittingEvents.push(...strike.events);
+      if(guard&&ready==="mender-wrap"){
+        const patient=team().filter(p=>p.id!==active.id&&p.hp>0&&p.hp<p.maxHp)
+          .sort((a,b)=>a.hp/a.maxHp-b.hp/b.maxHp)[0];
+        if(patient){
+          const heal=Math.min(patient.maxHp-patient.hp,Math.ceil(patient.maxHp/5));
+          fittingEvents.push(fitEvent(ready,active.id,"restored "+heal+" HP to "+ownedKin(patient.id).name+".","will restore "+heal+" HP to "+ownedKin(patient.id).name+".",{target:patient.id,heal}));
+        }
+      }
     }
     reason=wildWaitingReason()||reason;
     const finishes=hit===enemy.hp;
-    const returnDamage=(reason || finishes) ? 0 : Math.min(active.hp+healing,returnHit(active,guardFactor,intent));
-    return {available:!reason,reason,skill,damage:hit,healing,returnDamage,finishes,guardFactor,exposed,braced,repeated};
+    const reply=(reason||finishes)?{returnDamage:0,fittingEvents:[]}:replyPlan(active,guardFactor,intent,b.cover>0,active.hp+healing);
+    return {available:!reason,reason,skill,damage:hit,healing,returnDamage:reply.returnDamage,finishes,guardFactor,exposed,braced,repeated,
+      fittingEvents:reason?[]:fittingEvents.concat(reply.fittingEvents)};
   }
 
   function quarterHeal(p) {
@@ -1062,7 +1195,7 @@
         available:heal>0,reason:p.hp===0?"Needs a rest.":heal===0?"Already at full health.":""};
     });
     const reason=blocked || (targets.some(p=>p.available)?"":"A conscious reserve must be missing HP.");
-    return {...art,targets,used,available:!reason,reason,returnDamage:Math.min(active.hp,returnHit(active,.5))};
+    return {...art,targets,used,available:!reason,reason,...replyPlan(active,.5)};
   }
 
   function useEmberTechnique(targetId) {
@@ -1094,7 +1227,12 @@
     }
     b.lastAttack=skill.id;
     hurtFoe(hit);
-    const multiplier=dex.effectiveness(skill.type,species[enemy.id].types);
+    for(const event of plan.fittingEvents){
+      if(event.id==="last-stitch")continue;
+      if(event.id==="mender-wrap")member(event.target).hp+=event.heal;
+      activateFitting(event);
+    }
+    const multiplier=plan.fittingEvents.some(e=>e.id==="prism-lens")?1:dex.effectiveness(skill.type,species[enemy.id].types);
     const pairing=multiplier>1?" Elemental advantage!":multiplier<1?" The target resisted.":"";
     return name+" used "+skill.name+" for "+hit+" damage."+pairing+(exposed?" Struck the opening!":"")+
       (repeated?" Echo dulled the repeat.":"")+(braced?skill.kind==="guard"?" Broke its guard!":" It braced for the strike.":"");
@@ -1146,9 +1284,14 @@
     const normalFactor=battle.condition==="gale" ? .25 : .5;
     const factor=covered ? .25 : normalFactor;
     const intent=foeIntent();
-    const damage=reason ? 0 : Math.min(p.hp,returnHit(p,factor,intent));
-    const normalDamage=reason ? 0 : Math.min(p.hp,returnHit(p,normalFactor,intent));
-    return {available:!reason,reason,protected:covered,damage,normalDamage,hpAfter:(p?.hp||0)-damage,maxHp:p?.maxHp||0,factor};
+    const reply=reason?{returnDamage:0,fittingEvents:[]}:replyPlan(p,factor,intent);
+    const damage=reply.returnDamage,normalDamage=reason?0:replyPlan(p,normalFactor,intent).returnDamage;
+    let beatsAfter=Math.min(3,battle.beats+(battle.lastPart==="switch"?0:1));
+    const fittingEvents=reply.fittingEvents.slice();
+    if(!reason&&beatsAfter<3&&fittingReady(id,"relay-bell")){
+      beatsAfter++;fittingEvents.unshift(fitEvent("relay-bell",id,"raised the switch meter to "+beatsAfter+"/3 beats.","will add a beat on this switch ("+beatsAfter+"/3).",{beats:1}));
+    }
+    return {available:!reason,reason,protected:covered,damage,normalDamage,hpAfter:(p?.hp||0)-damage,maxHp:p?.maxHp||0,factor,beatsAfter,fittingEvents};
   }
 
   function swap(id) {
@@ -1157,6 +1300,8 @@
     const plan=switchForecast(id);
     if (!plan.available) return error(plan.reason);
     earnBeat("switch");
+    const bell=plan.fittingEvents.find(e=>e.id==="relay-bell");
+    if(bell){battle.beats++;activateFitting(bell);}
     changeFront(battle,id);
     battle.lastAttack=null;
     const message="You called in "+ownedKin(id).name+"."+(plan.protected?" Roll Brace covered the switch.":"");
@@ -1174,10 +1319,11 @@
       const attacks=k.skills.filter(s=>!s.trained && (s.kind==="attack" || s.kind==="guard"));
       const plans=attacks.map(s=>forecastOrdinaryFor(p,s.id));
       const best=plans.reduce((a,c)=>c.damage>a.damage || (c.damage===a.damage && c.returnDamage<a.returnDamage)?c:a);
+      const reply=replyPlan(p,1,intent);
       return {id:p.id,name:k.name,hp:p.hp,maxHp:p.maxHp,types:k.types,level:p.level,
-        attackName:best.skill.name,attackType:best.skill.type,attackMultiplier:dex.effectiveness(best.skill.type,foeTypes),
+        attackName:best.skill.name,attackType:best.skill.type,attackMultiplier:best.fittingEvents.some(e=>e.id==="prism-lens")?1:dex.effectiveness(best.skill.type,foeTypes),
         attackDamage:best.damage,attackFinishes:best.finishes,attackReplyDamage:best.returnDamage,
-        replyName:intent.skill.name,replyDamage:Math.min(p.hp,returnHit(p,1,intent))};
+        replyName:intent.skill.name,replyDamage:reply.returnDamage,fittingEvents:best.fittingEvents,replyFittingEvents:reply.fittingEvents};
     });
     return {fallen:b.pendingFallen,defaultId:b.activeId,options};
   }
@@ -1218,8 +1364,8 @@
     const intent=foeIntent();
     const targets=team().filter(p=>p.id!==battle.activeId && p.hp>0).map(p=>{
       const heal=technique.id==="slipstream" ? Math.min(p.maxHp-p.hp,Math.floor(p.maxHp/4)) : 0;
-      const returnDamage=Math.min(p.hp+heal,returnHit(p,1,intent));
-      return {id:p.id,name:ownedKin(p.id).name,heal,returnDamage,hpAfter:p.hp+heal-returnDamage,maxHp:p.maxHp};
+      const {returnDamage,fittingEvents}=replyPlan(p,1,intent,battle.cover>0,p.hp+heal);
+      return {id:p.id,name:ownedKin(p.id).name,heal,returnDamage,hpAfter:p.hp+heal-returnDamage,maxHp:p.maxHp,fittingEvents};
     });
     const used=battle.familyUsed===true;
     const reason=wildWaitingReason() || familyPassReason(battle,targets.length>0);
@@ -1253,14 +1399,16 @@
     if (!lead) return {strike:null,warning:null};
     const where=homes[quarry].includes(state.region)?state.region:homes[quarry][0];
     const level=regions[where].wildLevel,foe=makeMember(quarry,level);
-    const summarize=(s,base,lv,target)=>{
-      const hit=Math.min(target.hp,damage(base,lv,s.type,target));
-      return {name:s.name,type:s.type,damage:hit,finishes:hit===target.hp};
-    };
+    const item=state.battle?state.battle.trailFittings?.gear[lead.id]:state.trailFittings?.gear[lead.id];
+    const ready=state.battle&&!fittingReady(lead.id,item)?null:item;
     const warningSkill=species[quarry].skills.find(s=>s.kind==="attack");
-    const choices=species[lead.id].skills.filter(s=>s.kind==="attack")
-      .map(s=>summarize(s,s.power,lead.level,foe));
-    return {strike:choices.reduce((a,b)=>a.damage>=b.damage?a:b),warning:summarize(warningSkill,5,level,lead)};
+    const choices=species[lead.id].skills.filter(s=>s.kind==="attack").map(s=>{
+      const {hit}=strikeProjection(lead,s,foe,ready);
+      return {name:s.name,type:s.type,damage:hit,finishes:hit===foe.hp};
+    });
+    let warning=Math.min(lead.hp,damage(5,level,warningSkill.type,lead));
+    if(lead.hp>1&&warning===lead.hp&&ready==="last-stitch")warning--;
+    return {strike:choices.reduce((a,b)=>a.damage>=b.damage?a:b),warning:{name:warningSkill.name,type:warningSkill.type,damage:warning,finishes:warning===lead.hp}};
   }
 
   function wildCall(id=state.battle?.enemy.id) {
@@ -1341,7 +1489,7 @@
       const recorded=pools[state.region].filter(kin=>field.recordedAt(state,kin,state.region)).length;
       if(recorded<=2) res.message+=" The station accepts your wildlife report."+finishLeg(res.kind==="field-note");
     }
-    if(res.ok) save();
+    if(res.ok&&!save())return changedTrail();
     return res;
   }
   function inviteField(id) {
@@ -1403,8 +1551,7 @@
       if (!map.sites.some(site=>(site.kind||site.id)===kind && Math.abs(point.x-site.x)+Math.abs(point.y-site.y)<=1)) return false;
     }
     state.landmark=kind;
-    save();
-    return true;
+    return save();
   }
 
   function harvest(bonus=false) {
@@ -1434,6 +1581,32 @@
     return commit("crafted","Made one "+items[id].name+".");
   }
 
+  function itemForecast(id,targetId){
+    if(!["balm","tonic","sparkseed"].includes(id))return null;
+    const b=state.battle,active=b?member(b.activeId):null,item=items[id];
+    const target=member(targetId||active?.id||state.lead);
+    let reason="";
+    if(b?.secondBell)reason="Satchel items are unavailable in a Second Bell exhibition.";
+    else if(wildWaitingReason())reason=wildWaitingReason();
+    else if(!state.bag[id])reason="Craft a "+item.name+" first.";
+    else if(!target||(b&&!state.team.includes(target.id)))reason="Choose a traveling companion.";
+    else if(item.use==="revive"&&target.hp>0)reason="Choose a companion that has fainted.";
+    else if(item.use==="heal"&&(!target.hp||target.hp===target.maxHp))reason="Choose a conscious injured companion.";
+    const targetHp=target?.hp??0;
+    const gain=reason?0:Math.min(target.maxHp-targetHp,Math.ceil(target.maxHp*(id==="tonic"?1:.5)));
+    const targetHpAfterHeal=targetHp+gain;
+    const activeHpAfterHeal=active?active.hp+(active===target?gain:0):null;
+    const intent=active&&!reason?foeIntent():null;
+    const reply=intent?replyPlan(active,1,intent,b.cover>0,activeHpAfterHeal):{returnDamage:0,fittingEvents:[]};
+    const afterHit=active?activeHpAfterHeal-reply.returnDamage:null;
+    const activeRecovery=intent?.call==="aid"?Math.min(active.maxHp-afterHit,Math.ceil(active.maxHp*.1)):0;
+    const activeHpAfter=active?afterHit+activeRecovery:null;
+    return {available:!reason,reason,itemId:id,targetId:target?.id??null,targetName:target?ownedKin(target.id).name:null,
+      targetHp,targetMaxHp:target?.maxHp??0,gain,targetHpAfterHeal,targetHpAfter:target&&target===active?activeHpAfter:targetHpAfterHeal,
+      activeId:active?.id??null,activeName:active?ownedKin(active.id).name:null,activeHp:active?.hp??null,activeMaxHp:active?.maxHp??null,
+      activeHpAfterHeal,activeHpAfter,activeRecovery,replyName:intent?.skill.name??null,...reply};
+  }
+
   function useItem(id,targetId) {
     if (state.battle?.secondBell) return error("Satchel items are unavailable in a Second Bell exhibition.");
     if (id!=="kinweave" && wildWaitingReason()) return error(wildWaitingReason());
@@ -1449,16 +1622,12 @@
     }
     if (!Object.hasOwn(items,id)) return error("Unknown item.");
     if (id==="kinweave") return recruit();
-    const item=items[id], p=member(targetId || state.battle?.activeId || state.lead);
-    if (item.use==="material") return error("Use this material in a recipe.");
-    if (!state.bag[id]) return error("Craft a "+item.name+" first.");
-    if (!p || (state.battle && !state.team.includes(p.id))) return error("Choose a traveling companion.");
-    if (item.use==="revive" && p.hp>0) return error("Choose a companion that has fainted.");
-    if (item.use==="heal" && (p.hp===0 || p.hp===p.maxHp)) return error("Choose a conscious injured companion.");
-    const regained=Math.min(p.maxHp-p.hp,Math.ceil(p.maxHp*(id==="tonic" ? 1 : .5)));
-    p.hp+=regained;
+    const plan=itemForecast(id,targetId);
+    if(!plan)return error("Use this material in a recipe.");
+    if(!plan.available)return error(plan.reason);
+    member(plan.targetId).hp=plan.targetHpAfterHeal;
     state.bag[id]--;
-    const message=items[id].name+" restored "+regained+" HP to "+ownedKin(p.id).name+".";
+    const message=items[id].name+" restored "+plan.gain+" HP to "+plan.targetName+".";
     if (state.battle) {earnBeat("care");return counterattack(message);}
     return commit("item",message);
   }
@@ -1586,7 +1755,7 @@
   function storyStep(id,choiceId,mode) {
     if (state.battle) return error("Finish this encounter before speaking.");
     const outcome=story.advance(state,id,choiceId,mode);
-    if (outcome.ok) save();
+    if(outcome.ok&&!save())return changedTrail();
     return outcome;
   }
 
@@ -1596,7 +1765,7 @@
   }
 
   function reset() {
-    state = newGame();
+    replaceTrail(newGame());
     return commit("reset", "A fresh adventure begins in Mossbrook Vale.");
   }
 
@@ -1622,11 +1791,11 @@
   }
   function saveCircuit(record) {
     if(usingLoaners) throw new Error("Finish the loaner turn before recording its result.");
-    state.circuit=record;save();
+    state.circuit=record;return save();
   }
   function saveSparring(record) {
     if(usingLoaners) throw new Error("Finish the loaner turn before saving a sparring match.");
-    state.sparring=record;save();
+    state.sparring=record;return save();
   }
   function recordRelay(course,id) {
     if (usingLoaners) return error("Finish the school bout before recording its stamp.");
@@ -1649,11 +1818,11 @@
     return commit("pin",regions[i].name+(action==="track"?" is your tracked destination.":" pinned in the atlas."));
   }
   function setWalker(value) {
-    const reply=walking.select(state,value);if(reply.ok) save();
+    const reply=walking.select(state,value);if(reply.ok&&!save())return changedTrail();
     return reply;
   }
   window.WilderGame = {
-    trailSaveIsCurrent,
+    trailSaveIsCurrent,trailFittings,claimFittings,equipFitting,trailFittingPreview,
     firstOuting:window.WilderOpening?.create({state:()=>state,commit,setLead,sightings:()=>field?.sightings(state.region)||[]}),
     wardenLesson,wardenForecast,guardTraining,guardPractice,switchForecast,ordinaryForecast,emberTechnique,useEmberTechnique,replacements,replaceFainted,
     passageReport,filePassage,secondBell,wildCall,answerWildCall,captureStatus,
@@ -1661,12 +1830,12 @@
     stillwake:window.WilderStillwake?.create({state:()=>state,commit,regions,species,makeMember,story,duetPair}),
     hollows:window.WilderHollows?.create({state:()=>state,commit,regions,species,items}),
     withLoaners,saveCircuit,saveSparring,recordRelay,loaner:(id,level)=>validSpecies(id)&&integer(level,1,MAX_LEVEL)?makeMember(id,level):null,
-    caravan:window.WilderCaravans?.create({state:()=>state,commit,hpAt,regions,species,items}),
+    caravan:window.WilderCaravans?.create({state:()=>state,commit,hpAt,regions,species,items,fittings,isCurrent:currentForEdit,blocked:()=>usingLoaners}),
     sightings:(i=state.region)=>field?.sightings(i)||[],study:id=>field.study(state,id),
     notebook:()=>field.notebook(state),canInvite:id=>field.canInvite(state,id),observe,inviteField,cycleAnimationSpeed,cycleMusic,
     get state() { return state; },
     get canSave() { return canSave; },
-    items,conditions:campaign.conditions,visitSite,gather,craft,useItem,expedition,expeditionAction,license,claimLicense,
+    items,conditions:campaign.conditions,visitSite,gather,craft,useItem,itemForecast,expedition,expeditionAction,license,claimLicense,
     gamePass,unlockGame,storyStep,trialAccess,wildLevel:i=>regions[i]?.wildLevel,
     species,kin,growthInfo,chooseGrowth,growthAppearance,skillPreview,regions, wardens, homes, pools, access, team, enlist, foeIntent, maxLevel:MAX_LEVEL,
     awardGame, questAction, xpNeeded, objective, setPosition, travel, setLead,

@@ -5,10 +5,10 @@ const path=require("node:path");
 const vm=require("node:vm");
 const copy=value=>JSON.parse(JSON.stringify(value));
 const ctx=vm.createContext({window:{}});
-vm.runInContext(readFileSync(path.join(__dirname,"../games/wilderkin/caravans.js"),"utf8"),ctx);
+for(const script of ["trail-fittings","caravans"]) vm.runInContext(readFileSync(path.join(__dirname,"../games/wilderkin",script+".js"),"utf8"),ctx);
 const model=ctx.window.WilderCaravans;
 
-function camp(save) {
+function camp(save,guards={}) {
   const species=Object.fromEntries(["fox","tern","hare","mole","newt","kite","yak"].map(id=>[id,{name:id,types:["Loam"]}]));
   const hpAt=(_,level)=>20+level*3;
   const companion=(id,level)=>({id,level,hp:hpAt(id,level),maxHp:hpAt(id,level),xp:12});
@@ -19,7 +19,7 @@ function camp(save) {
   const regions=[{name:"High Shelf",wildLevel:58},{name:"Hearth",wildLevel:4}];
   const items={reed:{name:"Silver reed"},sap:{name:"Sun sap"},ore:{name:"Bellstone"}};
   let saves=0;
-  const api=model.create({state:()=>state,species,regions,items,hpAt,commit(kind,message){saves++;return {ok:true,kind,message};}});
+  const api=model.create({state:()=>state,species,regions,items,hpAt,...guards,commit(kind,message){saves++;return {ok:true,kind,message};}});
   return {state,api,game:{state,species,regions,items,caravan:api},saves:()=>saves};
 }
 
@@ -134,4 +134,80 @@ test("canvas views allow recording, recall, undo and walking to train the same s
   assert.ok(!rows("mentor",null).find(r=>r.id==="caravan-train").disabled);
   pages.act("caravan-train","yak");
   assert.equal(state.party[6].level,56);assert.ok(messages.at(-1).includes("56"));
+});
+
+const kit=ctx.window.WilderTrailFittings;
+function fitted(){
+  const h=camp(),s=h.state;
+  s.team=["fox","tern","mole"];s.lead="tern";s.trailFittings={claimed:["camp","crest"],gear:{fox:"opening-pennant",tern:"relay-bell"}};
+  assert.ok(h.api.saveFormation(0,{fittings:true,name:"Crossing party"}).ok);
+  assert.ok(kit.apply(s,{fox:"last-stitch",tern:null,yak:"opening-pennant",hare:"relay-bell",mole:"prism-lens",kite:"seam-hook"}).ok);
+  return h;
+}
+test("same-team recall names each real reserve transfer, clears recorded empty slots, and undoes them in one commit across a reload",()=>{
+  const h=fitted(),s=h.state,prior=copy(s.trailFittings.gear);s.party[0].hp=3;s.walking={fixed:"hare"};
+  const party=JSON.stringify(s.party),flag=h.api.formations().slots[0];
+  assert.equal(flag.name,"Crossing party");assert.equal(flag.lineup.reason,"");assert.ok(!flag.lineup.active);
+  assert.deepEqual(copy(flag.lineup.gear),{fox:"opening-pennant",tern:"relay-bell"});
+  const moves=copy(flag.lineup.changes);assert.equal(moves.length,5);
+  assert.deepEqual(moves.find(c=>c.id==="yak"),{id:"yak",before:"opening-pennant",after:null});
+  assert.deepEqual(moves.find(c=>c.id==="mole"),{id:"mole",before:"prism-lens",after:null});
+  assert.deepEqual(copy(s.trailFittings.gear),prior);assert.ok(h.api.recallFormation(0).ok);assert.equal(h.saves(),2);
+  assert.deepEqual(copy(s.trailFittings.gear),{kite:"seam-hook",fox:"opening-pennant",tern:"relay-bell"});
+  assert.ok(h.api.formations().slots[0].lineup.active);assert.ok(!h.api.recallFormation(0).ok);
+  const loaded=camp(s);assert.equal(loaded.api.formations().previous.changes.length,5);
+  assert.ok(kit.apply(loaded.state,{newt:"mender-wrap"}).ok);assert.ok(loaded.api.undoFormation().ok);
+  assert.deepEqual(copy(loaded.state.trailFittings.gear),{...prior,newt:"mender-wrap"});
+  assert.equal(JSON.stringify(loaded.state.party),party);assert.deepEqual(loaded.state.walking,{fixed:"hare"});assert.equal(loaded.saves(),1);
+});
+test("undo leaves newer equipment and its current holder in place while restoring independent changes",()=>{
+  const h=fitted(),s=h.state;assert.ok(h.api.recallFormation(0).ok);
+  assert.ok(kit.apply(s,{kite:"opening-pennant",fox:"seam-hook",newt:"last-stitch"}).ok);
+  const r=h.api.formations().previous;
+  assert.deepEqual(copy(r.kept.map(k=>k.id)).sort(),["fox","yak"]);assert.equal(r.kept.find(k=>k.id==="yak").holder,"kite");
+  assert.ok(h.api.undoFormation().ok);
+  assert.deepEqual(copy(s.trailFittings.gear),{kite:"opening-pennant",newt:"last-stitch",fox:"seam-hook",hare:"relay-bell",mole:"prism-lens"});
+  assert.equal(h.api.formations().previous,null);
+});
+test("legacy or intentionally bare pennants leave the pack alone; custom names, empty-slot captures and a healthy fallback lead survive restore",()=>{
+  const h=fitted(),s=h.state;
+  assert.ok(h.api.renameFormation(0,"  Lantern   scouts  ").ok);
+  assert.ok(h.api.saveFormation(0).ok);assert.equal(h.api.formations().slots[0].name,"Lantern scouts");
+  assert.equal(h.api.formations().slots[0].lineup.gear,undefined);
+  assert.ok(h.api.saveFormation(1,{fittings:true}).ok);s.trailFittings.gear={};assert.ok(h.api.saveFormation(2,{fittings:true}).ok);
+  assert.ok(!h.api.saveFormation(2,{fittings:true}).ok);const loaded=camp(s);
+  assert.deepEqual(copy(loaded.api.formations().slots[2].lineup.gear),{});
+  assert.ok(kit.apply(loaded.state,{mole:"prism-lens"}).ok);
+  const before=copy(loaded.state.trailFittings.gear);loaded.state.party[1].hp=0;loaded.state.team=["yak"];loaded.state.lead="yak";
+  assert.ok(loaded.api.recallFormation(0).ok);assert.deepEqual(copy(loaded.state.trailFittings.gear),before);assert.equal(loaded.state.lead,"fox");
+  assert.ok(loaded.api.recallFormation(2).ok);assert.deepEqual(copy(loaded.state.trailFittings.gear),{});assert.equal(loaded.state.party[1].hp,0);
+  for(const[name,gear] of [["<bad>",{lost:"prism-lens"}],["x".repeat(33),{fox:"unknown"}],["\n",{fox:"relay-bell",tern:"relay-bell"}]]){
+    const bad=model.restore({slots:[{name,gear,team:["fox","tern"],lead:"tern"}]},s.party);
+    assert.deepEqual(copy(bad.slots[0]),{team:["fox","tern"],lead:"tern"});
+  }
+});
+test("fitting changes and writing a pennant are atomic when combat, a loaner, an old tab or missing ownership forbids them",()=>{
+  const base=fitted();
+  for(const denied of ["battle","loaner","stale","unclaimed","fainted"]){
+    const h=camp(base.state,{isCurrent:()=>denied!=="stale",blocked:()=>denied==="loaner"}),s=h.state;
+    if(denied==="battle")s.battle={turn:1};
+    if(denied==="unclaimed")s.trailFittings.claimed=[];
+    if(denied==="fainted")s.party.forEach(k=>k.hp=0);
+    const before=JSON.stringify(s);assert.ok(!h.api.recallFormation(0).ok,denied);
+    if(["battle","loaner","stale"].includes(denied)){assert.ok(!h.api.saveFormation(1,{fittings:true}).ok);assert.ok(!h.api.renameFormation(0,"Changed").ok);}
+    assert.equal(JSON.stringify(s),before,denied);assert.equal(h.saves(),0);
+  }
+});
+test("the fitting review is read-only, includes prior reserve holders, and refuses a superseded confirmation",()=>{
+  const h=fitted(),s=h.state,notices=[],links=[];
+  const pages=model.pages({game:h.game,row:(id,label,value,detail,extra)=>({id,label,value,detail,...extra}),image:id=>id,
+    go:(...args)=>links.push(args),render(){},notify:m=>notices.push(m)});
+  const controls=(screen,v)=>pages.model(screen,v).sections.flatMap(s=>s.rows||[]);
+  const before=JSON.stringify(s);assert.ok(controls("formation",0).some(r=>r.value==="formation-recall|0"));
+  const rows=controls("formation-recall",0);assert.ok(rows.some(r=>r.label==="yak"&&r.badge==="Camp reserve"&&r.detail==="Opening Pennant → No fitting"));
+  assert.equal(JSON.stringify(s),before);assert.ok(kit.apply(s,{yak:"prism-lens"}).ok);
+  pages.act("caravan-confirm-recall",0);assert.match(notices.at(-1),/Review the current holders/);assert.equal(h.saves(),1);
+  controls("formation-recall",0);pages.act("caravan-confirm-recall",0);assert.equal(h.saves(),2);
+  assert.ok(controls("formations").some(r=>r.value==="formation-undo|"));controls("formation-undo");pages.act("caravan-confirm-undo",null);
+  assert.equal(h.saves(),3);assert.equal(s.trailFittings.gear.yak,"prism-lens");assert.deepEqual(links.at(-1),["formations",null,"replace"]);
 });

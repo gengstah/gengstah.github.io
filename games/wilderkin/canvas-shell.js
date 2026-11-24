@@ -660,7 +660,8 @@
       const h=32,g=p.gear;
       rect(c,x,y,w,h,C.sheet,C.line);
       if(!g){label(c,"No gear",x+9,y+9,11,C.secondary,"body",500);return;}
-      const hit=control({id:"spar-view",value:"equipment",label:p.name+" · "+g.name+" · "+(g.spent?"Used":"Ready")},x,y,w,h);
+      const action=g.action||{id:"spar-view",value:"equipment"};
+      const hit=control({...action,label:p.name+" · "+g.name+" · "+(g.spent?"Used":"Ready")},x,y,w,h);
       if(highlighted(hit))rect(c,x+1,y+1,w-2,h-2,"#efe6c7");
       c.save();c.globalAlpha=g.spent ? .52 : 1;picture("art/gear/"+g.id+".png",x+5,y+2,27,27);c.restore();
       c.font=getFont(12,"body",650);label(c,fit(c,g.name,w-44),x+37,y+2,12,C.ink,"body",650);
@@ -758,6 +759,13 @@
       const [ink,light]=affinity[a.type]||affinity.Neutral;
       const unit=clamp(tile/95,.62,1.6);
       c.save();
+      if(a.kind==="fitting"){
+        const size=clamp(tile*.37,25,48),left=src.x+size*.72,cy=src.y-tile*.16;
+        const lift=reduced.matches?0:Math.sin(p*Math.PI)*4*unit,y=cy-lift;
+        ellipse(c,left,y,size*.58,size*.58,"#4d614d");ellipse(c,left,y,size*.52,size*.52,"#f5e8bd");
+        picture("art/gear/"+a.item+".png",left-size/2,y-size/2,size,size,"contain");
+        c.restore();return;
+      }
       if(a.kind==="wild-call"){
         // Aim between the fighters. The quarry stays on screen and never plays a hit reaction.
         const x=(src.x+dst.x)/2, y=Math.max(src.y,dst.y)+tile*.39;
@@ -919,8 +927,8 @@
       if(fx)return fx.promise;
       const kind=effect.kind||"attack",speed=window.WilderGame?.state.animationSpeed||1;
       const side=effect.side==="foe"?"foe":"ally",view=model,portrait=effect.incoming||effect.incomingKin?.src;
-      const passing=(kind==="swap"||kind==="wild-call")&&(effect.pass==="beacon"||effect.pass==="slipstream")&&portrait&&model.kind==="battle";
-      const duration=reduced.matches?(passing||kind==="learn"?190:95):(passing?640:({heal:610,capture:820,defeat:460,swap:350,item:600,duet:850,learn:760}[kind]||550))/speed;
+      const passing=(kind==="swap"||kind==="wild-call")&&(effect.pass==="beacon"||effect.pass==="slipstream"||effect.pass==="field-swap")&&portrait&&model.kind==="battle";
+      const duration=reduced.matches?(passing||kind==="learn"||kind==="fitting"?190:95):(passing?640:({heal:610,capture:820,defeat:460,swap:350,item:600,fitting:540,duet:850,learn:760}[kind]||550))/speed;
       let resolve;
       const promise=new Promise(done=>{resolve=done;});
       const token={...effect,kind,side,duration,started:performance.now(),promise};
@@ -932,6 +940,7 @@
       if(model.kind==="battle" && arenaRect && (arenaRect.y<clipTop || arenaRect.y+arenaRect.h>clipBottom)){
         scroll=clamp(scroll+arenaRect.y-clipTop-(clipBottom-clipTop-arenaRect.h)/2,0,limit);
       }
+      if(effect.announce)live.textContent=effect.announce;
       fx=token;dirty=true;render(performance.now());
       // Finishes even if the tab is backgrounded halfway through a move.
       setTimeout(()=>{
@@ -986,7 +995,7 @@
         narration.push(side.label+", "+side.beats+" of 3 duet beats");
         side.team.forEach((k,i)=>narration.push((k.name||k.id)+(i===side.active?", active":"")+", "+k.hp+" of "+k.maxHp+" health"));
       }
-      for(const side of [model.ally,model.foe,...(model.party||[])])if(side)narration.push(side.name+", level "+side.level+", "+side.hp+" of "+side.maxHp+" health");
+      for(const side of [model.ally,model.foe,...(model.party||[])])if(side)narration.push(side.name+", level "+side.level+", "+side.hp+" of "+side.maxHp+" health"+(side.gear?", "+side.gear.name+(side.gear.spent?", used":", ready"):""));
       for(const s of model.sections||[]){
         narration.push(s.title,s.text);
         for(const cell of [...(s.rows||[]),...(s.grid?.cells||[])])if(!cell.id)narration.push(cell.label,cell.detail);

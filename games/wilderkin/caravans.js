@@ -1,23 +1,49 @@
-// Finch ties a pennant to each saved lineup. A pennant records who travels, while
-// the party ledger continues to hold each individual kin's health and training.
+// Finch records travel order and, optionally, the fittings held by those kin.
 (() => {
   "use strict";
 
   const pennants = ["Copper pennant", "Juniper pennant", "Indigo pennant"];
   const error = message => ({ok:false,kind:"error",message});
 
+  function pennantName(value) {
+    if (typeof value!=="string" || /[\u0000-\u001f\u007f-\u009f<>\u202a-\u202e\u2066-\u2069]/u.test(value)) return null;
+    const name=value.normalize("NFC").trim().replace(/\s+/gu," ");
+    return name && [...name].length<=32 ? name : null;
+  }
+  const usesGear=lineup=>!!lineup && Object.hasOwn(lineup,"gear");
+  const sameOrder=(one,two)=>one.lead===two.lead && one.team.length===two.team.length && one.team.every((id,i)=>id===two.team[i]);
+  const held=(s,id)=>s.trailFittings?.gear?.[id] || null;
+  function capture(team,s) {
+    return Object.fromEntries(team.filter(id=>held(s,id)).map(id=>[id,held(s,id)]));
+  }
   function restore(value, party) {
     const owned = new Set(party.map(p => p.id));
-    function read(lineup) {
+    const isItem=id=>typeof id==="string" && !!window.WilderTrailFittings?.byId(id);
+    function read(lineup,previous=false) {
       if (!Array.isArray(lineup?.team) || !lineup.team.length || lineup.team.length > 6 ||
           new Set(lineup.team).size !== lineup.team.length ||
           !lineup.team.every(id => owned.has(id)) || !lineup.team.includes(lineup.lead)) return null;
-      return {team:lineup.team.slice(),lead:lineup.lead};
+      const saved={team:lineup.team.slice(),lead:lineup.lead};
+      if (!previous) {
+        const name=pennantName(lineup.name);
+        if (name) saved.name=name;
+        if (lineup.gear && typeof lineup.gear==="object" && !Array.isArray(lineup.gear)) {
+          const pairs=Object.entries(lineup.gear);
+          if (pairs.every(([id,item])=>saved.team.includes(id)&&isItem(item)) && new Set(pairs.map(([,item])=>item)).size===pairs.length)
+            saved.gear=Object.fromEntries(pairs);
+        }
+      } else if (Array.isArray(lineup.changes) && lineup.changes.length>0 && lineup.changes.length<=12) {
+        const list=lineup.changes;
+        const valid=list.every(c=>c&&owned.has(c.id)&&c.before!==c.after&&(c.before===null||isItem(c.before))&&(c.after===null||isItem(c.after)));
+        const unique=key=>{const ids=list.map(c=>c[key]).filter(Boolean);return new Set(ids).size===ids.length;};
+        if (valid&&unique("id")&&unique("before")&&unique("after")) saved.changes=list.map(({id,before,after})=>({id,before,after}));
+      }
+      return saved;
     }
-    return {slots:pennants.map((_,i) => read(value?.slots?.[i])), previous:read(value?.previous)};
+    return {slots:pennants.map((_,i) => read(value?.slots?.[i])), previous:read(value?.previous,true)};
   }
 
-  function create({state,commit,hpAt,regions,species,items}) {
+  function create({state,commit,hpAt,regions,species,items,fittings=window.WilderTrailFittings,isCurrent=()=>true,blocked=()=>false}) {
     const companionName=id=>{
       const s=state(),base=species[id];
       return s.growth && window.WilderGrowth ? window.WilderGrowth.decorate(base,s).name : base.name;
@@ -26,49 +52,105 @@
       const s=state();
       return s.caravan ||= restore(null,s.party);
     }
-    function snapshot() {
+    function snapshot(withGear=false) {
       const s=state();
-      return {team:s.team.slice(),lead:s.lead};
+      return {team:s.team.slice(),lead:s.lead,...(withGear?{gear:capture(s.team,s)}:{})};
     }
     function members(lineup) {
       const owned = new Map(state().party.map(p=>[p.id,p]));
       return lineup.team.map(id=>owned.get(id));
     }
-    function status(lineup) {
+    // Drop only assignments that require changing a newer choice. If their holder
+    // keeps a piece, its previous owner must also keep their current equipment.
+    function undoAssignments(s,receipt) {
+      const owner=new Map(Object.entries(s.trailFittings?.gear||{}).map(([id,item])=>[item,id]));
+      const candidates=new Set(receipt.filter(c=>held(s,c.id)===c.after).map(c=>c.id));
+      let removed;
+      do {
+        removed=false;
+        for (const c of receipt) {
+          const holder=owner.get(c.before);
+          if (candidates.has(c.id) && holder && holder!==c.id && !candidates.has(holder)) {
+            candidates.delete(c.id);removed=true;
+          }
+        }
+      } while (removed);
+      const assignments={},kept=[];
+      for (const c of receipt) {
+        if (candidates.has(c.id)) assignments[c.id]=c.before;
+        else kept.push({id:c.id,item:held(s,c.id),wanted:c.before,holder:owner.get(c.before)||null});
+      }
+      return {assignments,kept};
+    }
+    function fittingPlan(lineup,undo) {
+      let assignments=null,kept=[];
+      if (usesGear(lineup)) assignments=Object.fromEntries(lineup.team.map(id=>[id,lineup.gear[id]||null]));
+      else if (undo && lineup.changes) ({assignments,kept}=undoAssignments(state(),lineup.changes));
+      if (assignments===null) return {ok:true,assignments,changes:[],kept};
+      if (!fittings) return {...error("The trail fittings ledger is unavailable."),assignments,changes:[],kept};
+      const plan=fittings.plan(state(),assignments);
+      return {...plan,assignments,changes:plan.changes||[],kept};
+    }
+    function status(lineup,undo=false) {
       if (!lineup) return null;
-      const s=state(),party=members(lineup);
+      const s=state(),party=members(lineup),plan=fittingPlan(lineup,undo);
       const first=party.find(p=>p?.id===lineup.lead && p.hp>0) || party.find(p=>p?.hp>0);
       const lead=first?.id || null;
-      const active=lead===s.lead && s.team.length===lineup.team.length && s.team.every((id,i)=>id===lineup.team[i]);
-      const reason=s.battle?"Finish this encounter first.":party.some(p=>!p)?"A companion is missing from the roster.":
-        !lead?"Rest at camp to wake a member of this formation.":active?"Already traveling together.":"";
-      return {team:lineup.team.slice(),lead:lineup.lead,readyLead:lead,active,reason};
+      const active=sameOrder({team:lineup.team,lead},s) && plan.ok && !plan.changes.length;
+      const reason=s.battle||blocked()?"Finish this encounter first.":party.some(p=>!p)?"A companion is missing from the roster.":
+        !lead?"Rest at camp to wake a member of this formation.":!plan.ok?plan.message:
+        active && !plan.kept.length?"Already traveling together.":"";
+      return {team:lineup.team.slice(),lead:lineup.lead,readyLead:lead,active,reason,changes:plan.changes,kept:plan.kept,
+        ...(usesGear(lineup)?{gear:{...lineup.gear}}:{}),reviewGear:!!lineup.changes||usesGear(lineup)};
     }
     function formations() {
       const book=ledger();
-      return {slots:pennants.map((name,i)=>({index:i,name,lineup:status(book.slots[i])})),previous:status(book.previous)};
+      return {slots:pennants.map((label,i)=>({index:i,name:book.slots[i]?.name||label,lineup:status(book.slots[i])})),previous:status(book.previous,true)};
     }
     const slotIndex=slot=>[0,1,2,"0","1","2"].includes(slot)?Number(slot):-1;
-    function saveFormation(slot) {
-      const index=slotIndex(slot);
+    function permission() {
+      if (state().battle||blocked()) return error("Finish this encounter before changing a formation.");
+      if (!isCurrent()) return error("Your trail save changed in another tab. Reload before changing a formation.");
+      return null;
+    }
+    function saveFormation(slot,{fittings:withGear=false,name}={}) {
+      const index=slotIndex(slot),denied=permission();
       if (index<0) return error("Choose a pennant.");
-      if (state().battle) return error("Finish this encounter before recording a formation.");
-      const lineup=snapshot();
-      const previous=ledger().slots[index];
-      if (previous?.lead===lineup.lead && previous.team.join("|")===lineup.team.join("|"))
-        return error("This pennant already records the traveling lineup.");
-      ledger().slots[index]=lineup;
-      return commit("formation",pennants[index]+" now records "+companionName(lineup.lead)+" and company.");
+      if (denied) return denied;
+      if (withGear && !fittings) return error("The trail fittings ledger is unavailable.");
+      const next=snapshot(withGear),book=ledger(),old=book.slots[index];
+      const label=name===undefined?old?.name:pennantName(name);
+      if (name!==undefined && !label) return error("Give the pennant a name of 1–32 characters.");
+      if (label) next.name=label;
+      if (old && sameOrder(old,next) && old.name===next.name && usesGear(old)===usesGear(next) &&
+          (!withGear || next.team.every(id=>old.gear[id]===next.gear[id]))) return error("This pennant already records these choices.");
+      book.slots[index]=next;
+      return commit("formation",(label||pennants[index])+" now records "+companionName(next.lead)+" and company"+(withGear?" with their fittings.":"."));
+    }
+    function renameFormation(slot,name) {
+      const index=slotIndex(slot),denied=permission(),label=pennantName(name);
+      if (denied) return denied;
+      const old=ledger().slots[index];
+      if (!old || !label) return error("Record a formation and give it a name of 1–32 characters.");
+      if (label===old.name) return error("That name is already on the pennant.");
+      old.name=label;
+      return commit("formation","Finch labeled this pennant "+label+".");
     }
     function apply(lineup,undo) {
-      const info=status(lineup);
+      const denied=permission();if (denied) return denied;
+      const info=status(lineup,undo);
       if (!info) return error(undo?"There is no earlier formation to restore.":"Record a traveling formation on this pennant first.");
       if (info.reason) return error(info.reason);
-      const s=state(),book=ledger(),previous=snapshot();
+      const s=state(),book=ledger(),previous=snapshot(),plan=fittingPlan(lineup,undo);
+      if (plan.assignments!==null) {
+        const result=fittings.apply(s,plan.assignments);
+        if (!result.ok) return error(result.message);
+        if (result.changes?.length) previous.changes=result.changes.map(({id,before,after})=>({id,before,after}));
+      }
       s.team=info.team;
       s.lead=info.readyLead;
       book.previous=undo?null:previous;
-      return commit("formation",(undo?"Earlier lineup restored. ":"Formation recalled. ")+companionName(s.lead)+" leads the party.");
+      return commit("formation",(undo?"Earlier formation restored. ":"Formation recalled. ")+companionName(s.lead)+" leads the party.");
     }
     function recallFormation(slot) {return apply(ledger().slots[slotIndex(slot)],false);}
     function undoFormation() {return apply(ledger().previous,true);}
@@ -104,7 +186,7 @@
       Object.assign(kin,{level:lesson.target,maxHp,hp});
       return commit("mentored",companionName(lesson.teacher)+" trained "+companionName(id)+" to level "+lesson.target+".");
     }
-    return {formations,saveFormation,recallFormation,undoFormation,training,trainReserve};
+    return {formations,saveFormation,renameFormation,recallFormation,undoFormation,training,trainReserve};
   }
 
   function pages({game,row,image,go,render,notify,locate}) {
@@ -114,39 +196,83 @@
     const headingPage=(title,kicker,subtitle,sections)=>({title,kicker,subtitle,sections});
     const names=team=>team.map(id=>own(id).name).join(" · ");
     let mentoringPage=0,walkingTo=null;
-    function lineupRows(team,lead) {
+    const kit=window.WilderTrailFittings;
+    const fittingName=id=>kit?.byId(id)?.name||"No fitting";
+    let preview=null;
+    function lineupRows(team,lead,gear) {
       return team.map(id=>{
         const kin=game.state.party.find(p=>p.id===id),species=own(id);
-        return row("open-kin",species.name,id,"Lv. "+kin.level+" · "+kin.hp+"/"+kin.maxHp+" HP · "+species.types.join(" / "),
+        const trail="Lv. "+kin.level+" · "+kin.hp+"/"+kin.maxHp+" HP";
+        return row("open-kin",species.name,id,trail+" · "+(gear?fittingName(gear[id]):species.types.join(" / ")),
           {image:image(id),badge:id===lead?"LEAD":""});
       });
     }
     function formations() {
       const book=api.formations(),s=game.state;
       const slots=book.slots.map(({index,name,lineup})=>view("formation",index,name,
-        lineup?names(lineup.team):"Record the party traveling with Finch.",{badge:lineup?(lineup.active?"ACTIVE":"SAVED"):"EMPTY"}));
+        lineup?names(lineup.team):"Record your traveling party.",{badge:lineup?
+          (lineup.active?"ACTIVE":"SAVED")+(usesGear(lineup)?" · FITTINGS":""):"EMPTY"}));
       const sections=[heading("Pennants",slots)];
-      if (book.previous) sections.push(heading("Before your last recall",[
-        row("caravan-undo","Restore earlier lineup",null,names(book.previous.team)+(book.previous.reason?" · "+book.previous.reason:""),{disabled:!!book.previous.reason})]));
-      sections.push(heading("Traveling now",lineupRows(s.team,s.lead),2));
-      return headingPage("Trail formations","PARTY PENNANTS","Tie a lineup and its lead to a pennant. Recall it between encounters.",sections);
+      if (book.previous) {
+        const prev=book.previous;
+        sections.push(heading("Before your last recall",[
+          prev.reviewGear?view("formation-undo","","Review previous formation",prev.reason||"See who gets each fitting back.",{disabled:!!prev.reason}):
+          row("caravan-undo","Restore earlier lineup",null,names(prev.team)+(prev.reason?" · "+prev.reason:""),{disabled:!!prev.reason})]));
+      }
+      sections.push(heading("Traveling now",lineupRows(s.team,s.lead,s.trailFittings?.gear),2));
+      return headingPage("Trail formations","PARTY PENNANTS","Record the traveling order and leader. Each pennant can also remember the team’s fittings.",sections);
     }
     function formation(slot,confirmReplace=false) {
-      const book=api.formations(),flag=book.slots[Number(slot)];
+      const flag=api.formations().slots[Number(slot)];
       if (!flag) return formations();
-      const s=game.state,old=flag.lineup;
-      const same=old && s.lead===old.lead && s.team.join("|")===old.team.join("|");
+      const s=game.state,old=flag.lineup,same=old && sameOrder(old,s);
+      const sameBare=same&&!usesGear(old);
+      const sameEquipped=same&&usesGear(old)&&s.team.every(id=>(old.gear[id]||null)===held(s,id));
       const actions=[];
-      if (old && !confirmReplace) actions.push(row("caravan-recall","Recall this lineup",slot,
-        old.reason || ("Lead with "+own(old.readyLead).name+" · Undo is available after recalling."),{disabled:!!old.reason,tone:"primary"}));
-      if (old && !confirmReplace) actions.push(view("formation-replace",slot,"Replace with traveling party",names(s.team),{disabled:!!s.battle||same}));
-      else actions.push(row("caravan-save",confirmReplace?"Replace recorded lineup":"Record traveling lineup",slot,
-        names(s.team),{disabled:!!s.battle,tone:"primary"}));
-      if (confirmReplace) actions.push(row("back","Keep recorded lineup"));
-      const sections=[heading(confirmReplace?"Record this change?":"Pennant",actions)];
-      if (old) sections.push(heading("Recorded lineup",lineupRows(old.team,old.lead),2));
-      sections.push(heading("Traveling lineup",lineupRows(s.team,s.lead),2));
-      return headingPage(flag.name,"TRAIL FORMATIONS",confirmReplace?"This changes the lineup written on this pennant.":"",sections);
+      if (old && !confirmReplace) {
+        if (usesGear(old)) actions.push(view("formation-recall",slot,"Review lineup and fittings",old.reason||
+          (old.changes.length+" holder"+(old.changes.length===1?"":"s")+" will change fittings."),{disabled:!!old.reason,tone:"primary"}));
+        else actions.push(row("caravan-recall","Recall this lineup",slot,
+          old.reason || ("Lead with "+own(old.readyLead).name+" · Keep current fittings."),{disabled:!!old.reason,tone:"primary"}));
+        actions.push(view("formation-replace",slot,"Update this pennant",names(s.team),{disabled:!!s.battle||(!kit&&sameBare)}),
+          row("caravan-rename","Rename pennant",slot,"Choose a name for this formation.",{disabled:!!s.battle}));
+      }else{
+        actions.push(row("caravan-save",confirmReplace?"Save lineup only":"Record traveling lineup",slot,
+          "Keep each kin’s current fitting when you recall.",{disabled:!!s.battle||!!sameBare,tone:confirmReplace||!kit?"primary":undefined}));
+        if (kit) actions.push(row("caravan-save-gear","Record lineup + fittings",slot,
+          "Remember what each traveler holds, including empty slots.",{disabled:!!s.battle||!!sameEquipped,tone:confirmReplace?undefined:"primary"}));
+        if (confirmReplace) actions.push(row("back","Keep recorded lineup"));
+      }
+      const sections=[heading(confirmReplace?"Save current travelers":"Pennant",actions)];
+      if (old) sections.push(heading("Recorded lineup",lineupRows(old.team,old.lead,old.gear),2));
+      sections.push(heading("Traveling lineup",lineupRows(s.team,s.lead,s.trailFittings?.gear),2));
+      return headingPage(flag.name,"TRAIL FORMATIONS",confirmReplace?"Choose what Finch should write on this pennant.":"",sections);
+    }
+    function receiptKey(slot,result) {
+      return JSON.stringify([slot,game.state.team,game.state.lead,result]);
+    }
+    function recallReview(slot,undo=false) {
+      const book=api.formations(),flag=book.slots[Number(slot)],info=undo?book.previous:flag?.lineup;
+      if (!info || !info.reviewGear) return formations();
+      const s=game.state;
+      const role=id=>s.team.includes(id)?(info.team.includes(id)?"Traveling":"Moving to reserve"):
+        (info.team.includes(id)?"Joining the party":"Camp reserve");
+      preview=receiptKey(undo?"undo":String(slot),info);
+      const changes=info.changes.map(c=>({label:own(c.id).name,detail:fittingName(c.before)+" → "+fittingName(c.after),badge:role(c.id),image:image(c.id)}));
+      const kept=info.kept.map(c=>{
+        let detail=c.item?"Keeps "+fittingName(c.item)+".":"Stays unequipped.";
+        if(c.wanted&&c.holder&&c.holder!==c.id)detail+=" "+own(c.holder).name+" now holds "+fittingName(c.wanted)+".";
+        return {label:own(c.id).name,detail,image:image(c.id)};
+      });
+      const action=undo?"caravan-confirm-undo":"caravan-confirm-recall";
+      const sections=[{title:"Traveling order",text:names(info.team)+"."+(info.readyLead?" "+own(info.readyLead).name+" will lead.":"")}];
+      if(changes.length)sections.push(heading("Fittings to move",changes));
+      else sections.push({text:"Every fitting stays with its current holder."});
+      if(kept.length)sections.push(heading("Later fitting changes to keep",kept));
+      sections.push(heading("At the pennant",[row(action,undo?"Restore earlier formation":"Recall this formation",undo?null:slot,info.reason||
+        (undo?"Return to the earlier travel order.":"An undo will be available at Trail formations."),{disabled:!!info.reason,tone:"primary"}),
+        row("back","Keep traveling as you are")]));
+      return headingPage(undo?"Review your undo":"Review this recall",undo?"TRAIL FORMATIONS":flag.name.toUpperCase(),"",sections);
     }
     function mentoring() {
       const s=game.state, list=s.party.filter(p=>!s.team.includes(p.id)).map(p=>api.training(p.id));
@@ -183,6 +309,8 @@
         case "formations":return formations();
         case "formation":return formation(value);
         case "formation-replace":return formation(value,true);
+        case "formation-recall":return recallReview(value);
+        case "formation-undo":return recallReview(null,true);
         case "mentoring":return mentoring();
         case "mentor":return mentor(value||walkingTo);
       }
@@ -190,9 +318,30 @@
     function act(id,value) {
       let result;
       switch(id) {
-        case "caravan-save":result=api.saveFormation(value);if (result.ok) go("formation",value,"replace");break;
-        case "caravan-recall":result=api.recallFormation(value);break;
-        case "caravan-undo":result=api.undoFormation();break;
+        case "caravan-save":case "caravan-save-gear":
+          result=api.saveFormation(value,{fittings:id==="caravan-save-gear"});if (result.ok) go("formation",value,"replace");break;
+        case "caravan-rename":{
+          const flag=api.formations().slots[Number(value)];
+          if (!flag?.lineup) return true;
+          const name=window.prompt?.("Name this pennant (up to 32 characters)",flag.name);
+          if(typeof name!=="string")return true;
+          result=api.renameFormation(value,name);break;
+        }
+        case "caravan-confirm-recall":case "caravan-confirm-undo":{
+          const undo=id==="caravan-confirm-undo",book=api.formations(),info=undo?book.previous:book.slots[Number(value)]?.lineup;
+          if (!info || preview!==receiptKey(undo?"undo":String(value),info)) {
+            render();notify("The formation changed. Review the current holders before confirming.");return true;
+          }
+          result=undo?api.undoFormation():api.recallFormation(value);
+          if(result.ok){preview=null;go(undo?"formations":"formation",undo?null:value,"replace");}
+          break;
+        }
+        case "caravan-recall":
+          if(api.formations().slots[Number(value)]?.lineup?.reviewGear){go("formation-recall",value);return true;}
+          result=api.recallFormation(value);break;
+        case "caravan-undo":
+          if(api.formations().previous?.reviewGear){go("formation-undo");return true;}
+          result=api.undoFormation();break;
         case "caravan-train":result=api.trainReserve(value);break;
         case "caravan-page":mentoringPage+=Number(value);render();return true;
         case "caravan-walk":walkingTo=value || null;locate("camp",walkingTo?"mentor":"mentoring");return true;
