@@ -163,6 +163,7 @@ window.WilderPages = {
       if(!k.bonus&&local)controls.push(wayTo("wild","tracks","Follow local tracks"));
       else if(!k.bonus&&homes.length===1)controls.push(open("region",home,"Find its habitat",game.regions[home].name));
       if(!s().battle&&game.pools[s().region].includes(id)&&game.wildCall?.(id))controls.unshift(open("wild-scout",id,"Scout "+k.name+"’s call","Choose your lead for this encounter."));
+      if(p&&!s().battle&&window.WilderPracticeYard)controls.unshift(row("yard-kin","Build around "+k.name,id,"Compare this companion’s opening against local opponents."));
       if(p&&game.trailFittings)controls.unshift(open("kit-bench","kin:"+id,"Field fitting",held(id)?.name||"See which fitting this companion could carry."));
       if(game.growthInfo(id))controls.unshift(open("growth",id,"Growth and disciplines",k.discipline?.name||"See training and forms."));
       const signature=window.WilderSparringSignatures?.byId(id);
@@ -214,6 +215,7 @@ window.WilderPages = {
         return row(switching?"swap":"open-kin",k.name,p.id,detail,
           {image:image(p.id),badge:p.id===lead?"LEAD":"",disabled:switching&&(!f?.available)});
       });
+      if(!switching&&window.WilderPracticeYard)rows.push(nav("practice-yard","Try this team at the Chalkyard","Compare leads and test reserve swaps with your own kin."));
       if(!switching&&game.trailFittings)rows.push(nav("kit-bench","Field fittings","Equip a campaign companion or visit Pella’s bench."));
       if (!switching) rows.push(row("reserve","Open reserve roster",null,(s().party.length-s().team.length)+" companions at camp"),nav("formations","Trail formations","Recall a party and its lead, with optional fittings."),nav("mentoring","Camp mentorship","Train a companion from your reserve."));
       if(!switching)rows.push(nav("walker","Walking partner","Check in or change who follows you."));
@@ -333,6 +335,9 @@ window.WilderPages = {
       const r=here(),i=s().region,job=game.expedition();
       const gate=game.trialAccess(i);
       const choices=[row("accept-trial",gate.open?"Accept the trial":"Trial locked",null,gate.reason,{tone:"primary",disabled:!gate.open}),
+        ...(window.WilderPracticeYard?[s().landmark==="warden"?
+          row("yard-invite",s().met.includes(i)||s().crests.includes(i)?"Rehearse "+r.warden+"’s lineup":"Ask "+r.warden+" for a practice bout",null,"Use the trial lineup in a friendly Chalkyard match.",{disabled:!!s().battle}):
+          wayTo("warden","warden","Visit "+r.warden+" for a practice bout")].filter(Boolean):[]),
         ...(game.trailFittings?[nav("formations","Choose a trail formation","Preview a saved lineup for this trial."),nav("kit-bench","Inspect field fittings","Check the gear on your companions.")]:[]),
         ...(window.WilderTwinbell?[nav("twinbell","Visit Twinbell Grounds","Challenge three doubles Wardens with two leads on the field.")]:[]),
         open("second-bell",i,"Second Bell exhibition","Scout "+r.warden+"’s lineup and bring your own party."),
@@ -352,6 +357,7 @@ window.WilderPages = {
       const relay=nav("reedbank",atMill?"Run the Reedbank Relay":"Practice at Brookside Mill","Borrow a scout and enter a crossing with Cindlet.");
       return page(atMill?"Brookside Mill":"Trail camp",here().name,[heading(atMill?"At the river crossing":"By the fire",[
         ...(atMill?[relay]:[]),
+        ...(window.WilderPracticeYard?[nav("practice-yard","Enter the Chalkyard","Try your party’s skills, duets and fittings in a friendly battle.")]:[]),
         ...(game.trailFittings?[nav("kit-bench","Pella Hem’s field bench","Collect or fit gear for the traveling party.")]:[]),
         row("rest","Rest the party",null,s().refit?"Your veteran team can complete field retraining here.":"Restore all companions to full health.",{tone:"primary"}),
         ...(s().region<2?[nav("guard-school","Meet Neri Pike","Learn a guard in a real encounter with your own kin.")]:[]),
@@ -590,7 +596,8 @@ window.WilderPages = {
         return open("growth",id,g.formName,g.baseName+"’s two camp disciplines",{image:"art/growth/"+g.formId+".png"});
       });
       const lodge=game.wardens.find(i=>!s().wardenLessons.includes(i))??0;
-      return page("What’s new in Wilderkin","FIELD DISPATCH   /   FIELD FITTINGS",[
+      return page("What’s new in Wilderkin","FIELD DISPATCH   /   THE CHALKYARD",[
+        ...(window.WilderPracticeYard?[heading("Try your campaign team",[nav("practice-yard","Enter the Chalkyard","Compare a reserve, face a local kin or a familiar Warden, and replay the last decision.")])]:[]),
         heading("Gear for the trail",[nav("kit-bench","Visit the field fittings bench","Choose a fitting for one of your own companions."),nav("formations","Trail formations","Record your party and fittings on a pennant.")]),
         heading("Switchyard Cup",[nav("switchyard","Face Captain Sela Switch","Register six and choose a new four for each doubles game. First to two wins takes the Cup.")]),
         heading("Battle with a pair",[nav("twinbell","Fight at Twinbell Grounds","Bring four kin and choose both leads’ orders against the doubles Wardens.")]),

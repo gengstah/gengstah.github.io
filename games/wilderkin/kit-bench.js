@@ -38,7 +38,8 @@
         }),2));
       }
       sections.push(group("Companions",[...game.team().map(k=>link(name(k.id),"kin:"+k.id,held(s,k.id),{image:image(k.id)})),
-        row("nav","Fitting notebook","kit-notes","Read the first field use of each fitting.")],2));
+        row("nav","Fitting notebook","kit-notes","Read the first field use of each fitting."),
+        ...(window.WilderPracticeYard&&!s.inBattle?[row("nav","Try these fittings","practice-yard","Enter a Chalkyard bout with your traveling party.")]:[])],2));
       return {title:"Field fittings",kicker:"CAMPAIGN   /   EQUIPMENT",subtitle:"Choose a fitting to see who holds it or lend it to another companion. Each piece works once per wild, Warden or expedition battle.",sections};
     }
 

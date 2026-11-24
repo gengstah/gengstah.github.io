@@ -102,9 +102,22 @@
   const coaches=window.WilderWardens;
   const guardSchool=window.WilderGuardSchool;
   const fittings=window.WilderTrailFittings;
-  const pendingFittingEvents=[];
   const calls=window.WilderWildCalls;
   const wildCard=id=>validSpecies(id) ? calls?.forKin(id,species[id]) : null;
+
+  function wardenRoster(index) {
+    const r=regions[index];
+    if(!r?.warden)return [];
+    const pool=nativePools[index],n=r.ordinal;
+    const size=n===0?1:n<3?2:n<9?3:n<18?4:n<24?5:6;
+    return [...Array.from({length:size-1},(_,k)=>pool[1+k%(pool.length-1)]),pool[0]];
+  }
+
+  // The trail and each camp rehearsal share species and rules. Every mutable
+  // combat binding, including queued equipment effects, belongs to its instance.
+  function createInstance(privateState) {
+  const rehearsal=!!privateState;
+  const pendingFittingEvents=[];
 
   function newGame() {
     return {
@@ -356,7 +369,7 @@
     return fresh;
   }
 
-  let state = loadGame();
+  let state = privateState || loadGame();
   let canSave = true;
   let usingLoaners=false;
 
@@ -379,14 +392,14 @@
     return false;
   }
   function currentForEdit(){
-    if(usingLoaners)return true;
+    if(rehearsal||usingLoaners)return true;
     try{
       const latest=window.localStorage.getItem(SAVE_KEY);
       return latest===lastStoredTrail||adoptTrail(latest);
     }catch{return true;}
   }
   function save() {
-    if(usingLoaners)return true;
+    if(rehearsal||usingLoaners)return true;
     try {
       // localStorage has no atomic compare-and-swap. Compare before writing and check the published bytes afterwards.
       const latest=window.localStorage.getItem(SAVE_KEY);
@@ -416,6 +429,7 @@
   }
 
   function trailSaveIsCurrent(){
+    if(rehearsal)return true;
     try{return window.localStorage.getItem(SAVE_KEY)===lastStoredTrail;}
     catch{return true;}
   }
@@ -570,7 +584,7 @@
     if(!event||!fittingReady(event.holder,event.id))return;
     const b=state.battle;
     b.trailFittings.spent.push(event.id);pendingFittingEvents.push(event);
-    window.WilderFittingNotes?.record(state,{item:event.id,holder:event.holder,text:event.text,foe:b.enemy.id,region:state.region,turn:b.turn,kind:b.kind});
+    if(!rehearsal)window.WilderFittingNotes?.record(state,{item:event.id,holder:event.holder,text:event.text,foe:b.enemy.id,region:state.region,turn:b.turn,kind:b.kind});
   }
   function setLead(id) {
     if (state.battle) return error("Use a battle switch to change your active companion.");
@@ -669,12 +683,13 @@
       return beginEncounter(kind,[id],r.wildLevel,"A trail stirs!",options);
     }
     if (kind!=="warden") return error("Unknown encounter.");
-    const gate=trialAccess();
-    if (!gate.open) return error(gate.reason);
-    if (!state.met.includes(state.region)) return meetWarden();
-    const size = r.ordinal===0?1:r.ordinal<3?2:r.ordinal<9?3:r.ordinal<18?4:r.ordinal<24?5:6;
-    const roster=Array.from({length:size-1},(_,k)=>pool[1+k%(pool.length-1)]);
-    roster.push(pool[0]);
+    if(!rehearsal){
+      const gate=trialAccess();
+      if (!gate.open) return error(gate.reason);
+      if (!state.met.includes(state.region)) return meetWarden();
+    }
+    const roster=wardenRoster(state.region);
+    if(!roster.length)return error("This region has no Warden trial.");
     const options=coaches?{coach:coaches.restore(null,r)}:{};
     return beginEncounter(kind,roster,r.wardenLevel,"Warden "+r.warden+" gives the signal.",options);
   }
@@ -731,6 +746,10 @@
       return commit("turn", reply);
     }
     if (state.battle.secondBell) return finishBell("victory",message);
+    if(rehearsal){
+      state.battle=null;
+      return commit("victory",message+" Your team won the rehearsal.");
+    }
     if(kind==="circuit") {
       state.battle=null;
       return result("victory",message+" The bout is yours.");
@@ -887,6 +906,10 @@
       const ready=team().filter(p=>p.hp>0);
       if (!ready.length) {
         if (battle.secondBell) return finishBell("defeat","The Warden won the exhibition.");
+        if(rehearsal){
+          state.battle=null;
+          return commit("defeat",firstMessage+" "+reply+" Your last companion fainted. The rehearsal is over.");
+        }
         state.battle = null;
         delete state.positions[state.region];
         state.landmark=null;
@@ -1456,6 +1479,7 @@
     const b=state.battle;
     let reason="";
     if (!b) reason="Look for a wild Wilderkin first.";
+    else if (rehearsal) reason="Meet this Wilderkin on its trail to invite it to join you.";
     else if (usingLoaners || b.kind!=="wild") reason="Kinweaves work on individual Wilderkin you have tracked in the wild.";
     else if (member(b.enemy.id)) reason=species[b.enemy.id].name+" is already in your party.";
     else if (!b.wildCall?.answered && b.enemy.hp*2>b.enemy.maxHp) {
@@ -1508,6 +1532,7 @@
   function flee() {
     if (!state.battle) return error("There is no active encounter.");
     if (state.battle.secondBell) return finishBell("escaped","You withdrew from the exhibition.");
+    if(rehearsal){state.battle=null;return commit("escaped","You called your team back and ended the rehearsal.");}
     const message=state.battle.wildCall?.answered ? species[state.battle.enemy.id].name+" returned freely to the wild." :
       "You called your party back and returned to the trail.";
     state.battle = null;
@@ -1821,7 +1846,44 @@
     const reply=walking.select(state,value);if(reply.ok&&!save())return changedTrail();
     return reply;
   }
-  window.WilderGame = {
+  // Capture only fields the ordinary encounter uses. A rehearsal can be
+  // restarted after the trail changes, without rereading the career or its save.
+  function rehearsalTeam(ids,lead,opponents,region) {
+    if(!Array.isArray(ids)||!integer(ids.length,1,6)||unique(ids).length!==ids.length||
+        !ids.every(id=>member(id))||!ids.includes(lead)||!Array.isArray(opponents)||!validRegion(region))return null;
+    const relevant=new Set([...ids,...opponents]);
+    const party=state.party.filter(p=>relevant.has(p.id)).map(p=>({...p,hp:ids.includes(p.id)?p.maxHp:p.hp}));
+    const snapshot=JSON.stringify({
+      version:state.version,region,party,team:ids,lead,battle:null,landmark:null,
+      seen:state.seen.filter(id=>relevant.has(id)),growth:state.growth,trainedGuards:state.trainedGuards.filter(id=>relevant.has(id)),
+      bag:state.bag,crests:state.crests,visited:state.visited,met:state.met,wardenLessons:state.wardenLessons,
+      wins:state.wins,localWins:{},trailFittings:{claimed:state.trailFittings.claimed,
+        gear:Object.fromEntries(Object.entries(state.trailFittings.gear).filter(([id])=>ids.includes(id)))},fittingNotes:{},
+      sound:state.sound,music:state.music,animationSpeed:state.animationSpeed
+    });
+    return ()=>createInstance(JSON.parse(snapshot));
+  }
+
+  if(rehearsal)return {
+    get state(){return state;},
+    species,regions,pools,items,kin,team,loaner:makeMember,duetPair,growthInfo,guardTraining,
+    startBattle,foeIntent,wardenForecast,wardenLesson,skillPreview,ordinaryForecast,duets,switchForecast,
+    replacements,familyTechnique,emberTechnique,itemForecast,trailFittings,
+    useSkill,swap,replaceFainted,useDuet,useFamilyTechnique,useEmberTechnique,useItem,flee,
+    incomingForecast(id=state.battle?.activeId){
+      const p=member(id),intent=foeIntent();
+      if(!intent||!p?.hp||!state.team.includes(id))return null;
+      const hit=replyPlan(p,1,intent);
+      return {name:intent.skill.name,type:intent.skill.type,power:intent.power,charged:intent.charged,
+        damage:hit.returnDamage,hpAfter:p.hp-hit.returnDamage,maxHp:p.maxHp,fittingEvents:hit.fittingEvents};
+    },
+    checkpoint(){
+      const saved=JSON.stringify(state);
+      return ()=>{replaceTrail(JSON.parse(saved));pendingFittingEvents.length=0;};
+    }
+  };
+  return {
+    rehearsalTeam,wardenRoster,
     trailSaveIsCurrent,trailFittings,claimFittings,equipFitting,trailFittingPreview,
     firstOuting:window.WilderOpening?.create({state:()=>state,commit,setLead,sightings:()=>field?.sightings(state.region)||[]}),
     wardenLesson,wardenForecast,guardTraining,guardPractice,switchForecast,ordinaryForecast,emberTechnique,useEmberTechnique,replacements,replaceFainted,
@@ -1841,4 +1903,6 @@
     awardGame, questAction, xpNeeded, objective, setPosition, travel, setLead,
     heal, meetWarden, startBattle, useSkill, duetPair, duets, useDuet, swap, familyTechnique,useFamilyTechnique, recruit, flee, setSound, reset
   };
+  }
+  window.WilderGame=createInstance();
 })();

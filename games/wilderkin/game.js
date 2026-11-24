@@ -24,7 +24,7 @@
   const motion=matchMedia("(prefers-reduced-motion: reduce)");
   const ui=window.WilderCanvas.create(document.getElementById("game-canvas"),{
     action, key:keydown, tile:clickTile,
-    shortcuts:()=>screen.name==="wild-offer"?[]:screen.name==="replacement"?[{id:"nav",value:"battle",label:"Battle"}]:
+    shortcuts:()=>screen.name==="rehearsal-ring"?practiceMenu():screen.name==="wild-offer"?[]:screen.name==="replacement"?[{id:"nav",value:"battle",label:"Battle"}]:
       shortcuts.filter(([id])=>id!=="bag"||!game.state.battle?.secondBell).map(([id,label,key])=>({id:"nav",value:id,label,key}))
   });
   const notify=text=>ui.toast(text);
@@ -38,6 +38,30 @@
     animate:fx=>{if(fx.kind==="duet")score.answer();return ui.animate(fx);}};
   const kitBench=window.WilderKitBench?.create({...rentalControls,image});
   const kitNotes=window.WilderFittingNotes?.create({game,row,image});
+  const practice=window.WilderRehearsal?.create({game});
+  const duetPlans=practice&&window.WilderChalkyardDuets.create({...rentalControls,image,practice,start:startPractice,openMatchups});
+  const matchups=practice&&window.WilderTrailMatchups.create({...rentalControls,image,practice,play:startPractice,openDuets:options=>duetPlans.open(options)});
+  const yard=practice&&window.WilderPracticeYard.create({...rentalControls,image,practice,start:startPractice,openMatchups,openDuets:options=>duetPlans.open(options)});
+  const rehearsal=practice&&window.WilderRehearsalRing.create({...rentalControls,image,practice,active:()=>screen.name==="rehearsal-ring",
+    onExit:()=>go("practice-yard",lastPractice,"root"),onCompare:openMatchups});
+  let lastPractice=null;
+  function practiceMenu(){
+    const r=practice.read();
+    if(!r)return [];
+    if(r.phase==="done")return [row("rehearse-view","Review the turns","log"),row("rehearse-retry","Rehearse the same opening"),row("rehearse-desk","Return to the yard")];
+    return [row("rehearse-view","Return to the ring","battle"),row("rehearse-view","Party and fittings","team"),
+      ...(r.history.length?[row("rehearse-view","Review the turns","log")]:[]),row("rehearse-view","Leave the ring","exit")];
+  }
+  function startPractice(options,line){
+    if(game.state.battle)return notify("Finish your trail encounter before starting a practice bout.");
+    const result=practice.start(options);
+    if(!result.ok)return notify(result.message);
+    duetPlans.setGuide(line);lastPractice=yard.tag(practice.read().target);
+    playTone("battle");go("rehearsal-ring",null,"root");
+  }
+  function openMatchups(options={}){
+    matchups.open({...options,anchor:options.anchor||options.lead});
+  }
   const fittingMeta=id=>window.WilderTrailFittings?.byId(id);
   const fittingSuffix=f=>(f?.fittingEvents||[]).map(event=>" · "+(event.preview||event.text)).join("");
   function fittingAddress(next){
@@ -125,7 +149,8 @@
   function stopWalk(){route=[];arrival=null;}
   function addressRoom(next){
     const loc=window.location;
-    const address=next.name==="partner-finder"?finderAddress:next.name==="duet-practice"?"#duet-practice":
+    const address=next.name==="practice-yard"?yard.address(next.value):next.name==="rehearsal-ring"?yard.address(lastPractice):
+      next.name==="yard-duets"?"#chalkyard/duets":next.name==="trail-matchups"?"#chalkyard/matchups":next.name==="partner-finder"?finderAddress:next.name==="duet-practice"?"#duet-practice":
       next.name==="twinbell"?twin.hashFor(next.value):
       next.name==="kit-bench"||next.name==="kit-notes"?fittingAddress(next):
       next.name==="switchyard"||next.name==="switchyard-ring"||next.name==="signal-box"?"#"+next.name:
@@ -134,8 +159,8 @@
       screen.name==="rental-counter"&&next.name==="sparring"&&String(next.value).startsWith("scout-practice")?"#scout-practice":
       next.name==="film-room"?"#film-room":next.name==="hall-film"?hallViewer.hash():null;
     if(address!=null){if(loc.hash!==address)window.history.replaceState(null,"",address||loc.pathname+loc.search);}
-    else if(["film-room","hall-film","partner-finder","duet-practice","rental-counter","twinbell","switchyard","switchyard-ring","signal-box","kit-bench","kit-notes"].includes(screen.name)&&
-      (loc.hash.startsWith("#field-fittings")||loc.hash.startsWith("#fitting-notebook")||["#film-room","#partner-finder","#duet-practice","#rental-counter","#twinbell","#twinbell-ring","#switchyard","#switchyard-ring","#signal-box"].includes(loc.hash)||loc.hash.startsWith("#hall-film1=")||loc.hash.startsWith("#rental-v1="))){
+    else if(["film-room","hall-film","partner-finder","duet-practice","rental-counter","twinbell","switchyard","switchyard-ring","signal-box","kit-bench","kit-notes","practice-yard","rehearsal-ring","trail-matchups","yard-duets"].includes(screen.name)&&
+      (loc.hash.startsWith("#chalkyard")||loc.hash.startsWith("#field-fittings")||loc.hash.startsWith("#fitting-notebook")||["#film-room","#partner-finder","#duet-practice","#rental-counter","#twinbell","#twinbell-ring","#switchyard","#switchyard-ring","#signal-box"].includes(loc.hash)||loc.hash.startsWith("#hall-film1=")||loc.hash.startsWith("#rental-v1="))){
       if(next.name==="bellpost")post.restoreAddress(next.value);
       else window.history.replaceState(null,"",loc.pathname+loc.search);
     }
@@ -148,6 +173,9 @@
     if(game.state.battle?.secondBell&&["bag","item"].includes(name))return notify("Your satchel stays at the lodge during the exhibition.");
     stopWalk();
     if (["world","guard-school","second-bell","wild-calls"].includes(name) && game.state.battle) name="battle";
+    if(screen.name==="rehearsal-ring"&&name!=="rehearsal-ring"){
+      practice.leave();mode="root";
+    }
     if (mode==="root") history=[];
     else if (mode==="push" && (name!==screen.name || value!==screen.value)) history.push(screen);
     const next={name,value};addressRoom(next);screen=next;render();
@@ -155,6 +183,7 @@
   function root(){go(game.state.battle?"battle":"world",null,"root");}
   function back() {
     if (resolving) return;
+    if(screen.name==="rehearsal-ring")return rehearsal.back(screen.value);
     const dest=history.pop();
     if (!dest || screen.name==="outcome") return root();
     if ((dest.name==="battle" && !game.state.battle) || (dest.name==="world" && game.state.battle)) return root();
@@ -162,6 +191,7 @@
     addressRoom(dest);screen=dest;render();
   }
   function reset() {
+    practice?.leave();lastPractice=null;
     game.reset();pages.reset();fair.reset();outcome=null;restorePlayer();root();
     notify("A new ledger opens in Mossbrook Vale.");
   }
@@ -198,6 +228,18 @@
       case "switchyard":model=switchyard.model(screen.value);break;
       case "switchyard-ring":model=cupRing.model(screen.value);break;
       case "signal-box":model=signals.model(screen.value);break;
+      case "practice-yard":model=yard.model(screen.value);break;
+      case "trail-matchups":case "yard-duets":
+        model=game.state.battle?{title:"The Chalkyard",kicker:"CAMP PRACTICE",subtitle:"Finish your trail encounter to compare openings with this party.",
+          sections:[{rows:[row("root","Return to the trail battle",null,"",{tone:"primary"})]}]}:
+          screen.name==="trail-matchups"?matchups.model(screen.value):duetPlans.model(screen.value);
+        break;
+      case "rehearsal-ring":{
+        model=rehearsal.model(screen.value);
+        const guide=(!screen.value||screen.value==="battle")&&duetPlans.guidance(practice.read());
+        if(guide)model.sections.unshift(guide);
+        break;
+      }
       case "kit-bench":model=kitBench.model(screen.value);break;
       case "kit-notes":model=kitNotes.model(screen.value);break;
       case "hall-film":model=hallViewer.model(screen.value);break;
@@ -251,6 +293,7 @@
         ...(deferredLetter?[deferredButton()]:[]),
         row("interact",near ? near.label : "Local landmarks",null,near?"Interact here":"Walk to a place",{key:"E"}),
         row("nav","Wild calls","wild-calls","Read the local tracks and choose who leads."),
+        ...(yard?[row("nav","Practice at the Chalkyard","practice-yard","Try a new lineup against a local opponent.")]:[]),
         ...(kitBench&&(!state.trailFittings?.claimed?.includes("camp")||state.crests.includes(0)&&!state.trailFittings?.claimed?.includes("crest"))?
           [row("walk-kind","Visit Pella’s field bench","camp|kit-bench","Collect new fittings for your own kin at camp.")]:[]),
         row("nav","Expedition","expedition","Regional commission",{key:"X"}),
@@ -597,6 +640,12 @@
     if (screen.name==="switchyard" && switchyard.key(e,screen.value)) return true;
     if (screen.name==="switchyard-ring" && cupRing.key(e,screen.value)) return true;
     if (screen.name==="signal-box" && signals.key(e,screen.value)) return true;
+    if(screen.name==="rehearsal-ring"){
+      if(e.key==="Escape"){if(!e.repeat)rehearsal.back(screen.value);return true;}
+      if(rehearsal.key?.(e,screen.value))return true;
+      return e.key.length===1&&e.key!==" ";
+    }
+    if(screen.name==="trail-matchups"&&matchups.key?.(e,screen.value))return true;
     if (screen.name==="kit-bench" && kitBench.key(e,screen.value)) return true;
     if (screen.name==="scout-table" && scouts.key?.(e,screen.value)) return true;
     if (screen.name==="hollow" && pages.hollowKey(e,screen.value)) return true;
@@ -637,6 +686,8 @@
       return;
     }
     switch (id) {
+      case "yard-invite":if(screen.name==="warden"||screen.name==="practice-yard")yard?.invite();return;
+      case "yard-kin":if(member(value))openMatchups({anchor:value});return;
       case "hall-open-film":if(screen.name==="sparring")return openLatestHall(value);return;
       case "nav":
         if(value==="rental-counter"&&openRentals&&deferredLetter?.name!==value)return openRentals();
@@ -698,6 +749,10 @@
         if(screen.name==="switchyard"&&switchyard.act(id,value,screen.value))return;
         if(screen.name==="switchyard-ring"&&cupRing.act(id,value,screen.value))return;
         if(screen.name==="signal-box"&&signals.act(id,value,screen.value))return;
+        if(screen.name==="yard-duets"&&duetPlans.act(id,value))return;
+        if(screen.name==="practice-yard"&&yard.act(id,value))return;
+        if(screen.name==="rehearsal-ring"&&rehearsal.act(id,value,screen.value))return;
+        if(screen.name==="trail-matchups"&&matchups.act(id,value,screen.value))return;
         if(screen.name==="kit-bench"&&kitBench.act(id,value,screen.value))return;
         if(screen.name==="hall-film"&&hallViewer.act(id,value,screen.value))return;
         if(screen.name==="scout-table"&&scouts.act(id,value,screen.value))return;
@@ -713,7 +768,7 @@
   }
   function deferredButton(){
     const label={"scout-table":"Read your Scout Table letter","film-room":"Open the Film Room","hall-film":"Watch your Hall film",
-      "partner-finder":"Open Partner Finder","duet-practice":"Return to duet practice","rental-counter":"Open the rental team","twinbell":"Visit Twinbell Grounds","switchyard":"Visit the Switchyard Cup","switchyard-ring":"Resume your Cup game","signal-box":"Visit the Signal Box","kit-bench":"Open the field fittings bench","kit-notes":"Read Pella’s notebook"};
+      "partner-finder":"Open Partner Finder","duet-practice":"Return to duet practice","rental-counter":"Open the rental team","twinbell":"Visit Twinbell Grounds","switchyard":"Visit the Switchyard Cup","switchyard-ring":"Resume your Cup game","signal-box":"Visit the Signal Box","kit-bench":"Open the field fittings bench","kit-notes":"Read Pella’s notebook","practice-yard":"Enter the Chalkyard","trail-matchups":"Compare team openings","yard-duets":"Plan a duet at the Chalkyard"};
     return row("nav",label[deferredLetter.name]||"Read your Bellpost letter",deferredLetter.name,"This encounter will remain here.");
   }
   function deliverScreen(dest){
@@ -726,6 +781,18 @@
   }
   function sharedScreen(hash) {
     const fields=hash.split("/");
+    if(yard&&fields[0]==="#chalkyard"){
+      if(fields.length===2&&fields[1]==="duets"){
+        duetPlans.reset();
+        return deliverScreen({name:"yard-duets",value:null});
+      }
+      if(fields.length===2&&fields[1]==="matchups"){
+        matchups.reset();
+        return deliverScreen({name:"trail-matchups",value:null});
+      }
+      const key=fields.slice(1).join("/");
+      return deliverScreen({name:"practice-yard",value:yard.find(key)?key:null});
+    }
     if(kitBench&&fields[0]==="#field-fittings"){
       const [,type,id]=fields;
       const value=type==="item"&&fittingMeta(id)||type==="kin"&&member(id)?type+":"+id:null;

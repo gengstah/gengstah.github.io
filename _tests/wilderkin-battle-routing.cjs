@@ -10,7 +10,8 @@ const clone=v=>JSON.parse(JSON.stringify(v)),tick=()=>new Promise(resolve=>setIm
 function boot(hash,save=null,prepare){
   let model,input,time=0;const frames=[],listeners={};
   const localStorage={getItem:k=>k==="wilderkin.trail.v3"?save:null,setItem:(_,v)=>{save=v;}};
-  const w={localStorage,location:{hash},Event,setTimeout,dispatchEvent:event=>listeners[event.type]?.(event),
+  const w={localStorage,location:{hash,pathname:"/games/wilderkin/",search:""},Event,setTimeout,dispatchEvent:event=>listeners[event.type]?.(event),
+    history:{replaceState:(_,__,address)=>{w.location.hash=address.includes("#")?address.slice(address.indexOf("#")):"";}},
     addEventListener:(event,fn)=>{listeners[event]=fn;},
     WilderKinArt:{sprite:id=>"sprite:"+id},WilderScore:{create:()=>({scene(){},answer(){}})},
     WilderCanvas:{create:(_,handlers)=>{input=handlers;return {show:m=>{model=m;},animate:()=>Promise.resolve(),toast(){},invalidate(){}};}}};
@@ -144,4 +145,38 @@ test("a stale Kinweave throw returns to the newer trail after the other tab rele
   assert.equal(first.save(),saved);assert.equal(first.g.state.battle,null);
   assert.ok(!first.g.state.party.some(k=>k.id==="mossbell"));
   assert.equal(first.g.state.bag.kinweave,second.g.state.bag.kinweave);
+});
+
+test("Fern's practice invitation works before the crest trial and survives a cold reload without keeping the practice fight",async()=>{
+  const a=boot("#chalkyard");
+  assert.equal(a.model().title,"The Chalkyard");
+  a.click("walk-kind","warden|warden");a.walk();
+  assert.equal(a.model().title,"Warden Fern");assert.equal(a.g.trialAccess().open,false);
+  a.click("yard-invite");
+  const key="0/warden/mossbell",url="#chalkyard/"+key;
+  assert.equal(a.model().id,"practice-yard:"+key);
+  assert.ok(a.g.state.met.includes(0));assert.equal(a.g.trialAccess().open,false);
+  const save=a.save();a.click("yard-play",key);
+  a.click("rehearse-move","useSkill|leaf-flurry");await tick();
+  a.click("rehearse-rewind");a.click("rehearse-view","switches");a.click("rehearse-move","swap|cindlet");await tick();
+  const revise=a.model().sections.find(s=>s.title?.includes("Same decision")).rows;
+  assert.match(revise[0].detail,/38 → 29/);assert.match(revise[1].detail,/Cindlet/);
+  assert.equal(a.save(),save);assert.equal(a.g.state.battle,null);
+  const cold=boot(url,save);assert.equal(cold.model().id,"practice-yard:"+key);
+  assert.equal(cold.g.state.battle,null);assert.deepEqual(clone(cold.g.state.crests),[]);
+});
+
+test("a planned duet can be carried into the ring, played manually and recovered after choosing an alternate opening",async()=>{
+  const a=boot("#chalkyard/duets",null,g=>{ok(g.setLead("sprigkit"));});
+  const before=a.save();assert.equal(a.model().title,"Plan a duet");
+  a.click("yard-duet-choose","cindlet");assert.equal(a.model().title,"Firebreak");
+  a.click("yard-duet-play","cindlet");
+  let guide=a.model().sections[0];assert.match(guide.title,/Firebreak · step 1 of 2/);
+  const first=guide.rows[0].value,other=first==="useSkill|leaf-flurry"?"useSkill|brush-dash":"useSkill|leaf-flurry";
+  a.click("rehearse-move",other);await tick();assert.match(a.model().sections[0].title,/alternate line/);
+  a.click("rehearse-rewind");assert.equal(a.model().sections[0].rows[0].value,first);
+  a.click("rehearse-move",first);await tick();
+  guide=a.model().sections[0];assert.match(guide.title,/step 2 of 2/);assert.equal(guide.rows[0].value,"useDuet|cindlet");
+  a.click("rehearse-move","useDuet|cindlet");await tick();assert.match(a.model().sections[0].title,/Firebreak landed/);
+  assert.equal(a.g.state.battle,null);assert.equal(a.save(),before);
 });
