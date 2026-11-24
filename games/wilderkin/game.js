@@ -38,6 +38,16 @@
     animate:fx=>{if(fx.kind==="duet")score.answer();return ui.animate(fx);}};
   const rentalLibrary=window.WilderRentalCards?.create({game});
   const twin=window.WilderTwinbell?.create({...rentalControls,library:rentalLibrary,active:view=>screen.name==="twinbell"&&screen.value===view});
+  const series=window.WilderSwitchyardSeries?.create({game});
+  const switchyard=series&&window.WilderSwitchyard.create({...rentalControls,series,
+    importFour:()=>twin.crew(),openRing:(view="ring")=>go("switchyard-ring",view)});
+  const cupRing=series&&window.WilderTwinRing.create({...rentalControls,read:series.read,commit:series.commit,
+    active:view=>screen.name==="switchyard-ring"&&screen.value===view,
+    onSetup:()=>go("switchyard",switchyard.entry()),venue:{name:"Switchyard Cup",route:"switchyard-ring",background:"ui/switchyard.png",
+      kicker:()=>{const d=series.desk();return "SWITCHYARD  /  GAME "+(d.phase==="battle"?d.gameNumber:d.games.at(-1)?.number||1)+"  /  "+d.score.join("–");},
+      deskLabel:"Cup scoreboard",resultLabel:"View the series score",rules:false}});
+  const signals=series&&window.WilderSignalBox.create({...rentalControls,series,library:rentalLibrary,
+    active:view=>screen.name==="signal-box"&&screen.value===view});
   let rentalOrigin=null;
   const openRentals=rentalLibrary?(context,card)=>{
     rentalOrigin=context?(screen.name==="scout-table"?scouts.addressFor(screen.value):"#scout-practice"):null;
@@ -107,13 +117,14 @@
     const loc=window.location;
     const address=next.name==="partner-finder"?finderAddress:next.name==="duet-practice"?"#duet-practice":
       next.name==="twinbell"?twin.hashFor(next.value):
+      next.name==="switchyard"||next.name==="switchyard-ring"||next.name==="signal-box"?"#"+next.name:
       next.name==="rental-counter"?rentalOrigin||rentals.hashFor(next.value)||"#rental-counter":
       screen.name==="rental-counter"&&next.name==="scout-table"?scouts.addressFor(next.value):
       screen.name==="rental-counter"&&next.name==="sparring"&&String(next.value).startsWith("scout-practice")?"#scout-practice":
       next.name==="film-room"?"#film-room":next.name==="hall-film"?hallViewer.hash():null;
     if(address!=null){if(loc.hash!==address)window.history.replaceState(null,"",address||loc.pathname+loc.search);}
-    else if(["film-room","hall-film","partner-finder","duet-practice","rental-counter","twinbell"].includes(screen.name)&&
-      (["#film-room","#partner-finder","#duet-practice","#rental-counter","#twinbell","#twinbell-ring"].includes(loc.hash)||loc.hash.startsWith("#hall-film1=")||loc.hash.startsWith("#rental-v1="))){
+    else if(["film-room","hall-film","partner-finder","duet-practice","rental-counter","twinbell","switchyard","switchyard-ring","signal-box"].includes(screen.name)&&
+      (["#film-room","#partner-finder","#duet-practice","#rental-counter","#twinbell","#twinbell-ring","#switchyard","#switchyard-ring","#signal-box"].includes(loc.hash)||loc.hash.startsWith("#hall-film1=")||loc.hash.startsWith("#rental-v1="))){
       if(next.name==="bellpost")post.restoreAddress(next.value);
       else window.history.replaceState(null,"",loc.pathname+loc.search);
     }
@@ -171,6 +182,9 @@
       case "duet-practice":model=drill.model(screen.value);break;
       case "rental-counter":model=rentals.model(screen.value);break;
       case "twinbell":model=twin.model(screen.value);break;
+      case "switchyard":model=switchyard.model(screen.value);break;
+      case "switchyard-ring":model=cupRing.model(screen.value);break;
+      case "signal-box":model=signals.model(screen.value);break;
       case "hall-film":model=hallViewer.model(screen.value);break;
       case "scout-table":model=scouts.model(screen.value);break;
       case "sparring-review":model=replay.model(screen.value);break;
@@ -479,6 +493,7 @@
     if(kind==="lantern-cup")return go("sparring","cup");
     if(kind==="guard-school")return go("guard-school");
     if(kind==="twinbell")return go("twinbell");
+    if(kind==="switchyard")return go("switchyard",switchyard.entry());
     game.visitSite(kind);
     if(next&&typeof next==="object")return go(next.name,next.value);
     if (next) return go(next);
@@ -539,6 +554,9 @@
     if (screen.name==="duet-practice" && drill.key(e,screen.value)) return true;
     if (screen.name==="rental-counter" && rentals.key(e,screen.value)) return true;
     if (screen.name==="twinbell" && twin.key(e,screen.value)) return true;
+    if (screen.name==="switchyard" && switchyard.key(e,screen.value)) return true;
+    if (screen.name==="switchyard-ring" && cupRing.key(e,screen.value)) return true;
+    if (screen.name==="signal-box" && signals.key(e,screen.value)) return true;
     if (screen.name==="scout-table" && scouts.key?.(e,screen.value)) return true;
     if (screen.name==="hollow" && pages.hollowKey(e,screen.value)) return true;
     if (screen.name==="search" && pages.typeKey(e)) return true;
@@ -636,6 +654,9 @@
         if(screen.name==="duet-practice"&&drill.act(id,value,screen.value))return;
         if(screen.name==="rental-counter"&&rentals.act(id,value,screen.value))return;
         if(screen.name==="twinbell"&&twin.act(id,value,screen.value))return;
+        if(screen.name==="switchyard"&&switchyard.act(id,value,screen.value))return;
+        if(screen.name==="switchyard-ring"&&cupRing.act(id,value,screen.value))return;
+        if(screen.name==="signal-box"&&signals.act(id,value,screen.value))return;
         if(screen.name==="hall-film"&&hallViewer.act(id,value,screen.value))return;
         if(screen.name==="scout-table"&&scouts.act(id,value,screen.value))return;
         if (screen.name==="second-bell"&&bell.act(id,value))return;
@@ -650,7 +671,7 @@
   }
   function deferredButton(){
     const label={"scout-table":"Read your Scout Table letter","film-room":"Open the Film Room","hall-film":"Watch your Hall film",
-      "partner-finder":"Open Partner Finder","duet-practice":"Return to duet practice","rental-counter":"Open the rental team","twinbell":"Visit Twinbell Grounds"};
+      "partner-finder":"Open Partner Finder","duet-practice":"Return to duet practice","rental-counter":"Open the rental team","twinbell":"Visit Twinbell Grounds","switchyard":"Visit the Switchyard Cup","switchyard-ring":"Resume your Cup game","signal-box":"Visit the Signal Box"};
     return row("nav",label[deferredLetter.name]||"Read your Bellpost letter",deferredLetter.name,"This encounter will remain here.");
   }
   function deliverScreen(dest){
@@ -662,6 +683,11 @@
     return dest;
   }
   function sharedScreen(hash) {
+    if(switchyard&&["#switchyard","#switchyard-ring","#signal-box"].includes(hash)){
+      if(hash==="#switchyard-ring"&&series.read())return deliverScreen({name:"switchyard-ring",value:series.read().pos.phase==="done"?"result":"ring"});
+      if(hash==="#signal-box")return deliverScreen({name:"signal-box",value:null});
+      return deliverScreen({name:"switchyard",value:switchyard.entry()});
+    }
     if(twin&&(hash==="#twinbell"||hash==="#twinbell-ring"))return deliverScreen({name:"twinbell",value:twin.linkView(hash)});
     if(rentals&&(hash==="#rental-counter"||hash.startsWith("#rental-v1="))){
       const card=rentalLibrary.decode(hash),invalid=!card&&hash!=="#rental-counter";
@@ -800,6 +826,7 @@
   });
   window.addEventListener("storage",e=>{
     if(screen.name==="twinbell"&&(!e.key||e.key===window.WilderTwinMatch.storageKey))render();
+    if(["switchyard","switchyard-ring","signal-box"].includes(screen.name)&&(!e.key||e.key===window.WilderSwitchyardSeries.storageKey))render();
     if(screen.name==="rental-counter"&&(!e.key||e.key.startsWith("wilderkin.rental.v1.")))render();
     if(screen.name==="bellpost"&&(!e.key||e.key.startsWith("wilderkin.bellpost.v1.")))render();
     if(screen.name==="scout-table"&&(!e.key||e.key.startsWith("wilderkin.scout.")))render();

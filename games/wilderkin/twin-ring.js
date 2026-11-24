@@ -6,11 +6,13 @@
   const tacticKeys={cover:"C",call:"L",duet:"D",swap:"S"};
   const belongs=n=>n===0||n===1;
   const front=(p,side,lane)=>p.sides[side].team[p.sides[side].active[lane]]||null;
-  function create({game,row,image,go,notify,read,commit,onSetup,onRematch,active}){
+  function create({game,row,image,go,notify,read,commit,onSetup,onRematch,active,venue={}}){
     const sim=window.WilderTwinBattle.create({game}),species=game.species,kit=window.WilderSparringGear;
     const name=id=>species[id]?.name||id;
     const button=(id,label,value=null,detail="",extra={})=>row("twin-"+id,label,value,detail,extra);
-    const show=(value,mode="push")=>go("twinbell",value,mode);
+    const show=(value,mode="push")=>go(venue.route||"twinbell",value,mode);
+    const deskLabel=venue.deskLabel||"Back to the grounds",venueName=venue.name||"Twinbell";
+    const kicker=()=>typeof venue.kicker==="function"?venue.kicker():venueName.toUpperCase();
     const root=()=>button("ring","Back to orders");
     let shortcuts=new Map(),stamp="",playback=null,timer=null;
     const reduced=()=>window.matchMedia?.("(prefers-reduced-motion: reduce)").matches===true;
@@ -28,7 +30,7 @@
         }
         return {id:k.id,name:name(k.id),src:image(k.id),hp:k.hp,maxHp:k.maxHp,...(action?{action}:{})};
       });
-      return {background:"ui/twinbell-grounds.png",left:portraits(0),right:portraits(1),leftName:r.left.name,rightName:r.right.name,
+      return {background:venue.background||"ui/twinbell-grounds.png",left:portraits(0),right:portraits(1),leftName:r.left.name,rightName:r.right.name,
         leftBeats:p.sides[0].beats,rightBeats:p.sides[1].beats,...(focus?{focus}:{})};
     }
     function moves(r,s,lane){
@@ -83,8 +85,8 @@
       const sections=[group(r.right.name+"’s announced orders",lines,2),group("Your orders",orders,2),
         group("Resolve the round",[button("round","Ring the bell",null,ready?"Play both sides’ orders.":"Give each standing lead an order.",{disabled:!ready,tone:"primary",key:"R"})])];
       if(r.lastEvents?.length)sections.push(group("Previous bell",[button("log","Read round "+r.history.length,r.history.length,r.lastEvents.at(-1).text)]));
-      sections.push(group("Ring desk",[button("team","Inspect both teams"),row("grounds-view","Doubles rules","rules"),button("setup","Back to the grounds",null,"This bout is saved.")],2));
-      return {title:"Round "+p.round,kicker:"TWINBELL   /   "+r.left.name+" VS "+r.right.name,twinField:field(r),sections};
+      sections.push(group("Ring desk",[button("team","Inspect both teams"),...(venue.rules===false?[]:[venue.rules||row("grounds-view","Doubles rules","rules")]),button("setup",deskLabel,null,venue.deskDetail??"This bout is saved.")],2));
+      return {title:"Round "+p.round,kicker:kicker()+"   /   "+r.left.name+" VS "+r.right.name,twinField:field(r),sections};
     }
     function pick(r,lane,m,detail,shortcut){
       return button("pick",target(r,0,m)||m.label,lane+"|"+m.id,m.available?detail||m.detail:m.reason||m.detail,
@@ -183,7 +185,7 @@
       const board=field({...r,pos},focus);
       if(belongs(event.target))board.target={side:event.kind==="cover"?side:other,lane:event.target};
       const last=at===frames.length-1,returning=playback.back.startsWith("log:");
-      const end=returning?"Return to report":r.pos.phase==="done"?"See the result":"Plan the next round";
+      const end=returning?"Return to report":r.pos.phase==="done"?"See the result":venue.nextLabel||"Plan the next round";
       const choices=[button("next",last?end:"Next action",null,"",{tone:"primary",key:"1"})];
       if(!last)choices.push(button("skip",returning?"Back to report":"Skip playback",null,"",{key:"2"}));
       if(!reduced())choices.push(button("pause",manual?"Play automatically":"Pause",null,"",{key:"P"}));
@@ -198,12 +200,12 @@
         const team=p.sides[s].team,standing=team.filter(k=>k.hp>0);return {label:(s?r.right:r.left).name,detail:standing.length+" standing · "+team.reduce((v,k)=>v+k.hp,0)+" HP"};
       }),2)];
       if(winner===0&&keeper&&mark)sections.push({title:keeper.bell,text:"On your bell cord · best win in "+mark.rounds+" rounds."});
-      sections.push(group("After the bell",[button("rematch","Rematch "+r.right.name,null,"Both fours start at full health.",{tone:"primary",key:"R"}),
-        button("setup","Return to the grounds"),button("log","Read the closing round",r.history.length),button("team","Inspect final HP")],2));
-      return {title,kicker:"TWINBELL   /   FINAL BELL",subtitle:r.history.length+" rounds played.",sections};
+      sections.push(group("After the bell",[...(onRematch?[button("rematch","Rematch "+r.right.name,null,"Both fours start at full health.",{tone:"primary",key:"R"})]:[]),
+        button("setup",venue.resultLabel||"Return to the grounds",null,"",onRematch?{}:{tone:"primary",key:"1"}),button("log","Read the closing round",r.history.length),button("team","Inspect final HP")],2));
+      return {title,kicker:kicker()+"   /   FINAL BELL",subtitle:r.history.length+" rounds played.",sections};
     }
     function model(view){
-      const r=read();shortcuts.clear();if(view!=="reveal")leavePlayback();if(!r)return {title:"Twinbell Grounds",sections:[group("Ring desk",[button("setup","Return to the grounds")])]};
+      const r=read();shortcuts.clear();if(view!=="reveal")leavePlayback();if(!r)return {title:venue.name||"Twinbell Grounds",sections:[group("Ring desk",[button("setup",deskLabel)])]};
       stamp=version(r);if(playback&&playback.stamp!==stamp)leavePlayback();
       const [part,i,kind]=String(view||"ring").split(":"),lane=Number(i);let page;
       if(part==="reveal"&&playback&&playback.stamp===stamp)page=revealPage(r);
@@ -233,7 +235,7 @@
       const [raw,move]=String(value??"").split("|"),lane=Number(raw);
       if(id==="ring"){show(r.pos.phase==="done"?"result":"ring","replace");return true;}
       if(id==="log"){show("log:"+Number(value));return true;}if(id==="team"){show("rosters");return true;}
-      if(r.pos.phase==="done"){if(id==="rematch")onRematch();return true;}
+      if(r.pos.phase==="done"){if(id==="rematch")onRematch?.();return true;}
       if(id==="lane"&&belongs(lane)&&front(r.pos,0,lane)){show("moves:"+lane);return true;}
       if(id==="tactic"&&belongs(lane)&&Object.hasOwn(tactics,move)){show("target:"+lane+":"+move);return true;}
       if(!["pick","clear","round"].includes(id))return true;

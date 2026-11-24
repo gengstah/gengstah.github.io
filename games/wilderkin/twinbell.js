@@ -40,6 +40,7 @@
             fight,...(d.played&&!d.active?[view("Last result","result")]:[])]),
           group("Prepare",[view("Your four · "+d.crew.name,"crew",names(d.crew),{image:image(d.crew.ids[0])}),
             view("Opponent · "+d.foe.name,"keepers",w?w.bell+" · "+w.place:names(d.foe),{image:image(d.foe.ids[0])})],2),
+          ...(window.WilderSwitchyard?[group("Series play",[row("nav","Enter the Switchyard Cup","switchyard","Register six, choose four per game, and race Captain Sela to two wins.")])]:[]),
           group("On the bell cord",[view(earned===3?"Full Twinbell cord":earned+" of 3 Warden bells","cord","Defeat each Warden to hang their bell on your cord."),view("Doubles rules","rules")],2),
           ...(!d.persistent?[{text:"This browser is keeping the grounds in this session."}]:[])]};
     }
@@ -153,7 +154,7 @@
     }
     function key(e,current){if(!current&&e.key==="1"&&!e.repeat){if(data().active)show("ring");else start();return true;}return ringRoute(current)&&!!desk.read()&&ring.key(e,current);}
     function linkView(hash){const run=hash==="#twinbell-ring"&&desk.read();return run?(run.pos.phase==="done"?"result":"ring"):null;}
-    return {model,act,key,receive,linkView,hashFor:v=>ringRoute(v)?"#twinbell-ring":"#twinbell"};
+    return {model,act,key,receive,linkView,crew:()=>data().crew,hashFor:v=>ringRoute(v)?"#twinbell-ring":"#twinbell"};
   }
   window.WilderTwinbell=Object.freeze({create});
 })();

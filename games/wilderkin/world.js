@@ -547,6 +547,24 @@
       }
     });
   }
+  function switchyardTram(){
+    return sprite('switchyard-tram',40,28,c=>{
+      oval(c,'#75684f',20,25,19,2);
+      for(const x of [2,8,14,20,26,32])rect(c,'#8b6549',x,23,3,4);
+      rect(c,'#bcb298',0,23,39,1);rect(c,'#7b8071',0,26,39,1);
+      for(const x of [7,24]){rect(c,'#2f393d',x,20,5,5);rect(c,'#959181',x+1,21,3,2);}
+      poly(c,'#3d4443',[[1,8],[6,5],[27,5],[31,9],[30,22],[2,22]]);
+      rect(c,'#bd5b40',3,9,26,11);rect(c,'#e6b36b',3,16,26,2);
+      for(const x of [5,11,17,23]){
+        rect(c,'#595c54',x,9,5,6);rect(c,'#97c9bb',x+1,9,3,5);rect(c,'#d1e3c5',x+1,9,1,3);
+      }
+      rect(c,'#26605b',2,7,28,2);rect(c,'#59877a',6,5,21,2);
+      rect(c,'#4d4e44',33,4,2,20);rect(c,'#58574e',31,23,6,2);
+      poly(c,'#323d3f',[[31,7],[36,1],[38,2],[34,9]]);
+      poly(c,'#d87d4e',[[32,6],[36,2],[37,3],[33,8]]);
+      rect(c,'#34725e',32,8,4,5);rect(c,'#dce792',33,9,2,2);
+    });
+  }
   function lanternGate() {
     return sprite('lantern-court-gate',30,27,c=>{
       oval(c,'#80945d',14,25,13,2);
@@ -776,6 +794,7 @@
     regions[0].sites.push(site('lantern-cup',13,8,'Lantern Gate'));
     regions[0].sites.push(site('guard-school',16,6,'Neri Pike'));
     regions[0].sites.push(site('twinbell',9,8,'Twinbell Grounds'));
+    regions[1].sites.push(site('switchyard',10,6,'Switchyard tram'));
     regions[1].sites.push(site('guard-school',4,8,'Neri Pike'));
     window.WilderAtlas.regions.slice(3).forEach((meta,j)=>regions.push(expeditionRegion(meta,j+3)));
   }
@@ -1257,6 +1276,11 @@
     if(twinbell){
       const x=twinbell.x*TILE+8,y=twinbell.y*TILE+8;
       place(map,twinbellGate(),x,y);hot(twinbell,x-16,y-27,x+16,y+1);
+    }
+    const tram=at('switchyard');
+    if(tram){
+      const x=tram.x*TILE+8,y=tram.y*TILE+8;
+      place(map,switchyardTram(),x,y);hot(tram,x-19,y-26,x+19,y+1);
     }
     if(medic){
       const x=medic.x*TILE+8,y=medic.y*TILE+9;

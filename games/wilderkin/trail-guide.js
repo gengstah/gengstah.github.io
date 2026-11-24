@@ -58,7 +58,7 @@ window.WilderPages = {
     function localLinks() {
       return area().sites.map((a,i)=>row("walk-site",a.label,i,
         a.label==="Brookside Mill"?"Reedbank Relay and trail camp":
-          ({warden:"Warden trial",wild:"Follow creature tracks",camp:"Rest and retrain",travel:"Atlas and crossings",activities:"Regional field station","lantern-cup":"Enter the Lantern Cup","guard-school":"Neri Pike’s field guard lessons",twinbell:"Two active kin per side · doubles Wardens"})[a.kind||a.id]));
+          ({warden:"Warden trial",wild:"Follow creature tracks",camp:"Rest and retrain",travel:"Atlas and crossings",activities:"Regional field station","lantern-cup":"Enter the Lantern Cup","guard-school":"Neri Pike’s field guard lessons",twinbell:"Two active kin per side · doubles Wardens",switchyard:"Ride to Captain Sela’s doubles cup"})[a.kind||a.id]));
     }
     function guardStatus(lesson,owned) {
       if(!lesson)return "";
@@ -572,7 +572,8 @@ window.WilderPages = {
         return open("growth",id,g.formName,g.baseName+"’s two camp disciplines",{image:"art/growth/"+g.formId+".png"});
       });
       const lodge=game.wardens.find(i=>!s().wardenLessons.includes(i))??0;
-      return page("What’s new in Wilderkin","FIELD DISPATCH   /   TWINBELL GROUNDS",[
+      return page("What’s new in Wilderkin","FIELD DISPATCH   /   SWITCHYARD CUP",[
+        heading("Switchyard Cup",[nav("switchyard","Face Captain Sela Switch","Register six and choose a new four for each doubles game. First to two wins takes the Cup.")]),
         heading("Battle with a pair",[nav("twinbell","Fight at Twinbell Grounds","Bring four kin and choose both leads’ orders against the doubles Wardens.")]),
         heading("Play a rental team",[nav("rental-counter","Visit the Rental Counter","Borrow four kin, pick three to battle, or bring your own team to face them.")]),
         heading("Build a pairing",[nav("partner-finder","Find a duet partner","Choose a skill for two kin, compare partners and try it in battle.")]),

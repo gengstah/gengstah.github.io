@@ -120,7 +120,8 @@
       const r=rec(),s=r.setup,ongoing=live(),opponent=rival(s);
       const sections=[];
       const rentals=openRentals?[row("nav","Borrow or challenge a rental team","rental-counter","Choose a four-kin team at the Rental Counter.")]:[];
-      const doubles=window.WilderTwinbell?[row("nav","Twinbell doubles","twinbell","Two leads take the field together. Give both an order.")]:[];
+      const doubles=window.WilderTwinbell?[row("nav","Twinbell doubles","twinbell","Two leads take the field together. Give both an order."),
+        ...(window.WilderSwitchyard?[row("nav","Switchyard Cup","switchyard","Choose four of six for each game of a doubles series.")]:[])]:[];
       if(pending)sections.push(group("A guest crew sent a challenge",[button("invitation","Scout the guest lineup",null,pending.ids.map(kin).join(" · "))]));
       if(ongoing)sections.push(group("On the floor",[link("Resume the match","match",sideName(r.match,position().turn)+" to act · "+position().ply+" actions played",{tone:"primary"})]));
       else {
