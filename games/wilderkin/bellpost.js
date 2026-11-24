@@ -5,11 +5,11 @@
   // A chat client can attach sentence punctuation and Markdown closers to the URL.
   const trailingPunctuation=/(?:[.,;:!?'")\]}>*_\x60’”…。]|%(?:22|27|29|3E|5D|60|7D)|%E2%80%(?:99|9D|A6)|%E3%80%82)+$/i;
   const copyTeam=t=>({ids:t.ids.slice(),gear:{...t.gear}});
-  function create({game,row,image,go,render,notify}) {
+  function create({game,row,image,go,render,notify,scoutRules,openSharedMessage,openScoutReport}) {
     const rules=window.WilderBellpostRules.create({game});
     const arena=window.WilderBellpostArena.create({game,row,image});
     const wire=window.WilderBellpostWire?.create({rules,row,render,notify});
-    const inbox=new Map(),drafts=new Map();
+    const inbox=new Map(),drafts=new Map(),charters=new Map();
     let problem="",olderLetter=null,displayed=null;
     const hotkeys=new Map();
     const group=(title,rows,columns=1)=>({title,rows,columns});
@@ -76,6 +76,7 @@
       }
       sections.push(group("Play with a friend",[
         control("new","Create an invitation",null,"Pick your three kin. Your friend chooses their own trio.",{tone:"primary"}),
+        ...(scoutRules?[row("nav","Meet at the Scout Table","scout-table","Register four in private, scout your friend’s four, then pick three.")]:[]),
         control("paste","Open a letter",null,"Paste an invitation or a return link.")]));
       sections.push(group("Adventure",[row("root",game.state.battle?"Resume campaign battle":"Back to the trail"),
         row("nav","Visit the Sparring Hall","sparring")],2));
@@ -148,7 +149,9 @@
         const wireRow=wire?.link(r);
         const send=group(live?"Direct play connected · turns arrive here":"Send by Bellpost",share);
         if(r.status==="invite"||myTurn(r))sections.push(send);else sections.unshift(send);
-        const more=[...(wireRow?[wireRow]:[]),control("desk","Bellpost desk")];
+        const more=[...(wireRow?[wireRow]:[])];
+        if(openScoutReport&&scoutingTable(r.hash))more.push(control("scout-report","Review scouted formations",r.id,"See both registered fours and which kin sat out."));
+        more.push(control("desk","Bellpost desk"));
         if(!r.archived&&r.seat!==null){
           if(myTurn(r))more.push(control("resign-confirm","Resign match",r.id));
           else if(r.seat===0&&r.status==="invite")more.push(control("manage","Withdraw unused invitation","withdraw"));
@@ -191,7 +194,7 @@
     }
     function loadFragment(hash){
       if(hash==="#bellpost")return "desk";
-      if(typeof hash!=="string"||!/^#bellpost-v[12]=/.test(hash))return null;
+      if(typeof hash!=="string"||!/^#bellpost-v[123]=/.test(hash))return null;
       let inspected=rules.inspect(hash);
       if(!inspected&&hash.length<=600){
         const trimmed=hash.replace(trailingPunctuation,"");
@@ -212,12 +215,69 @@
       rememberUrl(rules.export(r.id));
       return path("game",r.id);
     }
+    function scoutingTable(hash){
+      if(!hash?.startsWith("#bellpost-v3="))return null;
+      const [id,,,,moves,end]=hash.slice("#bellpost-v3=".length).split(".");
+      const table=charters.get(id)||scoutRules?.get(id);
+      return table?.stage===4&&rules.scoutedHash(table.battle,moves,end)===hash?table:null;
+    }
+    function publicLetter(hash){
+      const letter=rules.forSharing(hash);
+      if(!letter?.startsWith("#bellpost-v3="))return letter;
+      const [,,,,moves,end]=letter.slice("#bellpost-v3=".length).split(".");
+      const table=scoutingTable(hash);
+      return table?"#scout-bout1="+table.hash.slice("#scout-v1=".length)+"!"+moves+"!"+end:letter;
+    }
+    function scoutError(message){
+      problem=message;return path("error");
+    }
+    function loadScouted(table,moves="",end="",resume=true){
+      const hash=table?.stage===4&&rules.scoutedHash(table.battle,moves,end);
+      if(!hash||!rules.inspect(hash))return scoutError("These choices do not form a playable Scout Table match.");
+      charters.set(table.id,table);
+      if(table.seat!==null&&!table.archived){
+        const adopted=rules.seatScouted(table.battle,table.seat);
+        if(!adopted.ok)return scoutError(adopted.message);
+        if(resume){
+          olderLetter=null;inbox.set(table.id,adopted.record);rememberUrl(rules.export(table.id));
+          return path("game",table.id);
+        }
+      }
+      if(resume){
+        const previous=record(table.id);
+        if(previous&&scoutingTable(previous.hash)){
+          rememberUrl(previous.hash);
+          return path("game",table.id);
+        }
+      }
+      return loadFragment(hash);
+    }
+    async function loadScoutBout(hash,isCurrent){
+      if(typeof hash!=="string"||hash.length>1200)return scoutError("This Scout Table battle letter is too long.");
+      const match=hash.replace(trailingPunctuation,"").match(/^#scout-bout1=(.+)!([A-Z2]{1,64}|x)!([01x])$/);
+      if(!match)return scoutError("This Scout Table battle letter is incomplete.");
+      const charter="#scout-v1="+match[1],moves=match[2]==="x"?"":match[2],end=match[3]==="x"?"":match[3];
+      let table=await scoutRules.inspect(charter);
+      if(!isCurrent())return null;
+      if(table?.stage!==4||!rules.inspect(rules.scoutedHash(table.battle,moves,end)))return scoutError("The lineup reveal or recorded moves could not be verified.");
+      const local=scoutRules.get(table.id);
+      if(local){
+        if(local.hash===table.hash)table=local;
+        else if(!local.archived){
+          const accepted=await scoutRules.receive(charter);
+          if(!isCurrent())return null;
+          if(!accepted.ok)return scoutError(accepted.message);
+          table=accepted.record;
+        }
+      }
+      return loadScouted(table,moves,end,false);
+    }
     function address(r){
       const hash=rules.export(r.id)||r.hash,loc=window.location;
-      return loc.origin+loc.pathname+(loc.search||"")+rules.forSharing(hash);
+      return loc.origin+loc.pathname+(loc.search||"")+publicLetter(hash);
     }
     function rememberUrl(hash){
-      const publicHash=hash==="#bellpost"?hash:rules.forSharing(hash);
+      const publicHash=hash==="#bellpost"?hash:publicLetter(hash);
       if(publicHash&&window.location.hash!==publicHash)try{window.history?.replaceState(null,"",publicHash);}catch{}
     }
     function textBox(title,text,accept,allowEmpty=false){
@@ -245,7 +305,8 @@
       const cmd=action.slice(5),i=Number(part);
       if(cmd==="desk"){rememberUrl("#bellpost");show("desk");return true;}
       if(cmd==="paste"){textBox("Paste a Bellpost link or message","",raw=>{
-        const letter=raw.match(/#bellpost-v[12]=\S+/u)?.[0]||raw.match(/#bellpost(?=$|[\s.,!?;)\]}>])/u)?.[0];
+        if(openSharedMessage?.(raw))return;
+        const letter=raw.match(/#bellpost-v[123]=\S+/u)?.[0]||raw.match(/#bellpost(?=$|[\s.,!?;)\]}>])/u)?.[0];
         const dest=letter&&loadFragment(letter);
         if(dest){if(dest==="desk")rememberUrl("#bellpost");show(dest);}else notify("Choose a Bellpost invitation or turn link.");
       });return true;}
@@ -275,6 +336,7 @@
       if(!r)return true;
       if(cmd==="share"||cmd==="copy")void deliver(r,cmd);
       else if(cmd==="link")selectable(r);
+      else if(cmd==="scout-report"){const table=scoutingTable(r.hash);if(table)openScoutReport?.(table.hash);}
       else if(cmd==="battle")show(path("game",id),"replace");
       else if(cmd==="panel")show(path("panel",id,value));
       else if(cmd==="wire"&&wire)show(path("wire",id));
@@ -301,7 +363,7 @@
       if(!e.repeat)act(action.id,action.value,current);
       return true;
     }
-    return {model,act,key,loadFragment};
+    return {model,act,key,loadFragment,loadScouted,loadScoutBout};
   }
   window.WilderBellpost={create};
 })();

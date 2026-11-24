@@ -41,8 +41,10 @@
     if(stored?.human===0&&[0,1].includes(stored.first)&&Array.isArray(stored.moves)&&stored.moves.length<=66){
       const teams=clean(stored);
       const same=["left","right"].every(side=>Array.isArray(stored[side])&&stored[side].length===3&&teams[side].every((id,i)=>id===stored[side][i]));
-      if(same&&validKit(stored)&&replay(sim,{setup:teams,first:stored.first,moves:stored.moves})?.phase==="done")
-        rec.lastReview=tape({setup:teams,first:stored.first,moves:stored.moves});
+      if(same&&validKit(stored)&&replay(sim,{setup:teams,first:stored.first,moves:stored.moves})?.phase==="done"){
+        const scout=window.WilderScoutPractice?.checkCard(stored.scout,{...teams,rival:"custom"},stored.first,species,sim);
+        rec.lastReview=tape({setup:teams,first:stored.first,moves:stored.moves,scout});
+      }
     }
     const m=raw.match;
     if(m&&[0,1].includes(m.first)&&Array.isArray(m.moves)&&m.moves.length<=66){
@@ -52,6 +54,8 @@
         const match={setup:lineups,first:m.first,moves:m.moves.slice(),handoff:false};
         const pos=replay(sim,match);
         if(pos){
+          const scout=window.WilderScoutPractice?.checkCard(m.scout,lineups,m.first,species,sim);
+          if(scout)match.scout=scout;
           match.handoff=lineups.mode==="local"&&pos.phase!=="done"&&m.handoff===true;
           rec.match=match;
           if(lineups.mode==="cpu"&&pos.phase==="done")rec.lastReview=tape(match);
@@ -60,13 +64,15 @@
     }
     return rec;
   }
-  function tape(m){return {left:m.setup.left.slice(),right:m.setup.right.slice(),...gearCopy(m.setup.gear),first:m.first,human:0,moves:m.moves.slice()};}
+  function tape(m){return {left:m.setup.left.slice(),right:m.setup.right.slice(),...gearCopy(m.setup.gear),first:m.first,human:0,moves:m.moves.slice(),
+    ...(m.scout?{scout:{...m.scout,ids:m.scout.ids.slice(),gear:{...m.scout.gear},picks:m.scout.picks.slice()}}:{})};}
   function create({game,row,image,go,render,notify,animate,playTone,active=()=>true}) {
     const species=game.species,sim=window.WilderSparringBattle.create({species});
     const rec=()=>game.state.sparring||restore(null,{species});
     const save=r=>game.saveSparring(r);
     const kin=id=>species[id].name;
-    const sideName=(m,side)=>m.setup.mode==="local"?"Player "+(side+1):side===0?"Your team":m.cupOpponent||rival(m.setup).name;
+    const sideName=(m,side)=>m.setup.mode==="local"?"Player "+(side+1):side===0?"Your team":
+      m.cupOpponent||window.WilderScoutPractice?.coachName(m.scout?.coach)||rival(m.setup).name;
     const group=(title,rows,columns=1)=>({title,rows,columns});
     const button=(id,label,value,detail="",extra={})=>row("spar-"+id,label,value,detail,extra);
     const link=(label,target,detail="",extra={})=>button("view",label,target,detail,extra);
@@ -85,6 +91,7 @@
     }
     const live=()=>{const p=position();return p&&p.phase!=="done";};
     const ember=window.WilderEmberPartners?.create({species,sim,row,image,show,live,playFromPractice});
+    const scout=window.WilderScoutPractice?.create({game,sim,row,image,show,live,playFromPractice,readSetup:()=>rec().setup});
     const library=window.WilderSparringLibrary?.create({species,sim,row,image,read:rec,save,show,render,live,playFromPractice});
     const cup=window.WilderCupSeries?.create({game,sim,row,image,show,render,notify,
       read:()=>rec().cup,save:value=>save({...rec(),cup:value}),startFight:m=>{
@@ -123,6 +130,7 @@
       if(ongoing)sections.push(group("Friend matches",[row("nav","Bellpost","bellpost","Play a friend on another device. Your Hall match stays on the floor.")]));
       if(cup)sections.push(group("Tournament desk",[link("Lantern Cup","cup","Register six, bring three, and play a best-of-three series.")]));
       if(ember)sections.push(group("Practice with partners",[link("Ember partners","ember","Bring a wounded reserve back into the fight or challenge the rival’s guard.")]));
+      if(scout)sections.push(group("Scout Table",[row("nav","Scout a friend’s roster","scout-table","Bring four kin and lock three after scouting."),link("Practice with a scout","scout-practice","Choose a trio against a coach’s public four.")]));
       if(r.lastReview)sections.push(group("Practice film",[row("nav","Replay your last rival match","sparring-review","Try a different decision on a recorded turn.")]));
       if(!ongoing)sections.push(group("Prepare",[
         link("Build your trio","edit:left:team",s.left.map(kin).join(" · ")),
@@ -274,7 +282,8 @@
       const score=e=>e.hit+e.heal+(e.ko?30:0);
       const swing=eligible.reduce((best,e)=>!best||score(e)>score(best)?e:best,null);
       const sections=[group("Next match",[
-        button("rematch","Quick rematch",null,sideName(m,1-m.first)+" opens next.",{tone:"primary"}),
+        m.scout?row("scout-pr-restart","Return to Scout Table",null,"Keep your four and scout the next match.",{tone:"primary"}):
+          button("rematch","Quick rematch",null,sideName(m,1-m.first)+" opens next.",{tone:"primary"}),
         link("Edit your trio","edit:left:team","Change the lead, a reserve or a duet.")],2)];
       if(swing){
         const facts=[swing.hit?kin(swing.foe)+" lost "+swing.hit+" HP":"",swing.heal?"the team recovered "+swing.heal+" HP":"",swing.ko?kin(swing.foe)+" fell":""].filter(Boolean);
@@ -351,6 +360,7 @@
       }
       const r=rec(),m=r.match,p=position(m);
       if(v==="guest"&&pending)return guest();
+      if(scout?.matches(v))return scout.model(v);
       if(ember?.matches(v))return ember.model(v);
       if(library?.workshopRoute(v))return library.model(v);
       if(!v||v==="lobby")return pending&&!v?guest():lobby();
@@ -368,16 +378,22 @@
       if(setup.mode==="cpu"&&first===1)void take(null);
       return true;
     }
-    function playFromPractice(raw,moves,expectedActions=2) {
-      if(busy||live()||!raw||(raw.mode!==undefined&&raw.mode!=="cpu")||!Array.isArray(moves)||moves.length!==expectedActions)return false;
+    function playFromPractice(raw,moves,expectedActions=2,first=0,card) {
+      if(busy||live()||!raw||(raw.mode!==undefined&&raw.mode!=="cpu")||!Array.isArray(moves)||moves.length!==expectedActions||![0,1].includes(first))return false;
       const setup=builder.restore({...raw,mode:"cpu"});
       if(!["left","right"].every(side=>Array.isArray(raw[side])&&raw[side].length===3&&setup[side].every((id,i)=>raw[side][i]===id)))return false;
       if(raw.gear!==undefined&&!window.WilderSparringGear?.validate(raw.gear,setup.left,setup.right))return false;
-      const m={setup:cloneSetup(setup),first:0,moves:moves.slice(),handoff:false};
+      const m={setup:cloneSetup(setup),first,moves:moves.slice(),handoff:false};
+      if(card!==undefined){
+        const scout=window.WilderScoutPractice?.checkCard(card,setup,first,species,sim);
+        if(!scout)return false;
+        m.scout=scout;
+      }
       const p=replay(sim,m);
-      if(!p||p.phase==="done"||p.ply!==expectedActions||p.turn!==0)return false;
+      if(!p||p.phase==="done"||p.ply!==expectedActions||(p.turn!==0&&moves.length!==0))return false;
       cached={match:m,length:m.moves.length,pos:p};
       save({...rec(),setup:cloneSetup(setup),match:m});playTone?.("battle");show("match","replace");
+      if(p.turn===1)void take(null);
       return true;
     }
     function prepareReedbank(id,course){
@@ -443,6 +459,7 @@
         return false;
       }
       if(!busy&&ember?.act(id,value))return true;
+      if(!busy&&scout?.act(id,value))return true;
       if(!busy&&library?.act(id,value))return true;
       if(typeof id!=="string"||!id.startsWith("spar-"))return false;
       if(busy)return true;

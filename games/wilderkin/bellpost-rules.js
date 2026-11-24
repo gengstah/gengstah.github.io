@@ -1,7 +1,7 @@
 // Bellpost links carry both public trios and a deterministic Hall replay. The local desk owns its seat.
 (() => {
   "use strict";
-  const packet=/^#bellpost-v([12])=/,storePrefix="wilderkin.bellpost.v1.",indexKey=storePrefix+"index";
+  const packet=/^#bellpost-v([123])=/,storePrefix="wilderkin.bellpost.v1.",indexKey=storePrefix+"index";
   const prefix=protocol=>"#bellpost-v"+protocol+"=";
   const tokenRE=/^[0-9a-f]{24}$/,speciesRE=/^[a-z][a-z0-9-]{0,39}$/;
   // The original letters retain their meanings. Version 2 adds three target slots and a vent strike.
@@ -80,7 +80,7 @@
       }
       if(kind==="stance"&&arg==="thorn-read")return alphabet[4];
       const group=targetMoves.indexOf(kind),slot=side.team.findIndex(p=>p.id===arg);
-      if(protocol===2){
+      if(protocol>=2){
         if(kind==="warmth"&&slot>=0)return "XYZ"[slot];
         if(id==="vent:backdraft")return "2";
       }
@@ -94,20 +94,21 @@
       const head=hash.match(packet);
       if(!head)return null;
       const protocol=Number(head[1]),fields=hash.slice(head[0].length).split(".");
-      if(fields.length<2||fields.length>6)return null;
+      if(protocol===3 ? fields.length!==7||!/^[01]$/.test(fields[6]) : fields.length<2||fields.length>6)return null;
       // Chat clients can strip the final dots from older letters. Only the four optional fields may be empty.
       while(fields.length<6)fields.push("");
-      for(let i=2;i<fields.length;i++)if(fields[i]==="x")fields[i]="";
+      for(let i=2;i<6;i++)if(fields[i]==="x")fields[i]="";
       hash=head[0]+fields.join(".");
       const [id,a,guest,b,commands,flag]=fields;
+      const first=protocol===3?Number(fields[6]):0;
       const validCommands=protocol===1?/^[A-W]*$/:/^[A-Z2]*$/;
       if(!tokenRE.test(id)||commands.length>maxMoves||!validCommands.test(commands)||!/^([01])?$/.test(flag))return null;
       const left=unpackTeam(a),right=b?unpackTeam(b):null;
-      if(!left || (b ? !right||!tokenRE.test(guest) : guest||commands||flag))return null;
+      if(!left || (b ? !right||!tokenRE.test(guest) : protocol===3||guest||commands||flag))return null;
       let pos=null,lastMove=null;
       const moves=[];
       if(right){
-        pos=sim.start(left.ids,right.ids,0,{left:left.gear,right:right.gear},protocol);
+        pos=sim.start(left.ids,right.ids,first,{left:left.gear,right:right.gear},protocol);
         if(!pos)return null;
         for(const c of commands){
           const move=sim.options(pos).find(m=>m.available && commandCode(pos,m.id,protocol)===c);
@@ -121,7 +122,7 @@
       const resigned=flag===""?undefined:Number(flag);
       if(resigned!==undefined && (pos.phase==="done"||pos.turn!==resigned))return null;
       const winner=resigned===undefined?pos?.winner??null:1-resigned;
-      return {id,protocol,guestId:guest||null,seat:null,teams:[left,right],first:0,moves,pos,winner,hash,
+      return {id,protocol,guestId:guest||null,seat:null,teams:[left,right],first,moves,pos,winner,hash,
         status:!right?"invite":winner===null?"active":"done",incomplete:winner===null&&lastMove?.kind==="replace",
         ...(resigned===undefined?{}:{resigned})};
     }
@@ -207,6 +208,22 @@
       const record=decode(pack(ticket.protocol,ticket.id,ticket.teams[0],nonce(),right));
       return store(record,1,null);
     }
+    function scoutedHash(battle,tape="",flag=""){
+      if(!battle||!tokenRE.test(battle.id)||!tokenRE.test(battle.guestId)||![0,1].includes(battle.first)||
+        !Array.isArray(battle.teams)||battle.teams.length!==2||typeof tape!=="string"||tape.length>maxMoves||
+        !/^[A-Z2]*$/.test(tape)||!["","0","1"].includes(flag))return null;
+      const [left,right]=battle.teams.map(loadout);
+      return left&&right?prefix(3)+[battle.id,packTeam(left),battle.guestId,packTeam(right),tape,flag,battle.first].join("."):null;
+    }
+    function seatScouted(battle,seat){
+      const opening=decode(scoutedHash(battle));
+      if(!opening||![0,1].includes(seat))return fail("invalid","This table has no confirmed battle seat.");
+      const local=get(opening.id);
+      if(!local)return store(opening,seat,null);
+      if(local.seat!==seat||local.protocol!==3||local.first!==opening.first||local.guestId!==opening.guestId||
+          local.teams.some((t,i)=>packTeam(t)!==packTeam(opening.teams[i])))return fail("fork","A different match already occupies this seat.");
+      return success(remember(local),"Your battle is already on the desk.","duplicate");
+    }
     function receive(hash) {
       const events=[],incoming=decode(hash,events);
       if(!incoming)return fail("invalid","This Bellpost letter is incomplete or contains an illegal move.");
@@ -214,7 +231,7 @@
       if(!current)return fail("spectator","This browser is viewing the public match. Open its invitation to join.");
       if(current.hash===incoming.hash)return success(remember(current),"Your desk already has this letter.","duplicate");
       if(current.archived)return fail("archived","This match is closed on your desk.");
-      if(current.protocol!==incoming.protocol)return fail("fork","This letter uses a different version of the battle rules.");
+      if(current.protocol!==incoming.protocol||current.first!==incoming.first)return fail("fork","This letter uses a different opening or version of the battle rules.");
       if(packTeam(incoming.teams[0])!==packTeam(current.teams[0]) ||
           current.guestId && incoming.guestId && (incoming.guestId!==current.guestId || packTeam(incoming.teams[1])!==packTeam(current.teams[1])))
         return fail("fork","This letter belongs to a different lineup or guest.");
@@ -270,7 +287,7 @@
       if(local?.hash===record.hash)record.seat=local.seat;
       return {record,events,final:record.pos};
     }
-    return {invite,join,receive,inspect,forSharing,get:id=>remember(get(id)),list:()=>ids().map(get).filter(r=>r&&!r.archived),
+    return {invite,join,receive,inspect,forSharing,scoutedHash,seatScouted,get:id=>remember(get(id)),list:()=>ids().map(get).filter(r=>r&&!r.archived),
       play:(id,move,hash)=>change(id,move,false,hash),resign:(id,hash)=>change(id,null,true,hash),
       archive:id=>close(id),withdraw:id=>close(id,true),export:exportHash,review,get persistent(){return persistent;}};
   }

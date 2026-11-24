@@ -564,7 +564,8 @@ window.WilderPages = {
         return open("growth",id,g.formName,g.baseName+"’s two camp disciplines",{image:"art/growth/"+g.formId+".png"});
       });
       const lodge=game.wardens.find(i=>!s().wardenLessons.includes(i))??0;
-      return page("What’s new in Wilderkin","FIELD DISPATCH   /   EMBER PARTNERS",[
+      return page("What’s new in Wilderkin","FIELD DISPATCH   /   SCOUT TABLE",[
+        heading("Scout a lineup",[nav("scout-table","Take a seat at the Scout Table","Bring four kin, scout your opponent and choose three."),open("sparring","scout-practice","Practice with a coach","Try the draft and battle using loaners.")]),
         heading("Ember partners",[open("sparring","ember","Meet Charquill and Kilnbeak","Tend a wounded reserve with Charquill or strike and recover with Kilnbeak.")]),
         heading("Battle a friend",[nav("bellpost","Open the Bellpost desk","Invite a friend, exchange turn links or connect on the same Wi-Fi.")]),
         heading("Calls on the trail",[nav("wild-calls","Follow a wild call","Scout a local kin, pick a lead and aim its move at a field target.")]),

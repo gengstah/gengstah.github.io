@@ -19,6 +19,7 @@
   ];
   let screen={name:"world",value:null}, history=[], player, route=[], arrival=null, tween=null, lastStep=0;
   let outcome=null, soundCtx, resolving=false, startingMove=false,deferredLetter=null;
+  let locationRevision=0;
   const awaitingCall=()=>game.state.battle?.kind==="wild"&&game.wildCall?.()?.waiting;
   const motion=matchMedia("(prefers-reduced-motion: reduce)");
   const ui=window.WilderCanvas.create(document.getElementById("game-canvas"),{
@@ -40,7 +41,12 @@
   const guardSchool=window.WilderGuardLessons.create({...rentalControls,locate,travel,fight,active:()=>screen.name==="guard-school"});
   const bell=window.WilderSecondBell.create({...rentalControls,image:(id,owned=false)=>image(id,owned),locate,travel,fight});
   const hall=window.WilderSparring.create({...rentalControls,active:()=>screen.name==="sparring"});
-  const post=window.WilderBellpost?.create({...rentalControls});
+  const scoutRules=window.WilderScoutRules?.create({game});
+  const post=window.WilderBellpost?.create({...rentalControls,scoutRules,openSharedMessage,openScoutReport:hash=>followScout(hash,true)});
+  const scouts=window.WilderScoutTable?.create({...rentalControls,rules:scoutRules,openSharedMessage,
+    active:()=>screen.name==="scout-table",openBattle:table=>{
+      const value=post.loadScouted(table);go("bellpost",value);return !value.startsWith("error");
+    }});
   const replay=window.WilderSparringReview.create({...rentalControls,read:()=>hall.reviewRecord()});
   const pages=window.WilderPages.create({game,world,dex,row,member,image,go,back,render,notify,locate,root,
     fight,playTone,resolveBattle,fieldRecruited,travel,reset,atSite:nearestSite});
@@ -60,7 +66,9 @@
   function stopWalk(){route=[];arrival=null;}
   function go(name,value=null,mode="push") {
     if (resolving) return;
-    if(name==="bellpost"&&deferredLetter&&!value){value=deferredLetter;deferredLetter=null;}
+    locationRevision++;
+    if(name==="scout-practice"){name="sparring";value="scout-practice";}
+    if(name===deferredLetter?.name&&!value){value=deferredLetter.value;deferredLetter=null;}
     if(game.state.battle?.secondBell&&["bag","item"].includes(name))return notify("Your satchel stays at the lodge during the exhibition.");
     stopWalk();
     if (["world","guard-school","second-bell","wild-calls"].includes(name) && game.state.battle) name="battle";
@@ -74,6 +82,7 @@
     const dest=history.pop();
     if (!dest || screen.name==="outcome") return root();
     if ((dest.name==="battle" && !game.state.battle) || (dest.name==="world" && game.state.battle)) return root();
+    locationRevision++;
     screen=dest;render();
   }
   function reset() {
@@ -103,6 +112,7 @@
       case "second-bell":model=bell.model(screen.value);break;
       case "sparring":model=hall.model(screen.value);break;
       case "bellpost":model=post.model(screen.value);break;
+      case "scout-table":model=scouts.model(screen.value);break;
       case "sparring-review":model=replay.model(screen.value);break;
       default:model=pages.model(screen.name,screen.value);break;
     }
@@ -146,7 +156,7 @@
         :{title:obj.title,description:obj.description,id:"nav",value:"objective"}),
       status:game.canSave?"Saved on this device":"Session only · browser storage unavailable",
       sections:[{title:"On the trail",columns:2,rows:[
-        ...(deferredLetter?[row("nav","Read your Bellpost letter","bellpost")]:[]),
+        ...(deferredLetter?[deferredButton()]:[]),
         row("interact",near ? near.label : "Local landmarks",null,near?"Interact here":"Walk to a place",{key:"E"}),
         row("nav","Wild calls","wild-calls","Read the local tracks and choose who leads."),
         row("nav","Expedition","expedition","Regional commission",{key:"X"}),
@@ -203,7 +213,7 @@
     const actions=[row("nav","Trail duets","duets",duet.beats+" / "+duet.max+" beats",{key:"R",tone:duet.options.some(o=>o.available)?"primary":undefined}),row("nav","Switch kin","switch",escort?"Shell Escort ready · preview protected entries":"Preview each incoming kin’s HP"),
       ...(!b.secondBell?[row("nav","Satchel","bag")]:[]),row("retreat",b.secondBell?"Withdraw from exhibition":"Retreat")];
     const pass=game.familyTechnique();
-    if(deferredLetter)actions.unshift(row("nav","Read your Bellpost letter","bellpost","This encounter will remain here."));
+    if(deferredLetter)actions.unshift(deferredButton());
     if(pass)actions.unshift(row("nav",pass.name,"family-pass",pass.reason||"Choose a reserve · 1 beat",{disabled:!pass.available,tone:pass.available?"primary":undefined}));
     if (wild && !member(enemy.id)) {
       const ready=game.captureStatus(),f=game.ordinaryForecast?.("trail-feint");
@@ -293,7 +303,7 @@
       sections:[{title:"At the lodge",rows:[row("view","Return to the Second Bell desk","second-bell|"+game.state.region,"See your record at "+scene().lodge+".",{tone:"primary"}),
         row("root","Back to the trail")]}]};
     return {title:outcome.title,kicker:scene().name,subtitle:outcome.message,art:outcome.src?{src:outcome.src,caption:outcome.caption}:undefined,
-      sections:[{rows:[...(outcome.recruited?recruitRows(outcome.recruited):[]),...(deferredLetter?[row("nav","Read your Bellpost letter","bellpost")]:[]),row("root","Back to the trail",null,"",{tone:"primary"}),
+      sections:[{rows:[...(outcome.recruited?recruitRows(outcome.recruited):[]),...(deferredLetter?[deferredButton()]:[]),row("root","Back to the trail",null,"",{tone:"primary"}),
         ...(outcome.guardPupil?[row("view","Train with Neri Pike","guard-school|"+outcome.guardPupil,"Read the charged-hit lesson for "+spec(outcome.guardPupil).name+".")]:[]),
         ...(game.team().some(p=>p.hp<p.maxHp)?[row("walk-kind","Walk to camp","camp|camp","Rest the traveling party.")]:[]),
         ...(game.state.bag.broth&&game.team().some(p=>p.hp>0&&p.hp<p.maxHp)?[row("share-broth","Share Trailpot broth",null,game.state.bag.broth+" packed")]:[]),
@@ -463,6 +473,7 @@
     if (screen.name==="circuit" && circuit.key(e)) return true;
     if (screen.name==="sparring" && hall.key(e,screen.value)) return true;
     if (screen.name==="bellpost" && post.key(e,screen.value)) return true;
+    if (screen.name==="scout-table" && scouts.key?.(e,screen.value)) return true;
     if (screen.name==="hollow" && pages.hollowKey(e,screen.value)) return true;
     if (screen.name==="search" && pages.typeKey(e)) return true;
     const key=e.key.length===1?e.key.toLowerCase():e.key;
@@ -551,6 +562,7 @@
       case "swap":return resolveBattle(()=>game.swap(value),{type:spec(value).type,kind:"swap",name:spec(value).name});
       default:
         if(screen.name==="bellpost"&&post.act(id,value,screen.value))return;
+        if(screen.name==="scout-table"&&scouts.act(id,value,screen.value))return;
         if (screen.name==="second-bell"&&bell.act(id,value))return;
         if (screen.name==="guard-school" && guardSchool.act(id,value)) return;
         if (screen.name==="reedbank" && reedbank.act(id,value)) return;
@@ -561,13 +573,23 @@
         return pages.act(id,value);
     }
   }
-  function sharedScreen(hash) {
-    const letter=post?.loadFragment(hash);
-    if(letter&&resolving){deferredLetter=letter;return null;}
-    if(letter&&(game.replacements?.()||awaitingCall()))deferredLetter=letter;
+  function deferredButton(){
+    return row("nav",deferredLetter.name==="scout-table"?"Read your Scout Table letter":"Read your Bellpost letter",deferredLetter.name,"This encounter will remain here.");
+  }
+  function deliverScreen(dest){
+    if(dest&&resolving){deferredLetter=dest;return null;}
+    if(dest&&(game.replacements?.()||awaitingCall()))deferredLetter=dest;
     if(game.replacements?.())return {name:"replacement",value:null};
     if(awaitingCall())return {name:"wild-offer",value:null};
-    if(letter){deferredLetter=null;return {name:"bellpost",value:letter};}
+    if(dest)deferredLetter=null;
+    return dest;
+  }
+  function sharedScreen(hash) {
+    const letter=post?.loadFragment(hash);
+    const dest=deliverScreen(letter?{name:"bellpost",value:letter}:null);
+    if(dest||letter)return dest;
+    if(hash==="#scout-table")return {name:"scout-table",value:null};
+    if(hash==="#scout-practice")return {name:"sparring",value:"scout-practice"};
     if(hash==="#wild-calls")return {name:game.state.battle?"battle":"wild-calls",value:null};
     if(hash==="#second-bell")return {name:game.state.battle?"battle":"second-bell",value:null};
     if(hash==="#guard-school")return {name:game.state.battle?"battle":"guard-school",value:null};
@@ -579,16 +601,39 @@
     if(hash==="#ember-partners")return {name:"sparring",value:"ember"};
     return hall.loadFragment(hash)?{name:"sparring",value:null}:null;
   }
+  function followScout(hash,report=false){
+    if(!scouts||!/^#scout-(?:v1|bout1)=/.test(hash))return false;
+    const revision=++locationRevision,isCurrent=()=>revision===locationRevision;
+    const bout=hash.startsWith("#scout-bout1="),name=bout?"bellpost":"scout-table";
+    const opening=bout?post.loadScoutBout(hash,isCurrent):scouts.loadFragment(hash);
+    Promise.resolve(opening).then(value=>{
+      if(!isCurrent()||!value)return;
+      const route=report&&value.startsWith("table|")?value.replace("table|","report|"):value;
+      const dest=deliverScreen({name,value:route});if(dest)go(dest.name,dest.value);
+    }).catch(()=>{if(isCurrent())notify("The Scout Table letter could not be opened. Try copying the latest link again.");});
+    return true;
+  }
+  function openSharedMessage(raw){
+    const hash=typeof raw==="string"&&raw.match(/#(?:scout-(?:v1|bout1)|bellpost-v[123])=\S+/u)?.[0];
+    if(!hash)return false;
+    if(followScout(hash))return true;
+    const result=sharedScreen(hash);if(result)go(result.name,result.value);
+    return !!result;
+  }
   restorePlayer();
   const destination=sharedScreen(window.location.hash);
   if(destination)screen=destination;
   else if(game.state.battle)screen={name:"battle",value:null};
   else if(circuit.hasInvitation())screen={name:"circuit",value:null};
+  followScout(window.location.hash);
   window.addEventListener("hashchange",()=>{
+    locationRevision++;
+    if(followScout(window.location.hash))return;
     const dest=sharedScreen(window.location.hash);if(dest)go(dest.name,dest.value);
   });
   window.addEventListener("storage",e=>{
     if(screen.name==="bellpost"&&(!e.key||e.key.startsWith("wilderkin.bellpost.v1.")))render();
+    if(screen.name==="scout-table"&&(!e.key||e.key.startsWith("wilderkin.scout.")))render();
   });
   render();
 })();
