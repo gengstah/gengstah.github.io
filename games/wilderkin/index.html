@@ -2,114 +2,30 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#203e32">
-  <meta name="description" content="Explore the Warden Trail, befriend wild Wilderkin, and earn thirty trail crests in a pixel-art browser adventure.">
-  <title>Wilderkin — The Warden Trail</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#1c342c">
+  <meta name="description" content="Join courier Finch Vale in The Missing Beat, a turn-based Wilderkin expedition across 150 regions.">
+  <title>Wilderkin — The Missing Beat</title>
   <link rel="icon" type="image/png" href="ui/wilderkin.png">
   <link rel="preload" href="ui/pixelify.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="game.css?v=c7fc1d3047">
-  <link rel="stylesheet" href="activities.css">
-  <script src="atlas.js" defer></script>
-  <script src="kin-art.js" defer></script>
-  <script src="bestiary.js" defer></script>
-  <script src="activities.js" defer></script>
-  <script src="engine.js?v=8a6fa329d9" defer></script>
+  <link rel="stylesheet" href="canvas.css?v=8a2ab314a1">
+  <script src="atlas.js?v=ec9456a011" defer></script>
+  <script src="kin-art.js?v=1bf82bf25a" defer></script>
+  <script src="bestiary.js?v=69f8f4b517" defer></script>
+  <script src="activities.js?v=b9fffb2ea9" defer></script>
+  <script src="story.js?v=1e2306083a" defer></script>
+  <script src="campaign.js?v=0ac0c7871a" defer></script>
+  <script src="engine.js?v=a49794f2e8" defer></script>
   <script src="world.js?v=84fa7248ae" defer></script>
-  <script src="trail-guide.js" defer></script>
-  <script src="game.js?v=ca936a35ab" defer></script>
+  <script src="canvas-shell.js?v=cab7efff17" defer></script>
+  <script src="canvas-games.js?v=89a5a50501" defer></script>
+  <script src="trail-guide.js?v=0c1dd0abde" defer></script>
+  <script src="game.js?v=aef178e222" defer></script>
 </head>
 <body>
-  <svg class="definitions" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <symbol id="i-map" viewBox="0 0 24 24"><path d="m2 5 6-2 8 3 6-2v15l-6 2-8-3-6 2zM8 3v15m8-12v15"/></symbol>
-    <symbol id="i-guide" viewBox="0 0 24 24"><path d="M12 6c-3-2-6-3-10-2v15c4-1 7 0 10 2 3-2 6-3 10-2V4c-4-1-7 0-10 2zm0 0v15"/></symbol>
-    <symbol id="i-journal" viewBox="0 0 24 24"><path d="M5 3h15v18H5zM3 7h4M3 12h4M3 17h4m3-10h6m-6 4h5"/></symbol>
-    <symbol id="i-sound" viewBox="0 0 24 24"><path d="M3 9h4l5-5v16l-5-5H3zm13-1q4 4 0 8m3-11q7 7 0 14"/></symbol>
-    <symbol id="i-mute" viewBox="0 0 24 24"><path d="M3 9h4l5-5v16l-5-5H3zm13 0 6 6m0-6-6 6"/></symbol>
-    <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.6 2.6 0 1 1 4.5 1.8c-1.5 1.2-2 1.5-2 3.2m0 2.4v.5"/></symbol>
-    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M5 9a7 7 0 1 1 14 0c0 4-5 9-7 12-2-3-7-8-7-12z"/><circle cx="12" cy="9" r="2"/></symbol>
-    <symbol id="i-party" viewBox="0 0 24 24"><path d="M7 15v-3h2V9h6v3h2v3h2v4h-2v1h-3v-1h-4v1H7v-1H5v-4zM2 8h3v4H2zm5-5h3v4H7zm7 0h3v4h-3zm5 5h3v4h-3z" fill="currentColor" stroke="none"/></symbol>
-    <symbol id="i-crest" viewBox="0 0 24 24"><path d="m12 2 8 4v7c0 4-5 7-8 9-3-2-8-5-8-9V6z"/><path d="m12 7 3 4-3 4-3-4z"/></symbol>
-    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h15m-6-6 6 6-6 6"/></symbol>
-    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
-    <symbol id="i-expand" viewBox="0 0 24 24"><path d="M3 9V3h6m6 0h6v6m0 6v6h-6m-6 0H3v-6"/></symbol>
-    <symbol id="i-click" viewBox="0 0 24 24"><path d="m5 3 14 10-7 1-3 6z"/></symbol>
-    <symbol id="i-save" viewBox="0 0 24 24"><path d="M3 3h15l3 3v15H3zm4 0v7h10V3M7 21v-7h10v7"/></symbol>
-    <symbol id="i-grove" viewBox="0 0 24 24"><path d="M4 17v-5l4-5 6-2h7v6l-4 6-5 2H7zm0 4 12-12"/></symbol>
-    <symbol id="i-ember" viewBox="0 0 24 24"><path d="M7 9v4l3-3 3-8 4 5-1 5 3-3 2 5-2 5-4 3H9l-5-4v-5z"/></symbol>
-    <symbol id="i-tide" viewBox="0 0 24 24"><path d="M12 2 6 10c-5 7 0 12 6 12s11-5 6-12zM8 15c0 2 1 3 3 3"/></symbol>
-    <symbol id="i-lock" viewBox="0 0 24 24"><path d="M5 10h14v11H5zm3 0V7a4 4 0 0 1 8 0v3m-4 4v3"/></symbol>
-    <symbol id="i-close" viewBox="0 0 24 24"><path d="m5 5 14 14m0-14L5 19"/></symbol>
-    <symbol id="i-sign" viewBox="0 0 24 24"><path d="M10 3h4v3m-4 9v7m4-7v7M3 6h14l4 4-4 4H3z"/></symbol>
-    <symbol id="i-check" viewBox="0 0 24 24"><path d="m4 12 5 5L20 6"/></symbol>
-    <symbol id="i-compass" viewBox="0 0 24 24"><path d="m12 2 2.7 7.3L22 12l-7.3 2.7L12 22l-2.7-7.3L2 12l7.3-2.7z"/><path d="m12 7 1.5 3.5L17 12l-5 1z" fill="currentColor" stroke="none"/></symbol>
-  </svg>
-  <a class="skip-link" href="#main">Skip to game</a>
-  <header class="topbar">
-    <div class="header-inner">
-      <a class="brand" href="#adventure" aria-label="Wilderkin adventure"><img src="ui/wilderkin.png" alt=""><span>Wilderkin</span></a>
-      <nav class="main-nav" aria-label="Game navigation">
-        <a href="#adventure" data-view="adventure" aria-current="page"><svg class="icon"><use href="#i-compass"/></svg>Adventure</a>
-        <a href="#field-guide" data-view="field-guide"><svg class="icon"><use href="#i-guide"/></svg>Field guide</a>
-        <a href="#journal" data-view="journal"><svg class="icon"><use href="#i-journal"/></svg>Journal</a>
-      </nav>
-      <div class="header-tools">
-        <button class="head-tool" id="sound-button" data-action="sound" aria-label="Turn sound off" title="Turn sound off"><svg class="icon"><use href="#i-sound"/></svg></button>
-        <button class="head-tool" data-action="help" aria-label="How to play" title="How to play"><svg class="icon"><use href="#i-help"/></svg></button>
-      </div>
-    </div>
-  </header>
-  <main id="main" tabindex="-1" class="shell">
-    <section id="adventure" aria-labelledby="region-title">
-      <div class="page-heading">
-        <div>
-          <p class="eyebrow"><span class="trail-dot"></span> THE WARDEN TRAIL <span class="slash">/</span> <span id="region-number">REGION 01</span></p>
-          <h1 id="region-title">Mossbrook Vale</h1>
-          <p id="region-description" class="subtitle">A sleepy woodland village on the banks of the Mossbrook.</p>
-        </div>
-        <div class="trail-shortcuts"><button class="paper-button" data-action="station"><svg class="icon"><use href="#i-sign"/></svg> Field station</button><button class="paper-button world-button" data-action="world"><svg class="icon"><use href="#i-map"/></svg> World map</button></div>
-      </div>
-      <div class="dashboard">
-        <div class="map-column">
-          <section class="game-frame" id="game-frame" aria-label="Overworld">
-            <div class="map-stage">
-              <canvas id="world-canvas" width="384" height="208" tabindex="0" aria-label="Mossbrook Vale map. Move with arrows or WASD. Press E near a landmark to interact."></canvas>
-              <span class="map-label"><i></i> OVERWORLD</span>
-              <button class="expand-button" data-action="expand" aria-label="Expand map" title="Expand map"><svg class="icon"><use href="#i-expand"/></svg></button>
-              <button id="near-action" class="near-action" data-action="interact" hidden></button>
-            </div>
-            <div class="map-controls">
-              <span class="keyboard-hint"><span class="keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span> Move</span>
-              <button class="keyboard-hint interact-control" data-action="interact"><kbd>E</kbd> Interact</button>
-              <span class="touch-hint"><svg class="icon"><use href="#i-click"/></svg> <span id="pointer-hint">Click to move</span></span>
-              <button class="mobile-locations" data-action="locations"><svg class="icon"><use href="#i-sign"/></svg> Locations</button>
-            </div>
-          </section>
-          <button class="quest-card" data-action="quest">
-            <img class="quest-art" src="ui/quest.png" alt="">
-            <span class="quest-text"><span class="eyebrow">CURRENT QUEST</span><strong id="quest-name">Meet Warden Fern</strong><span id="quest-description">Find Warden Fern at Mossbrook Lodge.</span></span>
-            <svg class="icon"><use href="#i-chevron"/></svg>
-          </button>
-        </div>
-        <aside class="sidebar" aria-label="Your companions and crests">
-          <section class="paper-panel party-panel">
-            <div class="panel-heading"><h2><svg class="icon"><use href="#i-party"/></svg>Your party</h2><span class="count" id="party-count">3 / 6</span></div>
-            <div id="party-list"></div>
-            <a class="guide-link" href="#field-guide">Open field guide <svg class="icon"><use href="#i-arrow"/></svg></a>
-          </section>
-          <section class="paper-panel crest-panel">
-            <div class="panel-heading"><h2><svg class="icon"><use href="#i-crest"/></svg>Trail crests</h2><span class="count" id="crest-count">0 / 30</span></div>
-            <div id="crest-list" class="crest-list"></div>
-          </section>
-        </aside>
-      </div>
-    </section>
-    <section id="field-guide" aria-labelledby="guide-title" hidden></section>
-    <section id="journal" aria-labelledby="journal-title" hidden></section>
-    <footer class="save-footer"><span><svg class="icon"><use href="#i-save"/></svg><span id="save-status">Progress saved on this device</span></span><button data-action="help">Controls <svg class="icon"><use href="#i-help"/></svg></button></footer>
+  <main aria-label="Wilderkin adventure">
+    <canvas id="game-canvas" tabindex="0" aria-label="Wilderkin — The Missing Beat">Wilderkin needs a browser with Canvas 2D support.</canvas>
+    <noscript>Enable JavaScript to play Wilderkin.</noscript>
   </main>
-  <dialog id="game-dialog" aria-labelledby="dialog-title"><div id="dialog-content"></div></dialog>
-  <div id="toast" role="status" aria-live="polite" hidden></div>
-  <noscript><p class="noscript">Enable JavaScript to play Wilderkin.</p></noscript>
 </body>
 </html>

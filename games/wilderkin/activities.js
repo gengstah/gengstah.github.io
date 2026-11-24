@@ -564,49 +564,5 @@
     return {current:Math.min(current,total),total,label};
   }
 
-  function openGame(id,host) {
-    const game=games.find(item=>item.id===id);
-    if(!game)return;
-    host.show(game.name,'<div class="fair-game" tabindex="-1"></div>');
-    const root=document.querySelector("#dialog-content .fair-game");
-    let round=game.setup(),claimed=false;
-    function render(preferredKey) {
-      const wasPlaying=root.contains(document.activeElement);
-      const over=Boolean(round.result);
-      const result=round.result==="won"?"Round cleared":"Round ended";
-      const content=over?`<h3 class="fair-outcome">${result}</h3>`:game.view(round);
-      const actions=over?
-        group(round.result==="won"?control("reward","Collect reward","primary"):control("retry","Try again","primary"),control("leave","Return to fair")):
-        group(control("retry","Restart round","quiet"),control("leave","Return to fair","quiet"));
-      root.innerHTML=`<p class="fair-instructions">${game.description}</p><div class="fair-board">${content}</div><p class="fair-notice" role="status">${round.notice||""}</p>${actions}`;
-      if(wasPlaying){
-        const options=[...root.querySelectorAll("button:not(:disabled)")];
-        (options.find(b=>b.dataset.play===preferredKey)||options[0]||root).focus({preventScroll:true});
-      }
-    }
-    function act(key) {
-      if(claimed)return;
-      if(key==="leave"){host.leave();return;}
-      if(key==="reward"&&round.result==="won"){claimed=true;host.finish(id);return;}
-      if(key==="retry"){round=game.setup();render();return;}
-      if(round.result)return;
-      game.play(round,key);
-      render(key);
-    }
-    root.addEventListener("click",e=>{
-      const target=e.target.closest("button[data-play]");
-      if(target&&!target.disabled)act(target.dataset.play);
-    });
-    root.addEventListener("keydown",e=>{
-      if(e.altKey||e.ctrlKey||e.metaKey||e.repeat)return;
-      const arrow={ArrowUp:"up",ArrowDown:"down",ArrowLeft:"left",ArrowRight:"right"};
-      const key=arrow[e.key];if(!key)return;
-      const b=root.querySelector('[data-play="'+key+'"]');
-      if(b&&!b.disabled){e.preventDefault();act(key);}
-    });
-    render();
-    root.focus({preventScroll:true});
-  }
-
-  window.WilderActivities={games,quests,progress,openGame};
+  window.WilderActivities={games,quests,progress};
 })();

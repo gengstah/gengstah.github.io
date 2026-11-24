@@ -113,7 +113,7 @@
     stages.forEach(([warden,lodge,crestName,routeAbility,dialogue,farewell,locations]) => {
       const names=locations.split("|");
       const start=regions.length, end=start+names.length-1, ordinal=routes.length;
-      const wardenLevel=6+2*ordinal;
+      const wardenLevel=6+end+Math.min(7,2+Math.floor(ordinal/5));
       routes.push({start,end,ability:routeAbility,ordinal,district});
       names.forEach((name,step) => {
         const isTrial=step===names.length-1;
@@ -126,7 +126,7 @@
           routeStart:start,routeAbility,requiredCrests:ordinal,ability:passage?routeAbility:null,
           warden:isTrial?warden:null,lodge:isTrial?lodge:null,crest:isTrial?crestName+" Crest":null,
           dialogue:isTrial?dialogue:null,farewell:isTrial?farewell:null,basicMove,
-          wildLevel:wardenLevel-4+Math.floor(2*step/(names.length-1)),wardenLevel
+          wildLevel:6+start+step,wardenLevel
         });
       });
     });
