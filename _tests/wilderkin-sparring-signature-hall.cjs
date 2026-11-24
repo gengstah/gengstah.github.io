@@ -106,7 +106,7 @@ test("the real lesson continues after the exact two actions; completed replay br
   }
 });
 test("a stale or invalid lesson transfer never starts or overwrites a match",async()=>{
-  let release;const h=boot(undefined,()=>new Promise(r=>release=r));
+  let release;const h=boot(undefined,()=>release?undefined:new Promise(r=>{release=r;}));
   const setup={left:["fernprickle","dewfin","coalmoth"],right:["cindlet","sprigkit","glimmeray"],mode:"cpu",rival:"custom"},
     moves=["stance:thorn-read","skill:ember-pop"];
   const bad=[null,{...setup,left:["invalid","dewfin","coalmoth"]},{...setup,mode:"local"},{...setup,gear:{left:{dewfin:"bogus"}}}];
@@ -115,7 +115,7 @@ test("a stale or invalid lesson transfer never starts or overwrites a match",asy
   assert.equal(h.writes(),0);assert.ok(h.launch(setup,moves));assert.equal(h.writes(),1);
   const prior=h.save();assert.equal(h.launch(setup,moves),false);assert.equal(h.save(),prior);
   h.press("spar-move","skill:briar-net");const mid=h.save();
-  assert.equal(h.launch(setup,moves),false);assert.equal(h.save(),mid);release();
+  assert.equal(h.launch(setup,moves),false);assert.equal(h.save(),mid);release();await tick();
 });
 test("a shipped pre-signature tape with both Grove species reproduces every recorded position byte for byte",()=>{
   const h=boot(),digest=crypto.createHash("sha256");
