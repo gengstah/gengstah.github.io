@@ -124,6 +124,7 @@
     let width=0,height=0,ratio=1,frame=0,lastPaint=0,dirty=true,scroll=0,limit=0;
     let hits=[],focus="",hover="",pointer=null,menu=false,menuScroll=0,menuLimit=0,menuClip=null;
     let arenaRect=null,lastPage=0,fx=null,notice=null,header=58,footer=50,clipTop=58,clipBottom=0;
+    let passedLeads={};
     let mirrorSig="",destroyed=false;
     const surface = {get busy(){return Boolean(fx);},show,animate,toast,invalidate:()=>{dirty=true;},destroy};
     function source(src){
@@ -182,7 +183,7 @@
       if(next.id!==model.id || next.kind!==model.kind){
         scroll=0;focus="";hover="";lastPage=performance.now();
       }
-      model=next;menu=false;dirty=true;
+      model=next;passedLeads={};menu=false;dirty=true;
       // Update controls synchronously so a screen reader can follow each transition.
       render(performance.now());
     }
@@ -652,15 +653,25 @@
       c.font=getFont(12,"body",650);label(c,fit(c,g.name,w-44),x+37,y+2,12,C.ink,"body",650);
       label(c,g.spent?"USED":"READY",x+37,y+18,9,g.spent?C.brass:C.moss,"mono",700);
     }
+    function fighterImage(p,side,x,y,size,alpha=1){
+      const forward=rightFacing.has(p.src),flip=p.flip??(side==="ally"?!forward:forward);
+      c.save();c.globalAlpha=alpha;
+      picture(p.src||p.image,x-size/2,y-size/2,size,size,"contain",flip);
+      c.restore();
+    }
     function battle(x,y,w,t){
       if(!model.ally||!model.foe)return 0;
       const active=fx,elapsed=active?clamp((t-active.started)/active.duration,0,1):0;
       const mobile=w<530,sh=mobile?122:Math.min(235,Math.max(145,w/4.6)),bar=mobile?72:78,gap=4;
       const half=(w-gap)/2;
-      fighterStat(model.ally,x,y,half,bar,"ally");fighterStat(model.foe,x+half+gap,y,half,bar,"foe");
+      const leads={ally:passedLeads.ally||model.ally,foe:passedLeads.foe||model.foe};
+      const handoff=active?.handoff,switched=handoff&&(reduced.matches||elapsed>=.48);
+      const ally=switched&&active.side==="ally"?handoff:leads.ally;
+      const foe=switched&&active.side==="foe"?handoff:leads.foe;
+      fighterStat(ally,x,y,half,bar,"ally");fighterStat(foe,x+half+gap,y,half,bar,"foe");
       let yy=y+bar+gap;
-      if(model.ally.gear||model.foe.gear){
-        gearBar(model.ally,x,yy,half);gearBar(model.foe,x+half+gap,yy,half);yy+=32+gap;
+      if(ally.gear||foe.gear||model.ally.gear||model.foe.gear||handoff?.gear){
+        gearBar(ally,x,yy,half);gearBar(foe,x+half+gap,yy,half);yy+=32+gap;
       }
       arenaRect={y:yy,h:sh};
       rect(c,x,yy,w,sh,"#8ba875",C.forest);
@@ -669,7 +680,15 @@
       const tile=Math.min(sh*.77,w*.27),footY=yy+sh*.89;
       const points={ally:{x:x+w*.25,y:footY-tile*.46},foe:{x:x+w*.75,y:footY-tile*.56}};
       for(const side of ["ally","foe"]){
-        const p=model[side],sign=side==="ally"?1:-1,point=points[side];
+        const p=leads[side],sign=side==="ally"?1:-1,point=points[side];
+        ellipse(c,point.x,point.y+tile*.46,tile*.32,Math.max(2,tile*.047),"#324d3438");
+        if(handoff&&active.side===side){
+          const leave=reduced.matches?1:clamp((elapsed-.08)/.43,0,1);
+          const enter=reduced.matches?1:clamp((elapsed-.29)/.40,0,1);
+          if(leave<1)fighterImage(p,side,point.x-sign*tile*.32*leave,point.y,tile*(1-.12*leave),1-leave);
+          if(enter>0)fighterImage(handoff,side,point.x-sign*tile*.40*(1-enter)**2,point.y-tile*.06*Math.sin(pi*enter),tile,enter);
+          continue;
+        }
         let dx=0,dy=reduced.matches?0:Math.sin(t*.0024+(side==="ally"?0:2))*2.3,alpha=1,scale=1;
         if(active && !reduced.matches){
           if(active.kind==="defeat" && side===active.side){
@@ -687,14 +706,7 @@
             if(hit<.44)alpha=(Math.floor(hit*16)%2===0)?.58:1;
           }
         }
-        const size=tile*scale;
-        ellipse(c,point.x,point.y+tile*.46,tile*.32,Math.max(2,tile*.047),"#324d3438");
-        c.save();c.globalAlpha=alpha;
-        // Generated kin face left. The six legacy illustration orientations vary.
-        const forward=rightFacing.has(p.src);
-        const flip=p.flip??(side==="ally"?!forward:forward);
-        picture(p.src||p.image,point.x+dx-size/2,point.y+dy-size/2,size,size,"contain",flip);
-        c.restore();
+        fighterImage(p,side,point.x+dx,point.y+dy,tile*scale,alpha);
       }
       if(active?.kind==="duet" && active.partner){
         const side=active.side,allied=side==="ally",partnerSize=tile*.71;
@@ -731,6 +743,35 @@
       const [ink,light]=affinity[a.type]||affinity.Neutral;
       const unit=clamp(tile/95,.62,1.6);
       c.save();
+      if(a.handoff){
+        const still=reduced.matches;
+        if(a.pass==="beacon"){
+          const xx=dst.x-sign*tile*.30,yy=dst.y-tile*.30;
+          if(!still&&p>.08&&p<.65){
+            const progress=clamp((p-.08)/.57,0,1);
+            const x=src.x+(xx-src.x)*progress,y=src.y+(yy-src.y)*progress-Math.sin(pi*progress)*tile*.24;
+            c.globalAlpha=Math.sin(pi*progress)*.8;
+            star(c,x,y,5*unit,"#fff0bc");
+          }
+          const strength=still?1:clamp((p-.32)/.28,0,1);
+          c.globalAlpha=strength;
+          ellipse(c,xx,yy,12*unit,12*unit,"#63462199","#e3b963",2*unit);
+          star(c,xx,yy,9*unit,"#ffe49c");
+        }else{
+          const rise=still?1:clamp((p-.16)/.52,0,1);
+          c.globalAlpha=still?.95:Math.min(.95,rise*1.45);
+          c.translate(src.x,src.y+tile*(.24-.07*rise));c.scale(sign*tile,tile);
+          c.lineCap="round";
+          for(const [lift,reach] of [[.02,.48],[.14,.35]]){
+            c.beginPath();c.moveTo(-reach-.11,lift+.04);
+            c.bezierCurveTo(-.24,lift-.14,.02,lift+.19,reach,lift-.06);
+            c.quadraticCurveTo(reach+.13,lift-.15,reach+.01,lift-.17);
+            c.strokeStyle="#286e67";c.lineWidth=.054;c.stroke();
+            c.strokeStyle="#a4ebdc";c.lineWidth=.025;c.stroke();
+          }
+        }
+        c.restore();return;
+      }
       if(reduced.matches){
         const target=["attack","duet","capture"].includes(a.kind)?dst:src;
         ellipse(c,target.x,target.y,tile*.46,tile*.45,null,ink,2);
@@ -819,17 +860,26 @@
     function animate(effect={}) {
       if(fx)return fx.promise;
       const kind=effect.kind||"attack",speed=window.WilderGame?.state.animationSpeed||1;
-      const duration=reduced.matches?95:({heal:610,capture:820,defeat:460,swap:350,item:600,duet:850}[kind]||550)/speed;
+      const side=effect.side==="foe"?"foe":"ally",view=model,portrait=effect.incoming||effect.incomingKin?.src;
+      const passing=kind==="swap"&&(effect.pass==="beacon"||effect.pass==="slipstream")&&portrait&&model.kind==="battle";
+      const duration=reduced.matches?(passing?190:95):(passing?640:({heal:610,capture:820,defeat:460,swap:350,item:600,duet:850}[kind]||550))/speed;
       let resolve;
       const promise=new Promise(done=>{resolve=done;});
-      const token={...effect,kind,side:effect.side==="foe"?"foe":"ally",duration,started:performance.now(),promise};
+      const token={...effect,kind,side,duration,started:performance.now(),promise};
+      if(passing){
+        source(portrait);
+        token.handoff={...(effect.incomingKin||passedLeads[side]||model[side]),flip:effect.incomingKin?.flip,src:portrait};
+      }
       if(model.kind==="battle" && arenaRect && (arenaRect.y<clipTop || arenaRect.y+arenaRect.h>clipBottom)){
         scroll=clamp(scroll+arenaRect.y-clipTop-(clipBottom-clipTop-arenaRect.h)/2,0,limit);
       }
       fx=token;dirty=true;render(performance.now());
       // Finishes even if the tab is backgrounded halfway through a move.
       setTimeout(()=>{
-        if(fx===token){fx=null;dirty=true;}
+        if(fx===token){
+          if(token.handoff&&model===view)passedLeads[side]=token.handoff;
+          fx=null;dirty=true;
+        }
         resolve();
       },duration);
       return promise;

@@ -96,6 +96,7 @@
   const validRegion = index => Number.isInteger(index) && index >= 0 && index < regions.length;
   const integer = (value, min, max) => Number.isInteger(value) && value >= min && value <= max;
   const unique = values => Array.from(new Set(values));
+  const relayStamps = ["bell|gustlance","bell|galeskip","ferry|gustlance","ferry|galeskip"];
   const field=window.WilderFieldwork?.create({species,pools,regions});
   const walking=window.WilderWalkingPartner?.create({species,regions});
   const growth=window.WilderGrowth;
@@ -107,7 +108,7 @@
       lead: starters[0], crests: [], met: [], seen: starters.slice(), battle: null, firstOuting:window.WilderOpening?"new":"closed",
       team: starters.slice(), visited: [0], quests: {}, clears: {}, rests: 0,
       sound: true, wins: 0, bag:{reed:5,sap:5,ore:2,kinweave:4,balm:3,tonic:1,sparkseed:1,broth:0},reports:[],
-      surveys:{},localWins:{},licenses:[],passes:[],crafted:{},landmark:null,forageReady:true,wardenLessons:[],
+      surveys:{},localWins:{},licenses:[],passes:[],crafted:{},landmark:null,forageReady:true,wardenLessons:[],relayClears:[],
       stillwake:window.WilderStillwake?.restore(null)||{},
       story:story.restore(null),refit:0,animationSpeed:1,music:1,growth:growth?.restore(null)||{},
       fieldwork:field?.restore(null)||{},caravan:window.WilderCaravans?.restore(null,[])||{},
@@ -167,6 +168,7 @@
     }
     fresh.met = unique([...(Array.isArray(saved.met) ? saved.met.filter(i => wardens.includes(i)) : []), ...fresh.crests]);
     fresh.wardenLessons=fresh.crests.filter(i=>Array.isArray(saved.wardenLessons)&&saved.wardenLessons.includes(i));
+    if (Array.isArray(saved.relayClears)) fresh.relayClears=unique(saved.relayClears.filter(stamp=>relayStamps.includes(stamp)));
     fresh.seen = unique([...(Array.isArray(saved.seen) ? saved.seen.filter(validSpecies) : []), ...fresh.party.map(p => p.id)]);
     const ownsAbility = ability => !ability || fresh.party.some(p => species[p.id].ability === ability);
     const reachable = i => validRegion(i) && regions[i].requiredCrests <= fresh.crests.length && ownsAbility(regions[i].ability);
@@ -225,10 +227,14 @@
         beats:integer(battle.beats,0,3)?battle.beats:1,
         lastPart:["strike","guard","care","switch"].includes(battle.lastPart)?battle.lastPart:null,
         opening:battle.opening===true,
+        familyUsed:battle.familyUsed===true,
         cover:integer(battle.cover,0,2)?battle.cover:0,reserveHp:[],
         log: battle.log.filter(entry => typeof entry === "string").slice(-8)
       };
       const rest=fresh.battle.remaining;
+      if (!fresh.battle.familyUsed || battle.enemy.beaconMarked!==true) delete fresh.battle.enemy.beaconMarked;
+      if(fresh.battle.familyUsed && !fresh.battle.enemy.beaconMarked && rest.length===battle.remaining?.length &&
+        integer(battle.beaconReserve,0,rest.length-1)) fresh.battle.beaconReserve=battle.beaconReserve;
       if(battle.kind==="warden"&&coaches)fresh.battle.coach=coaches.restore(battle.coach,regions[fresh.region]);
       if(Array.isArray(battle.reserveHp)&&battle.reserveHp.length===rest.length){
         fresh.battle.reserveHp=rest.map((id,i)=>integer(battle.reserveHp[i],1,hpAt(id,battle.enemy.level))?battle.reserveHp[i]:hpAt(id,battle.enemy.level));
@@ -427,7 +433,7 @@
     const message=label+" "+species[enemy.id].name+" takes the field.";
     if (!state.seen.includes(enemy.id)) state.seen.push(enemy.id);
     state.battle={kind,activeId:ready.id,enemy,remaining:ids.slice(1),turn:1,
-      commissioned:null,bonus:null,weather:null,condition:null,lastAttack:null,beats:1,lastPart:null,opening:false,cover:0,reserveHp:[],...options,log:[message]};
+      commissioned:null,bonus:null,weather:null,condition:null,lastAttack:null,beats:1,lastPart:null,opening:false,familyUsed:false,cover:0,reserveHp:[],...options,log:[message]};
     return commit("battle",message);
   }
 
@@ -474,11 +480,8 @@
     if(response?.message)message+=" "+response.message;
     const {kind,activeId,enemy,remaining,commissioned,bonus}=state.battle;
     if (remaining.length) {
-      const id = remaining.shift();
-      state.battle.enemy = makeMember(id,enemy.level);
-      if(state.battle.reserveHp?.length)state.battle.enemy.hp=state.battle.reserveHp.shift();
-      state.battle.opening=false;
-      if (!state.seen.includes(id)) state.seen.push(id);
+      nextFoe(state.battle);
+      const id=state.battle.enemy.id;
       if (state.battle.condition==="shelter") {
         const p=member(activeId),hp=Math.min(p.maxHp-p.hp,Math.ceil(p.maxHp*.12));
         p.hp+=hp;
@@ -587,13 +590,21 @@
   function wardenForecast() {
     return coaches?.forecast(state,regions[state.region],state.region)||null;
   }
-  function rotateFoe() {
-    const b=state.battle;
-    const hp=b.reserveHp?.length?b.reserveHp:b.remaining.map(id=>hpAt(id,b.enemy.level));
+  function nextFoe(b) {
     const incoming=makeMember(b.remaining.shift(),b.enemy.level);
-    incoming.hp=hp.shift();
-    b.remaining.push(b.enemy.id);hp.push(b.enemy.hp);b.reserveHp=hp;b.enemy=incoming;b.opening=false;
+    if(b.reserveHp?.length)incoming.hp=b.reserveHp.shift();
+    if(b.beaconReserve===0){incoming.beaconMarked=true;delete b.beaconReserve;}
+    else if(b.beaconReserve>0)b.beaconReserve--;
+    b.enemy=incoming;b.opening=false;
     if(!state.seen.includes(incoming.id))state.seen.push(incoming.id);
+  }
+  function rotateFoe() {
+    const b=state.battle,outgoing=b.enemy;
+    if(!b.reserveHp?.length)b.reserveHp=b.remaining.map(id=>hpAt(id,outgoing.level));
+    nextFoe(b);
+    // Queue position distinguishes two members of the same species.
+    if(outgoing.beaconMarked)b.beaconReserve=b.remaining.length;
+    b.remaining.push(outgoing.id);b.reserveHp.push(outgoing.hp);
   }
   function applyCoaching(knockedOut) {
     if(!state.battle?.coach)return null;
@@ -644,10 +655,12 @@
     const battle=state.battle;
     if (!battle) return {beats:0,max:3,opening:false,hint:"Meet a wild Wilderkin to try a duet.",options:[]};
     const lead=member(battle.activeId),intent=foeIntent();
-    const hint=(battle.opening?"Foe exposed: next attack skill bypasses guard and gains 50% damage. ":"")+
+    const beacon=battle.enemy.beaconMarked===true;
+    const hint=(beacon?"Beacon mark: next ordinary strike bypasses guard and gains 50% damage. ":
+      battle.opening?"Foe exposed: next attack skill bypasses guard and gains 50% damage. ":"")+
       (battle.lastPart?"Last part: "+battle.lastPart+". Change parts to earn a beat.":"Your first skill or switch earns a beat.")+
       " Parts: strike, guard, care, switch.";
-    return {beats:battle.beats,max:3,opening:battle.opening,hint,
+    return {beats:battle.beats,max:3,opening:battle.opening||beacon,hint,
       options:team().filter(p=>p.id!==lead.id).map(p=>duetOption(lead,p,intent))};
   }
 
@@ -773,8 +786,11 @@
     }
     const enemy = battle.enemy;
     earnBeat(skill.kind==="guard"?"guard":"strike");
-    const exposed=battle.opening && skill.kind==="attack";
-    if (exposed) battle.opening=false;
+    const exposed=(battle.opening||enemy.beaconMarked===true) && skill.kind==="attack";
+    if (exposed) {
+      battle.opening=false;
+      delete enemy.beaconMarked;
+    }
     const braced=foeIntent().guarding && !exposed;
     const base=damage(skill.power,active.level,skill.type,enemy);
     const repeated=battle.condition==="echo" && battle.lastAttack===id;
@@ -799,6 +815,48 @@
     battle.activeId = id;
     battle.lastAttack=null;
     return counterattack("You called in "+ownedKin(id).name+".",battle.condition==="gale" ? .25 : .5);
+  }
+
+  function familyTechnique() {
+    const battle=state.battle;
+    if (!battle) return null;
+    const technique=window.WilderFamilyTechniques?.forKin(battle.activeId);
+    if (!technique) return null;
+    const intent=foeIntent();
+    const targets=team().filter(p=>p.id!==battle.activeId && p.hp>0).map(p=>{
+      const heal=technique.id==="slipstream" ? Math.min(p.maxHp-p.hp,Math.floor(p.maxHp/4)) : 0;
+      const returnDamage=Math.min(p.hp+heal,returnHit(p,1,intent));
+      return {id:p.id,name:ownedKin(p.id).name,heal,returnDamage,hpAfter:p.hp+heal-returnDamage,maxHp:p.maxHp};
+    });
+    const used=battle.familyUsed===true;
+    const reason=used ? "Your party has used its family technique this battle." :
+      battle.beats<1 ? "Earn one beat before calling a family technique." :
+      !targets.length ? "A conscious teammate must be available to take the lead." : "";
+    return {...technique,cost:1,used,available:!reason,reason,targets};
+  }
+
+  function useFamilyTechnique(targetId) {
+    const technique=familyTechnique();
+    if (!technique) return error("Your active kin has no family technique here.");
+    if (!technique.available) return error(technique.reason);
+    const target=technique.targets.find(p=>p.id===targetId);
+    if (!target) return error("Choose a conscious traveling companion to take the lead.");
+    const battle=state.battle;
+    let message=ownedKin(battle.activeId).name+" used "+technique.name+". ";
+    battle.beats-=technique.cost;
+    battle.familyUsed=true;
+    battle.lastPart=null;
+    battle.lastAttack=null;
+    if (battle.coach) battle.coach.action="switch";
+    battle.activeId=target.id;
+    if (technique.id==="beacon") {
+      battle.enemy.beaconMarked=true;
+      message+=species[battle.enemy.id].name+" is exposed to the next ordinary strike. ";
+    } else if (target.heal) {
+      member(target.id).hp+=target.heal;
+      message+=target.name+" recovered "+target.heal+" HP. ";
+    }
+    return counterattack(message+target.name+" took the lead.");
   }
 
   function recruit() {
@@ -1114,6 +1172,14 @@
     if(usingLoaners) throw new Error("Finish the loaner turn before saving a sparring match.");
     state.sparring=record;save();
   }
+  function recordRelay(course,id) {
+    if (usingLoaners) return error("Finish the school bout before recording its stamp.");
+    const stamp=typeof course==="string" && typeof id==="string" ? course+"|"+id : null;
+    if (!relayStamps.includes(stamp)) return error("Choose a Reedbank course and its registered loaner.");
+    if (state.relayClears.includes(stamp)) return result("relay","This drill stamp is already in your journal.");
+    state.relayClears.push(stamp);
+    return commit("relay","Reedbank recorded your drill stamp.");
+  }
   function pinRegion(i,action) {
     if(!validRegion(i))return error("Select a region in the atlas.");
     if(action==="remove"){
@@ -1137,7 +1203,7 @@
     pinRegion,setWalker,walkerPose:(time,reduced)=>walking?.pose(state,time,reduced),walkerInfo:()=>walking.info(state),walkerSense:()=>walking.sense(state,field.sightings(state.region),expedition(),objective()),
     stillwake:window.WilderStillwake?.create({state:()=>state,commit,regions,species,makeMember,story,duetPair}),
     hollows:window.WilderHollows?.create({state:()=>state,commit,regions,species,items}),
-    withLoaners,saveCircuit,saveSparring,loaner:(id,level)=>validSpecies(id)&&integer(level,1,MAX_LEVEL)?makeMember(id,level):null,
+    withLoaners,saveCircuit,saveSparring,recordRelay,loaner:(id,level)=>validSpecies(id)&&integer(level,1,MAX_LEVEL)?makeMember(id,level):null,
     caravan:window.WilderCaravans?.create({state:()=>state,commit,hpAt,regions,species,items}),
     sightings:(i=state.region)=>field?.sightings(i)||[],study:id=>field.study(state,id),
     notebook:()=>field.notebook(state),canInvite:id=>field.canInvite(state,id),observe,inviteField,cycleAnimationSpeed,cycleMusic,
@@ -1147,6 +1213,6 @@
     gamePass,unlockGame,storyStep,trialAccess,wildLevel:i=>regions[i]?.wildLevel,
     species,kin,growthInfo,chooseGrowth,growthAppearance,skillPreview,regions, wardens, homes, pools, access, team, enlist, foeIntent, maxLevel:MAX_LEVEL,
     awardGame, questAction, xpNeeded, objective, setPosition, travel, setLead,
-    heal, meetWarden, startBattle, useSkill, duetPair, duets, useDuet, swap, recruit, flee, setSound, reset
+    heal, meetWarden, startBattle, useSkill, duetPair, duets, useDuet, swap, familyTechnique,useFamilyTechnique, recruit, flee, setSound, reset
   };
 })();

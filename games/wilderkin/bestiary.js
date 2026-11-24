@@ -230,5 +230,14 @@
     return design ? window.WilderKinArt.sprite(id,design) : "art/"+id+".png";
   }
 
+  const beacon = {id:"beacon", family:"Heron", name:"Beacon Pass",
+    summary:"Pass to a reserve and mark the rival. Your next ordinary attack against that rival hits 50% harder and breaks through its guard."};
+  const slipstream = {id:"slipstream", family:"Glider", name:"Slipstream Pass",
+    summary:"Pass to a reserve and restore up to a quarter of its maximum HP before it takes the rival’s reply."};
+  const familyPasses = {heron:beacon, glider:slipstream};
+  window.WilderFamilyTechniques = {
+    forKin:id=>familyPasses[designs.get(id)?.shape] || null,
+    byId:id=>id===beacon.id?beacon:id===slipstream.id?slipstream:null
+  };
   window.WilderKinDex = {expand, encounterPools, effectiveness, types, abilities, spriteUrl};
 })();

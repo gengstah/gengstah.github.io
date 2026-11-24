@@ -146,7 +146,7 @@
         link(local?"Edit Player 2’s team":"Choose a different crew",local?"edit:right:team":"edit:rivals")],2),
         {title:"Match rules",text:sim.rules.description+" "+sim.rules.tiebreak});
       return {title:"Team preview",kicker:local?"LOCAL TWO-PLAYER MATCH":"SPARRING HALL   /   RIVAL MATCH",
-        subtitle:kin(s.left[0])+" and "+kin(s.right[0])+" take the lead. "+(local?"Player 1":"Your trio")+" opens.",sections};
+        subtitle:kin(s.left[0])+" and "+kin(s.right[0])+" take the lead. "+(local?"Player 1":s.first===1?op.name:"Your trio")+" opens.",sections};
     }
     function guest(){
       if(!pending)return lobby();
@@ -161,34 +161,39 @@
       {image:choice.targetId?image(choice.targetId):undefined,disabled:!choice.available,
         badge:choice.kind==="duet"?choice.cost+" BEATS":undefined});
     const signatureFor=p=>window.WilderSparringSignatures?.byId(member(p.sides[p.turn]).id);
+    const signatureUsed=(side,signature)=>window.WilderSparringSignatures?.used?.(side,signature.id)??member(side).signatureSpent;
     function signatureButton(p,options) {
       const signature=signatureFor(p);
       if(!signature)return null;
-      const lead=member(p.sides[p.turn]),moves=options.filter(o=>o.kind==="signature");
-      const available=moves.some(o=>o.available),used=lead.signatureSpent;
-      const hint=used?"Used this match":!available?(moves[0]?.reason||"No conscious reserve"):
-        signature.id==="shelter-call"?"1 beat · Choose a reserve":"Read the next hit · Once per match";
+      const side=p.sides[p.turn],moves=options.filter(o=>o.kind==="signature");
+      const available=moves.some(o=>o.available),used=signatureUsed(side,signature);
+      const hint=used?(signature.family?"Team pass spent":"Used this match"):!available?(moves[0]?.reason||"No conscious reserve"):
+        signature.cost?"1 beat · Choose a reserve":"Read the next hit · Once per match";
       return link(signature.name,"cmd:signature",hint,{key:"4"});
     }
     function signaturePage(m,p) {
       const meta=signatureFor(p);
       if(!meta)return arena(m,p);
-      const side=p.sides[p.turn],lead=member(side),uses=lead.signatureSpent?0:meta.uses;
+      const side=p.sides[p.turn],lead=member(side),spent=signatureUsed(side,meta);
       const rows=sim.options(p).filter(o=>o.kind==="signature").map(o=>{
         const target=side.team.find(k=>k.id===o.targetId);
         const after=o.available?sim.apply(p,o.id):null;
         const hit=after&&sim.options(after).filter(r=>r.kind==="attack"&&r.available).sort((a,b)=>b.damage-a.damage)[0];
-        const forecast=hit?hit.label+" would deal "+hit.damage+" damage "+(hit.consumeMark?"through cover.":"under quarter cover."):
+        const forecast=hit?hit.label+" would deal "+hit.damage+" damage"+(meta.family?".":hit.consumeMark?" through cover.":" under quarter cover."):
           after?.phase==="done"?"The final bell rings before a reply.":o.reason;
         const beat=hit?.thornResponse?hit.thornResponse.beatsAfter+"/3 beats on contact":o.available?o.beatsAfter+"/3 beats after":"";
-        const detail=[target?target.hp+"/"+target.maxHp+" HP":"",forecast,beat].filter(Boolean).join(" · ");
-        return button("move",target?"Shelter "+kin(target.id):"Set "+meta.name,o.id,detail,
+        let condition=target?target.hp+"/"+target.maxHp+" HP":"";
+        if(after&&meta.id==="slipstream-pass")condition="Heals "+o.healPartner+" HP · "+(target.hp+o.healPartner)+"/"+target.maxHp+" HP on entry";
+        if(after&&o.markFoe)condition+=" · Exposes "+kin(member(p.sides[1-p.turn]).id);
+        const detail=[condition,forecast,beat].filter(Boolean).join(" · ");
+        const label=target?(meta.family?"Pass to ":"Shelter ")+kin(target.id):"Set "+meta.name;
+        return button("move",label,o.id,detail,
           {image:target?image(target.id):undefined,disabled:!o.available,tone:o.available?"primary":undefined});
       });
       return {title:meta.name,kicker:kin(lead.id).toUpperCase()+"   /   SIGNATURE",
-        subtitle:(uses?"1 use remaining":"Use spent")+" · "+(meta.cost?meta.cost+" beat required · "+side.beats+" available":"No beat cost"),
+        subtitle:(meta.family?(spent?"Team pass spent":"1 team pass remaining"):spent?"Use spent":"1 use remaining")+" · "+(meta.cost?meta.cost+" beat required · "+side.beats+" available":"No beat cost"),
         sections:[{title:"On this turn",text:meta.effect+" "+meta.tradeoff},
-          group(meta.id==="shelter-call"?"Choose the incoming kin":"Read the opposing lead",
+          group(meta.id==="thorn-read"?"Read the opposing lead":"Choose the incoming kin",
             rows.length?rows:[{label:"No conscious reserve is available."}]),
           {title:"Opponent’s reply",text:meta.counter},group("Battle floor",[link("Return to the match","match")])]};
     }
@@ -278,7 +283,9 @@
       const signatures=events.flatMap((e,index)=>{
         if(e.move.kind!=="signature")return [];
         const reply=events[index+1],read=reply?.move.thornResponse;
-        const detail=e.move.targetId?kin(e.move.targetId)+" took the lead under quarter cover. "+e.after.sides[e.side].beats+"/3 beats left.":
+        const detail=e.move.signatureId==="beacon-pass"?kin(e.move.targetId)+" took the lead and exposed "+kin(member(e.after.sides[1-e.side]).id)+".":
+          e.move.signatureId==="slipstream-pass"?kin(e.move.targetId)+" recovered "+e.move.healPartner+" HP on entry.":
+          e.move.targetId?kin(e.move.targetId)+" took the lead under quarter cover. "+e.after.sides[e.side].beats+"/3 beats left.":
           read?kin(read.attackerId)+" became exposed. "+sideName(m,e.side)+" finished the reply with "+read.beatsAfter+"/3 beats.":
           reply?reply.move.label+" ended the read without contact.":"The final bell rang before a reply.";
         return [{label:"Action "+e.number+" · "+e.move.label,detail:sideName(m,e.side)+" · "+detail,image:image(e.actor)}];
@@ -355,9 +362,21 @@
       save({...rec(),setup:cloneSetup(setup),match:m});playTone?.("battle");show("match","replace");
       return true;
     }
+    function prepareReedbank(id,course){
+      if(busy||live()||!["gustlance","galeskip"].includes(id)||!["bell","ferry"].includes(course))return false;
+      const bell=course==="bell",crew=builder.rivals.find(r=>r.id===(bell?"red-foundry":"ice-harbor"));
+      const setup=builder.restore({left:bell?[id,"kilnclaw","iceribbon"]:[id,"dewfin","pincoil"],
+        right:crew.team,rival:crew.id,mode:"cpu",first:1});
+      save({...rec(),setup});show("preview");return true;
+    }
     function effect(p,move){
       const side=p.turn===0?"ally":"foe",partner=move.targetId;
       const kind=move.kind==="signature"?(move.targetId?"swap":"heal"):move.kind==="replace"?"swap":move.kind;
+      const family=move.kind==="signature"&&window.WilderSparringSignatures.byId(move.signatureId)?.familyKey;
+      if(family){
+        const target=p.sides[p.turn].team.find(k=>k.id===partner),incomingKin=profile({...target,hp:target.hp+(move.heal||0)});
+        return {kind:"swap",side,type:move.type,name:move.label,pass:family,incoming:incomingKin.src,incomingKin};
+      }
       return {kind,name:move.label,type:move.type||species[member(p.sides[p.turn]).id].type,side,
         ...(move.kind==="duet"?{partner:image(partner),partnerType:species[partner].type}:{})};
     }
@@ -422,7 +441,7 @@
           }
           break;
         }
-        case "spar-start":start(r.setup,0);break;
+        case "spar-start":start(r.setup,r.setup.mode==="cpu"&&r.setup.first===1?1:0);break;
         case "spar-rematch":if(m&&p.phase==="done")start(m.setup,1-m.first);break;
         case "spar-ready":if(m?.handoff){m.handoff=false;save({...r,match:m});show("match","replace");}break;
         case "spar-move":
@@ -463,7 +482,7 @@
       if(!offered)return false;
       pending=offered;return true;
     }
-    return {model,act,key,loadFragment,reviewRecord:()=>rec().lastReview};
+    return {model,act,key,loadFragment,prepareReedbank,reviewRecord:()=>rec().lastReview};
   }
   window.WilderSparring={create,restore};
 })();

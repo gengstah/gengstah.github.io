@@ -23,7 +23,13 @@
     const banner={src:"ui/lantern-cup.png",landscape:true,height:148};
     const names=ids=>ids.map(name).join(" · ");
     const fieldOrder=i=>i===0?"Lead":"Reserve "+i;
-    const uniform=(k,kit)=>[k.types.join(" / "),piece(kit?.[k.id])].filter(Boolean).join(" · ");
+    const pass=id=>window.WilderFamilyTechniques?.forKin(id);
+    const passRule="Herons and gliders share one pass per team each bout. It costs 1 beat.";
+    const uniform=(k,kit)=>[k.types.join(" / "),pass(k.id)?.name,piece(kit?.[k.id])].filter(Boolean).join(" · ");
+    function passProfile(id){
+      const move=pass(id);
+      return move?[{title:move.name,text:move.summary+" "+passRule}]:[];
+    }
     const eligible=id=>typeof id==="string"&&Object.hasOwn(species,id)&&!species[id].bonus;
     const notes=e=>e.rounds.length&&window.WilderCupNotebook?window.WilderCupNotebook.sections(e,species,sim):[];
     const matches=e=>e.rounds.map((r,i)=>{
@@ -96,11 +102,11 @@
       const id=e.roster[i],k=species[id];if(!k)return picker(e,i);
       return {title:k.name,kicker:"CUP REGISTRATION   /   SLOT "+(i+1),subtitle:uniform(k,e.gear),art:{src:imageOf(id),height:120},
         sections:[group("Loaner",[visit("cup:roster:"+i,"Choose another species","Browse all "+catalog.length+" loaners",{tone:"primary"}),
-          visit("cup:gear:"+i,"Equipment",piece(e.gear[id])||"Empty slot"),visit("cup:register","Back to registration")])]};
+          visit("cup:gear:"+i,"Equipment",piece(e.gear[id])||"Empty slot"),visit("cup:register","Back to registration")]),...passProfile(id)]};
     }
     function entries() {
       const text=search.text.trim().toLowerCase();
-      return catalog.filter(k=>(search.affinity==="All"||k.types.includes(search.affinity))&&(!text||k.name.toLowerCase().includes(text)||k.id.includes(text)));
+      return catalog.filter(k=>(search.affinity==="All"||k.types.includes(search.affinity))&&(!text||k.name.toLowerCase().includes(text)||k.id.includes(text)||pass(k.id)?.name.toLowerCase().includes(text)));
     }
     function picker(e,i) {
       if(!writable(e))return desk();
@@ -108,9 +114,9 @@
       search.page=Math.max(0,Math.min(search.page,total-1));
       const list=matches.slice(search.page*pageSize,(search.page+1)*pageSize);
       return {title:"Choose a Cup loaner",kicker:"REGISTRATION   /   SLOT "+(i+1),sections:[
-        group("Find a species",[visit("cup:search:"+i,search.text?"Name · "+search.text:"Search by name"),
+        group("Find a species",[visit("cup:search:"+i,search.text?"Search · "+search.text:"Search names or passes"),
           visit("cup:affinity:"+i,"Affinity · "+search.affinity)],2),
-        group(matches.length+" matching kin",list.length?list.map(k=>visit("cup:candidate:"+i+":"+k.id,k.name,k.types.join(" / "),
+        group(matches.length+" matching kin",list.length?list.map(k=>visit("cup:candidate:"+i+":"+k.id,k.name,uniform(k,e.gear),
           {image:imageOf(k.id),badge:e.roster.includes(k.id)?"Registered":""})):[{label:"No matching kin",detail:"Change the name or affinity."}],2),
         ...(total>1?[group("Page "+(search.page+1)+" of "+total,[button("page","Previous",-1,"",{disabled:!search.page}),
           button("page","Next",1,"",{disabled:search.page===total-1})],2)]:[]),group("",[visit("cup:register","Back to registration")])]};
@@ -121,7 +127,7 @@
       const detail=existing>=0&&existing!==i?"Exchanges slots with "+name(current)+".":current&&current!==id?"Replaces "+name(current)+".":"";
       return {title:k.name,kicker:"CUP LOANER   /   LEVEL 20",subtitle:uniform(k,e.gear)+" · "+sim.maxHp(id)+" HP",art:{src:imageOf(id),height:128},
         sections:[group("Registration",[button("choose",existing===i?"Keep "+k.name:"Choose "+k.name,i+":"+id,detail,{tone:"primary"}),
-          visit("cup:roster:"+i,"Back to matches")]),
+          visit("cup:roster:"+i,"Back to matches")]),...passProfile(id),
           group("Skills",k.skills.map(s=>({label:s.name,detail:s.kind==="attack"?s.type+" · "+s.power+" power":s.kind==="guard"?"Strike and brace":"Recover health once"})))]};
     }
     function gearPage(e,i) {
@@ -157,6 +163,9 @@
       const c=coach(e),canReveal=!e.match&&!score(e).done&&e.roster.length===6;
       const report=canReveal?rules.scout(c.id,e.roster,e.rounds,e.gear):null;
       const sections=[{title:"Captain’s plan",text:c.plan},group("Public registration",rosterRows(c.roster,c.gear),3)];
+      const passIds=c.roster.filter(id=>pass(id));
+      if(passIds.length)sections.push({title:"Captain’s family pass",text:[...new Set(passIds.map(id=>pass(id)))].map(move=>
+        names(passIds.filter(id=>pass(id).id===move.id))+" can use "+move.name+". "+move.summary).join(" ")+" "+passRule});
       if(report){
         sections.unshift(group("Committed for bout "+(e.rounds.length+1),report.team.map((id,i)=>({
           label:name(id),detail:uniform(species[id],report.gear),image:imageOf(id),badge:fieldOrder(i)})),3));
@@ -189,7 +198,7 @@
       if(view==="candidate")return candidate(e,i,id);
       if(view==="gear")return gearPage(e,i);
       if(view==="affinity")return {title:"Filter by affinity",kicker:"CUP LOANERS",sections:[group("Either affinity",["All",...types].map(t=>button("filter",t,i+":"+t,"",{badge:t===search.affinity?"Selected":""})),2)]};
-      if(view==="search")return {title:"Find a Cup loaner",kicker:"SLOT "+(i+1),subtitle:search.text||"Enter a name",sections:[
+      if(view==="search")return {title:"Find a Cup loaner",kicker:"SLOT "+(i+1),subtitle:search.text||"Enter a species or pass name",sections:[
         group("Search",[visit("cup:roster:"+i,"Show "+entries().length+" matches","",{tone:"primary"}),button("key","Delete","delete"),button("key","Clear","clear")],2),
         {grid:{cols:6,cells:[..."ABCDEFGHIJKLMNOPQRSTUVWXYZ-"].map(c=>button("key",c,c))}}]};
       return null;

@@ -46,7 +46,9 @@
         if(!p.recovery)effects.push("recovery spent");
         if(p.gear)effects.push(window.WilderSparringGear.byId(p.gear).name+" "+(p.spent?"used":"ready"));
         const signature=window.WilderSparringSignatures?.byId(p.id);
-        if(signature)effects.push(signature.name+" "+(side.thornRead?"awaiting a reply":p.signatureSpent?"used":"unused"));
+        if(signature&&!signature.family)effects.push(signature.name+" "+(side.thornRead?"awaiting a reply":p.signatureSpent?"used":"unused"));
+        if(side.familyPassUsed)effects.push("Team pass spent on "+window.WilderSparringSignatures.byId(side.familyPassUsed).name);
+        else if(signature?.family)effects.push(signature.name+" · team pass ready");
         return {label:sideName(i,human)+" · "+name(p.id),detail:[p.hp+"/"+p.maxHp+" HP",side.beats+"/3 beats",...effects].join(" · "),
           ...(image?{image:image(p.id,false)}:{})};
       });
@@ -132,6 +134,11 @@
       if([...actual,...other].some(e=>e.move.kind==="signature"||e.move.thornResponse)){
         const changes=end.sides.flatMap((side,i)=>{
           const real=original.sides[i],rows=[];
+          if(side.familyPassUsed!==real.familyPassUsed){
+            const status=id=>id?"spent on "+window.WilderSparringSignatures.byId(id).name:"available";
+            rows.push({label:sideName(i,human)+" · shared family pass",
+              detail:"The pass is "+status(side.familyPassUsed)+" in this variation. It was "+status(real.familyPassUsed)+" in the recorded match."});
+          }
           for(const [j,k] of side.team.entries()){
             if(Boolean(k.signatureSpent)!==Boolean(real.team[j].signatureSpent)){
               const signature=window.WilderSparringSignatures.byId(k.id);

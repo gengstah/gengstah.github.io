@@ -34,6 +34,7 @@
   const rentalControls={game,row,image:id=>image(id,false),go,render,notify,playTone,
     animate:fx=>{if(fx.kind==="duet")score.answer();return ui.animate(fx);}};
   const circuit=window.WilderTrials.create({...rentalControls,active:()=>screen.name==="circuit"});
+  const reedbank=window.WilderReedbank.create({...rentalControls,active:()=>screen.name==="reedbank"});
   const hall=window.WilderSparring.create({...rentalControls,active:()=>screen.name==="sparring"});
   const replay=window.WilderSparringReview.create({...rentalControls,read:()=>hall.reviewRecord()});
   const pages=window.WilderPages.create({game,world,dex,row,member,image,go,back,render,notify,locate,root,
@@ -80,6 +81,7 @@
       case "outcome":model=outcomeModel();break;
       case "play":model=fair.model(screen.value);break;
       case "circuit":model=circuit.model();break;
+      case "reedbank":model=reedbank.model(screen.value);break;
       case "sparring":model=hall.model(screen.value);break;
       case "sparring-review":model=replay.model(screen.value);break;
       default:model=pages.model(screen.name,screen.value);break;
@@ -97,6 +99,7 @@
     const outing=game.firstOuting.offer();
     const firstQuest=outing&&{...outing,illustrations:["sprigkit","cindlet","dewfin"].map(id=>image(id,false))};
     const opening=state.region===0 && !state.crests.length && !window.WilderStory.chapterDone(state,0);
+    const mill=state.region===0?area().sites.findIndex(site=>site.label==="Brookside Mill"):-1;
     const destination=state.destination,localHollow=game.hollows?.at(state.region);
     const pinned=destination===null?null:{kicker:"ATLAS PIN",title:game.regions[destination].name,description:destination===state.region?"You are here. Open the pin for the region’s landmarks.":game.access(destination).reason,id:"view",value:"region|"+destination};
     return {kind:"world",title:r.name,kicker:"THE MISSING BEAT   /   "+r.district+"   /   REGION "+String(state.region+1).padStart(3,"0")+" OF 150",
@@ -110,6 +113,7 @@
         row("nav","The Missing Beat","chronicle","Finch’s journal",{key:"C"}),
         row("nav","Wildlife nearby","notebook","Follow a Wilderkin’s behavior",{key:"N"}),
         row("nav","Sparring Hall","sparring","Build a trio and battle",{key:"V"}),
+        ...(mill>=0?[row("walk-site","Reedbank Relay",mill,"Walk to Brookside Mill for a practice handoff.")]:[]),
         ...(localHollow?[row("view",localHollow.title,"hollow|"+localHollow.id,"Side trail at the trailpost")]:[]),
         row("nav","Field station","station","Requests and local games"),
       ]}]};
@@ -126,6 +130,8 @@
     });
     const duet=game.duets();
     const actions=[row("nav","Trail duets","duets",duet.beats+" / "+duet.max+" beats",{key:"R",tone:duet.options.some(o=>o.available)?"primary":undefined}),row("nav","Switch kin","switch"),row("nav","Satchel","bag"),row("retreat","Retreat")];
+    const pass=game.familyTechnique();
+    if(pass)actions.unshift(row("nav",pass.name,"family-pass",pass.reason||"Choose a reserve · 1 beat",{disabled:!pass.available,tone:pass.available?"primary":undefined}));
     if (wild && !member(enemy.id)) {
       const available=game.state.bag.kinweave || 0;
       actions.unshift(row("skill","Hold back","trail-feint","Leave at least 1 HP"),
@@ -137,6 +143,7 @@
     const warnings=[];
     if (intent?.charged) warnings.push(enemy.name+" is preparing "+intent.skill.name+".");
     if (intent?.guarding) warnings.push(enemy.name+" is braced. A guarding strike breaks through.");
+    if (b.enemy.beaconMarked) warnings.push("Beacon mark · your next ordinary attack pierces guard and deals 50% extra damage.");
     if (b.cover) warnings.push("Wattle cover · "+b.cover+" incoming "+(b.cover===1?"hit":"hits")+".");
     const tactic=game.wardenForecast?.();
     if(tactic?.active)warnings.push(tactic.title+" · "+tactic.counter);
@@ -317,11 +324,24 @@
         if (game.state.battle && ["station","landmarks","expedition"].includes(value)) return notify("Finish the encounter before returning to the trail.");
         return go(value);
       case "root":return root();
+      case "reedbank-hall":{
+        const [course,id]=String(value).split("|");
+        if(!hall.prepareReedbank(id,course))notify("Finish or retire your current Hall match before borrowing a new trio.");
+        return;
+      }
       case "back":return back();
       case "interact":{const site=nearestSite();return site?visit(site):go("landmarks");}
       case "walk-site":return locate(Number(value));
       case "open-kin":return go("kin",value);
       case "skill":return useSkill(value);
+      case "family-pass":{
+        const pass=game.familyTechnique();
+        const target=pass?.targets.find(p=>p.id===value);
+        if(!pass?.available||!target)return notify(pass?.reason||"Choose a reserve for this pass.");
+        const incomingKin=partyDisplay({...member(value),hp:target.hpAfter+target.returnDamage});
+        return resolveBattle(()=>game.useFamilyTechnique(value),{type:spec(value).type,kind:"swap",name:pass.name,
+          pass:pass.id,incoming:incomingKin.src,incomingKin});
+      }
       case "duet":{
         const option=game.duets().options.find(o=>o.partnerId===value);
         if(!option?.available)return notify(option?.reason);
@@ -332,6 +352,7 @@
       case "retreat":return resolveBattle(()=>game.flee(),null);
       case "swap":return resolveBattle(()=>game.swap(value),{type:spec(value).type,kind:"swap",name:spec(value).name});
       default:
+        if (screen.name==="reedbank" && reedbank.act(id,value)) return;
         if (screen.name==="circuit" && circuit.act(id,value)) return;
         if (screen.name==="sparring" && hall.act(id,value)) return;
         if (screen.name==="sparring-review" && replay.act(id,value)) return;
@@ -340,6 +361,7 @@
     }
   }
   function sharedScreen(hash) {
+    if(hash==="#reedbank")return {name:"reedbank",value:null};
     if(hash==="#lantern-cup")return {name:"sparring",value:"cup"};
     if(hash==="#updates")return {name:"updates",value:null};
     if(hash==="#grove")return {name:"sparring",value:"bench:grove"};

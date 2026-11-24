@@ -198,6 +198,10 @@
             {disabled:!o.available,image:image(o.partnerId),badge:o.cost+" BEATS"}))),
           group("Switch kin",game.team().filter(p=>p.id!==lead.id).map(p=>action("swap",kin(p.id).name,p.id,p.hp+" / "+p.maxHp+" HP",{disabled:!p.hp})),2),
           group("Course desk",[action("quit","Retire from this course")])];
+        const pass=game.familyTechnique();
+        if(pass)sections.splice(1,0,group(pass.name+" · 1 beat",pass.targets.map(target=>action("pass",target.name,target.id,
+          pass.reason||((target.heal?"Restore "+target.heal+" HP · ":"")+target.hpAfter+" / "+target.maxHp+" HP after reply · "+(pass.id==="beacon"?"Mark the rival":"Hand off the lead")),
+          {disabled:!pass.available,image:image(target.id)}))));
         const tip=intent.charged?"Charged "+intent.skill.name+" incoming.":intent.guarding?"Foe braced. Guard skills break through.":"";
         return {viewId:"circuit:bout:"+r.leg,kind:"battle",title:lane(r,r.route).name,kicker:modes[r.mode].name+"   /   TURN "+b.turn,
           subtitle:"Checkpoint "+(r.leg+1)+" · "+(b.remaining.length+1)+" opposing kin left · "+game.conditions[b.condition].name+(b.weather?" · "+b.weather+" skills +20%":""),
@@ -230,11 +234,18 @@
         const {result,effects}=game.withLoaners(r.field,()=>{
           const lead=kin(b.activeId),intent=game.foeIntent(),original=b.enemy,originalId=b.activeId;
           const model=id==="duet"?game.duets().options.find(o=>o.partnerId===value):lead.skills.find(s=>s.id===value);
-          const defender=id==="swap"||model?.switchLead?value:originalId;
+          const defender=id==="swap"||id==="pass"||model?.switchLead?value:originalId;
           const fx=id==="duet"?{kind:"duet",name:model?.name,type:lead.type,partnerType:model?.type,partner:known(value)?image(value):null}:
-            id==="swap"?{kind:"swap",name:kin(value)?.name,type:kin(value)?.type}:
+            id==="swap"||id==="pass"?{kind:"swap",name:id==="pass"?game.familyTechnique()?.name:kin(value)?.name,type:kin(value)?.type}:
             {kind:model?.kind,name:model?.name,type:model?.type};
-          const result=id==="skill"?game.useSkill(value):id==="swap"?game.swap(value):game.useDuet(value);
+          if(id==="pass"){
+            const pass=game.familyTechnique(),target=pass?.targets.find(t=>t.id===value);
+            if(target){
+              const incomingKin=profile({...game.team().find(p=>p.id===value),hp:target.hpAfter+target.returnDamage});
+              Object.assign(fx,{pass:pass.id,incoming:incomingKin.src,incomingKin});
+            }
+          }
+          const result=id==="skill"?game.useSkill(value):id==="swap"?game.swap(value):id==="pass"?game.useFamilyTechnique(value):game.useDuet(value);
           const effects=[];
           if(result.ok){
             effects.push({...fx,side:"ally"});
@@ -298,7 +309,7 @@
       }else if(r.phase==="draft"&&id==="launch")launch(r);
       else if(r.phase==="route"&&id==="route")openLane(r,Number(value));
       else if(r.phase==="route"&&id==="lead"&&r.field.party.some(p=>p.id===value&&p.hp))r.field.lead=value;
-      else if(r.phase==="bout"&&["skill","duet","swap"].includes(id)){
+      else if(r.phase==="bout"&&["skill","duet","swap","pass"].includes(id)){
         void takeTurn(rec,id,value);return true;
       }else if(r.phase==="service"&&id==="mend"){
         const portion=r.route===0?.45:.20;

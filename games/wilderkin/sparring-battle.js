@@ -62,7 +62,7 @@
           team.push(fighter);
         }
         const side={active:s.active,beats:s.beats,lastPart:s.lastPart,cover:s.cover,braced:s.braced,pinned:s.pinned,team};
-        if(s.thornRead!==undefined||s.team.some(p=>p.signatureSpent!==undefined)){
+        if(s.familyPassUsed!==undefined||s.thornRead!==undefined||s.team.some(p=>p.signatureSpent!==undefined)){
           if(!signatures?.restoreSide(s,side,sides.length,raw))return null;
         }
         sides.push(side);
@@ -163,7 +163,7 @@
         if(m.gearEvents)m.detail+=" · "+m.gearEvents.map(event=>event.text).join(" · ");
       }
       if(signatures){
-        moves.push(...signatures.options(side,bench,label));
+        moves.push(...signatures.options(side,bench,label,foe,species[lead.id].type));
         if(other.thornRead)for(const move of moves)signatures.forecastResponse(move,side,other,label);
       }
       return moves;
