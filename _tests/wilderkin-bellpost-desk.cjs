@@ -28,6 +28,34 @@ function device(store=new Map()){
 }
 const plain=x=>JSON.parse(JSON.stringify(x)),code=url=>url.slice(url.indexOf("#"));
 
+test("clipboard, native share, selectable text and the address bar use a chat-safe letter while the stored packet stays raw",async()=>{
+  const host=device(),guest=device(),spectator=device();
+  host.click("post-new");host.click("post-confirm");host.click("post-copy");
+  const url=host.clip(),invitation=code(url),id=host.route().split("|")[1];
+  const rules=host.w.WilderBellpostRules.create({game:host.game}),legacy=rules.export(id);
+  assert.match(url,/^https:\/\/game\.test\/games\/wilderkin\/\?release=1#bellpost-v1=/);
+  assert.match(invitation,/\.x\.x\.x\.x$/);assert.equal(host.hash(),invitation);
+  assert.match(legacy,/\.{4}$/);assert.equal(rules.inspect(invitation).hash,legacy);
+  let shared;
+  host.w.navigator.share=async payload=>{shared=payload;};host.repaint();host.click("post-share");
+  await new Promise(r=>setImmediate(r));assert.equal(shared.url,url);
+  host.click("post-link");assert.equal(host.prompt().value,url);
+
+  guest.open(legacy+"%E2%80%9D");assert.equal(guest.hash(),invitation);guest.click("post-join",id);guest.click("post-confirm");
+  const accepted=guest.hash();assert.match(accepted,/\.x\.x$/);
+  host.open(accepted+"’");host.click("post-move");const turn=host.hash();assert.match(turn,/\.[A-W]+\.x$/);
+  for(const suffix of ["’","”","…","。","%E2%80%99","%e2%80%9d","%E2%80%A6","%E3%80%82"]){
+    assert.equal(rules.inspect(turn+suffix),null);
+    spectator.open(turn+suffix);assert.equal(spectator.hash(),turn);assert.ok(!spectator.rows().some(r=>r.id==="post-move"));
+  }
+  spectator.click("post-copy");assert.equal(code(spectator.clip()),turn);
+  spectator.click("post-desk");assert.equal(spectator.hash(),"#bellpost");
+  spectator.w.prompt=()=>url+"…";spectator.click("post-paste");assert.equal(spectator.model().title,"You’re invited to Bellpost");
+  assert.equal(spectator.hash(),invitation);
+  spectator.open(invitation.replace("sprigkit","spri%E2%80%9Dgkit"));assert.equal(spectator.route(),"error");
+  assert.equal(rules.export(id),rules.inspect(turn).hash);
+});
+
 test("drafts remain personal to the invitation, campaign lead and equipped Hall trio are usable, and viewing never joins",()=>{
   const a=device(),b=device();a.game.setLead("dewfin");
   const battle=a.game.state.battle,party=JSON.stringify(a.game.state.party);

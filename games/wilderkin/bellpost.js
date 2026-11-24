@@ -2,6 +2,8 @@
 (() => {
   "use strict";
   const draftKey="wilderkin.bellpost.drafts.v1";
+  // Some messaging apps include a closing quote, ellipsis or ideographic full stop in the link.
+  const trailingPunctuation=/(?:[’”…。]|%E2%80%(?:99|9D|A6)|%E3%80%82)+$/i;
   const copyTeam=t=>({ids:t.ids.slice(),gear:{...t.gear}});
   function create({game,row,image,go,render,notify}) {
     const rules=window.WilderBellpostRules.create({game});
@@ -186,24 +188,31 @@
     function loadFragment(hash){
       if(hash==="#bellpost")return "desk";
       if(typeof hash!=="string"||!hash.startsWith("#bellpost-v1="))return null;
+      hash=hash.replace(trailingPunctuation,"");
       const inspected=rules.inspect(hash);
       if(inspected&&!rules.get(inspected.id)){
-        inbox.set(inspected.id,inspected);olderLetter=null;return path("game",inspected.id);
+        inbox.set(inspected.id,inspected);olderLetter=null;rememberUrl(inspected.hash);return path("game",inspected.id);
       }
       const check=rules.receive(hash);
       if(!check?.ok){
         problem=check?.message||"The link is incomplete or invalid.";
-        if(check.code==="stale"&&inspected&&rules.get(inspected.id)){olderLetter=inspected.id;return path("game",inspected.id);}
+        if(check.code==="stale"&&inspected&&rules.get(inspected.id)){
+          olderLetter=inspected.id;rememberUrl(rules.export(inspected.id));return path("game",inspected.id);
+        }
         return path("error",inspected&&rules.get(inspected.id)?inspected.id:undefined);
       }
       olderLetter=null;const r=check.record;inbox.set(r.id,r);
+      rememberUrl(rules.export(r.id));
       return path("game",r.id);
     }
     function address(r){
       const hash=rules.export(r.id)||r.hash,loc=window.location;
-      return loc.origin+loc.pathname+(loc.search||"")+hash;
+      return loc.origin+loc.pathname+(loc.search||"")+rules.forSharing(hash);
     }
-    function rememberUrl(hash){try{window.history?.replaceState(null,"",hash);}catch{}}
+    function rememberUrl(hash){
+      const publicHash=hash==="#bellpost"?hash:rules.forSharing(hash);
+      if(publicHash&&window.location.hash!==publicHash)try{window.history?.replaceState(null,"",publicHash);}catch{}
+    }
     function textBox(title,text,accept,allowEmpty=false){
       // A native input gives mobile users the OS paste/select controls.
       const v=window.prompt?.(title,text);
@@ -230,7 +239,7 @@
       if(cmd==="desk"){rememberUrl("#bellpost");show("desk");return true;}
       if(cmd==="paste"){textBox("Paste a Bellpost link","",raw=>{
         const where=raw.indexOf("#"),dest=where<0?null:loadFragment(raw.slice(where));
-        if(dest){rememberUrl(raw.slice(where));show(dest);}else notify("Choose a Bellpost invitation or turn link.");
+        if(dest){if(dest==="desk")rememberUrl("#bellpost");show(dest);}else notify("Choose a Bellpost invitation or turn link.");
       });return true;}
       if(cmd==="new"){show(path("draft","new"));return true;}
       if(cmd==="join"&&record(value)?.seat===null&&record(value)?.status==="invite"){show(path("draft",value));return true;}

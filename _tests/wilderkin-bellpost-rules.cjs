@@ -62,6 +62,56 @@ test("strict fragment, roster, gear, legal move and resignation parsing rejects 
   assert.equal(fresh.list().length,0);assert.equal(h.export(id),hash);
 });
 
+test("public copies survive chat punctuation handling and preserve the original invitation, turns, seats and replay",()=>{
+  const h=desk(),g=desk(),spectator=desk(),ticket=ok(h.invite(home)),id=ticket.id;
+  const invite=h.forSharing(ticket.hash);
+  assert.equal(invite,ticket.hash.slice(0,-4)+".x.x.x.x");
+  assert.equal(h.forSharing(invite),invite);
+  // Clients may trim any number of the old trailing periods.
+  for(let n=0;n<=4;n++){
+    const legacy=ticket.hash.slice(0,ticket.hash.length-n);
+    assert.equal(h.inspect(legacy).seat,0);assert.equal(h.receive(legacy).code,"duplicate");
+    assert.equal(h.forSharing(legacy),invite);
+  }
+  assert.equal(spectator.inspect(invite).hash,ticket.hash);assert.equal(spectator.inspect(invite).seat,null);
+  const accepted=ok(g.join(invite,away)),ready=g.forSharing(accepted.hash);
+  assert.equal(ready,accepted.hash.slice(0,-2)+".x.x");
+  assert.equal(g.join(ticket.hash.replace(/\.+$/,""),away).code,"duplicate");
+  assert.equal(ok(h.receive(ready)).hash,accepted.hash);assert.equal(h.export(id),accepted.hash);
+  for(const hash of [accepted.hash,accepted.hash.slice(0,-1),accepted.hash.slice(0,-2),ready]){
+    assert.equal(h.receive(hash).code,"duplicate");assert.equal(h.inspect(hash).seat,0);
+  }
+  const opener=ok(h.play(id,"skill:briar-bloom",ready)),move=h.forSharing(opener.hash);
+  assert.equal(move,opener.hash+"x");assert.equal(h.export(id),opener.hash);
+  assert.equal(ok(g.receive(opener.hash.slice(0,-1))).hash,opener.hash);
+  assert.equal(g.receive(move).code,"duplicate");assert.equal(g.review(move).record.seat,1);
+  assert.equal(g.receive(ready).code,"stale");
+  const end=ok(g.resign(id,move)),resigned=g.forSharing(end.hash);
+  assert.equal(resigned,end.hash);assert.ok(resigned.endsWith(".A.1"));
+  assert.equal(ok(h.receive(resigned)).winner,0);assert.equal(h.receive(end.hash).code,"duplicate");
+  assert.deepEqual(copy(spectator.review(move).record.moves),["skill:briar-bloom"]);
+  assert.equal(spectator.review(resigned).record.winner,0);assert.equal(spectator.list().length,0);
+
+  const empty=seated(),noMoves=ok(empty.h.resign(empty.id));
+  const safe=empty.h.forSharing(noMoves.hash);assert.ok(safe.endsWith(".x.0"));
+  assert.equal(ok(empty.g.receive(safe)).hash,noMoves.hash);assert.equal(empty.g.export(empty.id),noMoves.hash);
+});
+
+test("restoring stripped fields and public placeholders still requires whole teams and lawful commands",()=>{
+  const {h,g,id,ticket}=seated(),fields=h.export(id).split("."),[match,host,guest,visitor]=fields;
+  const invalid=[match,match+".x",[match,host,guest].join("."),[match,host,"x",visitor].join("."),
+    [match,host,"x","x","A","x"].join("."),[match,host,"x","x","x","0"].join("."),
+    [match,host,guest,visitor,"Ax","x"].join("."),[match,host,guest,visitor,"X","x"].join("."),
+    [match,host,guest,visitor,"C"].join("."),[match,host,guest,visitor,"x","1"].join("."),
+    h.forSharing(ticket.hash)+".x"];
+  const before=h.export(id);
+  for(const hash of invalid){
+    assert.equal(h.forSharing(hash),null);assert.equal(h.inspect(hash),null);assert.equal(h.review(hash),null);
+    assert.equal(h.receive(hash).code,"invalid");assert.equal(g.join(hash,away).code,"invitation");
+  }
+  assert.equal(h.export(id),before);
+});
+
 test("stale tabs, altered gear, forked lines, invented local commands and delayed duplicates preserve the desk",()=>{
   const {h,g,sa,sb,id}=seated(),old=h.get(id),tab=desk(sa),fork=desk(storage(new Map(sa.map)));
   tab.get(id);

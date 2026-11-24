@@ -87,7 +87,11 @@
     function decode(hash,events) {
       if(typeof hash!=="string"||hash.length>limit||!hash.startsWith(prefix))return null;
       const fields=hash.slice(prefix.length).split(".");
-      if(fields.length!==6)return null;
+      if(fields.length<2||fields.length>6)return null;
+      // Chat clients can strip the final dots from older letters. Only the four optional fields may be empty.
+      while(fields.length<6)fields.push("");
+      for(let i=2;i<fields.length;i++)if(fields[i]==="x")fields[i]="";
+      hash=prefix+fields.join(".");
       const [id,a,guest,b,commands,flag]=fields;
       if(!tokenRE.test(id)||commands.length>maxMoves||!/^[A-W]*$/.test(commands)||!/^([01])?$/.test(flag))return null;
       const left=unpackTeam(a),right=b?unpackTeam(b):null;
@@ -166,8 +170,13 @@
       const r=decode(hash);
       if(!r)return null;
       const local=get(r.id);
-      if(local?.hash===hash){r.seat=local.seat;r.archived=local.archived;}
+      if(local?.hash===r.hash){r.seat=local.seat;r.archived=local.archived;}
       return r;
+    }
+    function forSharing(hash) {
+      const record=decode(hash);
+      if(!record)return null;
+      return prefix+record.hash.slice(prefix.length).split(".").map(field=>field||"x").join(".");
     }
     function invite(team) {
       const left=loadout(team);
@@ -194,7 +203,7 @@
       if(!incoming)return fail("invalid","This Bellpost letter is incomplete or contains an illegal move.");
       const current=get(incoming.id);
       if(!current)return fail("spectator","This browser is viewing the public match. Open its invitation to join.");
-      if(current.hash===hash)return success(remember(current),"Your desk already has this letter.","duplicate");
+      if(current.hash===incoming.hash)return success(remember(current),"Your desk already has this letter.","duplicate");
       if(current.archived)return fail("archived","This match is closed on your desk.");
       if(packTeam(incoming.teams[0])!==packTeam(current.teams[0]) ||
           current.guestId && incoming.guestId && (incoming.guestId!==current.guestId || packTeam(incoming.teams[1])!==packTeam(current.teams[1])))
@@ -214,7 +223,8 @@
     function change(id,moveId,resign,expectedHash) {
       const r=get(id);
       if(!r||r.archived||r.status!=="active")return fail("inactive","Open an active match from your desk.");
-      if((expectedHash??seen.get(id)??r.hash)!==r.hash)return fail("changed","Another tab updated this match. Reopen its latest turn.");
+      const expected=expectedHash??seen.get(id)??r.hash;
+      if(expected!==r.hash && decode(expected)?.hash!==r.hash)return fail("changed","Another tab updated this match. Reopen its latest turn.");
       if(r.pos.turn!==r.seat)return fail("turn","Wait for your friend’s next letter.");
       const fields=r.hash.slice(prefix.length).split(".");
       if(resign)fields[5]=String(r.seat);
@@ -247,10 +257,10 @@
       const events=[],record=decode(hash,events);
       if(!record?.pos)return null;
       const local=get(record.id);
-      if(local?.hash===hash)record.seat=local.seat;
+      if(local?.hash===record.hash)record.seat=local.seat;
       return {record,events,final:record.pos};
     }
-    return {invite,join,receive,inspect,get:id=>remember(get(id)),list:()=>ids().map(get).filter(r=>r&&!r.archived),
+    return {invite,join,receive,inspect,forSharing,get:id=>remember(get(id)),list:()=>ids().map(get).filter(r=>r&&!r.archived),
       play:(id,move,hash)=>change(id,move,false,hash),resign:(id,hash)=>change(id,null,true,hash),
       archive:id=>close(id),withdraw:id=>close(id,true),export:exportHash,review,get persistent(){return persistent;}};
   }
