@@ -524,6 +524,22 @@
       rect(c,'#e8cb83',2,0,3,2);
     });
   }
+  function lanternGate() {
+    return sprite('lantern-court-gate',30,27,c=>{
+      oval(c,'#80945d',14,25,13,2);
+      for(const x of [2,25]){
+        rect(c,'#59483b',x,2,3,23);rect(c,'#b78954',x,4,1,20);
+        rect(c,'#72583f',x-1,23,5,2);
+      }
+      rect(c,'#534438',1,1,28,4);rect(c,'#c5955d',1,1,27,1);
+      for(const x of [6,19])poly(c,'#32796a',[[x,5],[x+4,5],[x+3,10],[x+1,9]]);
+      rect(c,'#624a32',14,4,2,4);
+      poly(c,'#6b4e32',[[11,8],[18,8],[20,11],[18,17],[14,19],[10,16],[9,11]]);
+      rect(c,'#dfa647',11,10,7,5);rect(c,'#fff0a0',13,10,3,5);
+      rect(c,'#b37a37',10,9,9,1);rect(c,'#bb8543',11,15,7,1);
+      rect(c,'#e7af51',14,17,2,3);
+    });
+  }
   const personPattern=[
     '       XXX      ',
     '     XXhhhXX    ',
@@ -726,6 +742,7 @@
   }
   if(window.WilderAtlas) {
     [[7,7],[8,8],[14,7]].forEach(([x,y],i)=>regions[i].sites.push(site('activities',x,y,'Field station')));
+    regions[0].sites.push(site('lantern-cup',13,8,'Lantern Gate'));
     window.WilderAtlas.regions.slice(3).forEach((meta,j)=>regions.push(expeditionRegion(meta,j+3)));
   }
   const steps=[[0,-1],[1,0],[0,1],[-1,0]];
@@ -1195,6 +1212,11 @@
       const x=board.x*TILE+8,y=board.y*TILE+8;
       place(map,trailBoard(index),x,y);
       hot(board,x-13,y-22,x+13,y+2);
+    }
+    const gate=at('lantern-cup');
+    if(gate) {
+      const x=gate.x*TILE+8,y=gate.y*TILE+8;
+      place(map,lanternGate(),x,y);hot(gate,x-14,y-26,x+15,y+1);
     }
     map.objects.sort((a,b)=>a.z-b.z);
     for(const s of [...region.sites,region.spawn])map.blocked.delete(s.y*COLS+s.x);

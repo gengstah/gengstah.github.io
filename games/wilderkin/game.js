@@ -249,6 +249,7 @@
   function visit(site,next) {
     const kind=site.kind||site.id;
     if(kind==="sighting") return go("study",site.species);
+    if(kind==="lantern-cup")return go("sparring","cup");
     game.visitSite(kind);
     if (next) return go(next);
     const view={warden:"warden",camp:"camp",wild:"tracks",travel:"atlas",activities:"station"}[kind];
@@ -339,6 +340,7 @@
     }
   }
   function sharedScreen(hash) {
+    if(hash==="#lantern-cup")return {name:"sparring",value:"cup"};
     if(hash==="#updates")return {name:"updates",value:null};
     if(hash==="#grove")return {name:"sparring",value:"bench:grove"};
     if(hash==="#workshop")return {name:"sparring",value:"bench:workshop"};

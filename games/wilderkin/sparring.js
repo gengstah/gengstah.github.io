@@ -33,6 +33,7 @@
     const clean=setup=>window.WilderSparringTeams.restore(setup,{species});
     const setup=clean(raw?.v===1?raw.setup:null),rec={v:1,setup,match:null,lastReview:null};
     if(window.WilderSparringLibrary)rec.slots=window.WilderSparringLibrary.restore(raw?.v===1?raw.slots:null,{species});
+    if(window.WilderCupSeries)rec.cup=window.WilderCupSeries.restore(raw?.v===1?raw.cup:null,{species});
     if(raw?.v!==1)return rec;
     const sim=window.WilderSparringBattle.create({species});
     const validKit=s=>s.gear===undefined||Boolean(window.WilderSparringGear?.validate(s.gear,s.left,s.right));
@@ -65,12 +66,12 @@
     const rec=()=>game.state.sparring||restore(null,{species});
     const save=r=>game.saveSparring(r);
     const kin=id=>species[id].name;
-    const sideName=(m,side)=>m.setup.mode==="local"?"Player "+(side+1):side===0?"Your team":rival(m.setup).name;
+    const sideName=(m,side)=>m.setup.mode==="local"?"Player "+(side+1):side===0?"Your team":m.cupOpponent||rival(m.setup).name;
     const group=(title,rows,columns=1)=>({title,rows,columns});
     const button=(id,label,value,detail="",extra={})=>row("spar-"+id,label,value,detail,extra);
     const link=(label,target,detail="",extra={})=>button("view",label,target,detail,extra);
     const show=(value,mode="push")=>go("sparring",value,mode);
-    let pending=null,cached=null,review=null,busy=false;
+    let pending=null,cached=null,review=null,busy=false,cupScreen=false;
     const builder=window.WilderSparringTeams.create({game,row,image,go,render,notify,
       read:()=>rec().setup,write:patch=>{
         if(live())return;
@@ -84,6 +85,10 @@
     }
     const live=()=>{const p=position();return p&&p.phase!=="done";};
     const library=window.WilderSparringLibrary?.create({species,sim,row,image,read:rec,save,show,render,live,playFromPractice});
+    const cup=window.WilderCupSeries?.create({game,sim,row,image,show,render,notify,
+      read:()=>rec().cup,save:value=>save({...rec(),cup:value}),startFight:m=>{
+        playTone?.("battle");show("cup:match","replace");if(m.first===1)void take(null,true);
+      }});
     const profile=p=>({species:p.id,name:kin(p.id),src:image(p.id),hp:p.hp,maxHp:p.maxHp,level:sim.rules.level,types:species[p.id].types,gear:held(p)});
     const roster=(ids,prefix,gear)=>ids.map((id,i)=>({label:kin(id),image:image(id),detail:[species[id].types.join(" / "),piece(gear?.[id])?.name].filter(Boolean).join(" · "),badge:i===0?prefix:""}));
     const packFor=s=>s.mode==="cpu"&&Object.hasOwn(kits,s.rival)&&window.WilderSparringGear?kits[s.rival]:null;
@@ -113,6 +118,7 @@
           button("mode","Pass and play","local","Two players share this device and take turns.")]));
         if(r.match)sections.push(group("Last match",[link("Review the result","result")]));
       }
+      if(cup)sections.push(group("Tournament desk",[link("Lantern Cup","cup","Register six, bring three, and play a best-of-three series.")]));
       if(r.lastReview)sections.push(group("Practice film",[row("nav","Replay your last rival match","sparring-review","Try a different decision on a recorded turn.")]));
       if(!ongoing)sections.push(group("Prepare",[
         link("Build your trio","edit:left:team",s.left.map(kin).join(" · ")),
@@ -206,14 +212,15 @@
           group("Team commands",[link("Switch kin","cmd:swap",standing(side)-1+" conscious reserves",{key:"S"}),
             link("Duets","cmd:duet",side.beats+" / 3 beats",{key:"D"}),link("Coach’s read","coach","See a move and a possible reply.",{key:"H"})],3));
       }
-      commands.push(group("Match desk",[link("Equipment","equipment","Inspect both teams’ six slots."),link("Match log","log:0"),link("Retire from match","retire")],2));
+      commands.push(group("Match desk",[link("Equipment","equipment","Inspect both teams’ six slots."),link("Match log","log:0"),
+        link(m.cupOpponent?"Concede this game":"Retire from match","retire")],2));
       const a=member(p.sides[0]),b=member(p.sides[1]);
       const strip=(s,i)=>({label:m.setup.mode==="local"?"P"+(i+1):i===0?"You":"Rival",beats:s.beats,active:s.active,
         team:s.team.map(p=>({id:p.id,src:image(p.id),hp:p.hp,maxHp:p.maxHp,gear:held(p)}))});
       const log=p.log.slice(-2);
       if(p.sides[1-p.turn].thornRead)log.push("Fernprickle is reading the next hit. A switch or recovery gives it nothing to counter.");
-      return {kind:"battle",title:sideName(m,p.turn)+" to act",kicker:"SPARRING HALL   /   "+formatTurn(p).toUpperCase(),
-        background:"ui/sparring-hall.png",ally:profile(a),foe:profile(b),log,
+      return {kind:"battle",title:sideName(m,p.turn)+" to act",kicker:(m.cupOpponent?"LANTERN CUP · GAME "+m.gameNumber:"SPARRING HALL")+"   /   "+formatTurn(p).toUpperCase(),
+        background:m.cupOpponent?"ui/lantern-cup.png":"ui/sparring-hall.png",ally:profile(a),foe:profile(b),log,
         lineups:{left:strip(p.sides[0],0),right:strip(p.sides[1],1)},
         subtitle:sideName(m,0)+" "+standing(p.sides[0])+" standing · "+sideName(m,1)+" "+standing(p.sides[1])+" standing",sections:commands};
     }
@@ -294,11 +301,7 @@
         group("Match desk",[...(page>0?[link("Newer actions","log:"+(page-1))]:[]),
           ...(page<pages-1?[link("Earlier actions","log:"+(page+1))]:[]),link(p.phase==="done"?"Return to result":"Return to match",p.phase==="done"?"result":"match")],2)]};
     }
-    function model(value){
-      const r=rec(),m=r.match,p=position(m),v=String(value||"");
-      if(v==="guest"&&pending)return guest();
-      if(library?.workshopRoute(v))return library.model(v);
-      if(!v||v==="lobby")return pending&&!v?guest():lobby();
+    function fightPage(m,p,v) {
       if(v.startsWith("log:")&&m)return log(m,p,v.split(":")[1]);
       if(v==="equipment"&&m&&!m.handoff)return equipment(m,p);
       if(m&&p.phase!=="done"){
@@ -311,6 +314,22 @@
         }
         return arena(m,p);
       }
+      return null;
+    }
+    function model(value){
+      const v=String(value||"");
+      cupScreen=Boolean(cup&&(v==="cup"||v.startsWith("cup:")));
+      if(cupScreen){
+        const m=cup.field(),part=v.slice(4);
+        if(m&&(/^(match|equipment|coach|cmd:(signature|duet|swap)|log:\d+)$/.test(part)))
+          return fightPage(m,position(m),part);
+        return cup.model(v);
+      }
+      const r=rec(),m=r.match,p=position(m);
+      if(v==="guest"&&pending)return guest();
+      if(library?.workshopRoute(v))return library.model(v);
+      if(!v||v==="lobby")return pending&&!v?guest():lobby();
+      const field=fightPage(m,p,v);if(field)return field;
       if(v.startsWith("edit:"))return builder.page(v);
       if(library&&(v==="bench"||v.startsWith("bench:")))return library.model(v);
       if(v==="preview")return preview();
@@ -342,15 +361,18 @@
       return {kind,name:move.label,type:move.type||species[member(p.sides[p.turn]).id].type,side,
         ...(move.kind==="duet"?{partner:image(partner),partnerType:species[partner].type}:{})};
     }
-    async function take(command){
+    async function take(command,inCup=false){
       if(busy)return;
-      const m=rec().match;
+      const current=()=>inCup?cup.field():rec().match;
+      const here=()=>active()&&cupScreen===inCup;
+      const route=(v)=>show(inCup?"cup:"+v:v,"replace");
+      const m=current();
       if(!m||m.handoff)return;
       busy=true;
       try {
         let p=position(m);
-        if(active())show("match","replace");
-        while(p.phase!=="done" && rec().match===m){
+        if(here())route("match");
+        while(p.phase!=="done" && current()===m){
           const cpu=m.setup.mode==="cpu"&&p.turn===1;
           const move=cpu?sim.recommend(p):sim.forecast(p,command);
           if(!move?.available){if(move?.reason)notify(move.reason);break;}
@@ -358,18 +380,31 @@
           if(!after)break;
           m.moves.push(move.id);m.handoff=m.setup.mode==="local"&&p.turn!==after.turn&&after.phase!=="done";
           cached={match:m,length:m.moves.length,pos:after};
-          const r=rec();save({...r,match:m,lastReview:m.setup.mode==="cpu"&&after.phase==="done"?tape(m):r.lastReview});
+          if(inCup)cup.saveTurn(m,after);
+          else {const r=rec();save({...r,match:m,lastReview:m.setup.mode==="cpu"&&after.phase==="done"?tape(m):r.lastReview});}
           playTone?.(move.kind==="heal"||move.kind==="signature"?"care":move.kind==="duet"?"battle":"strike");
-          if(active()&&animate)await animate(effect(p,move));
+          if(here()&&animate)await animate(effect(p,move));
           p=after;
-          if(!active()||rec().match!==m)break;
-          show(p.phase==="done"?"result":"match","replace");
+          if(!here()||(p.phase!=="done"&&current()!==m))break;
+          route(p.phase==="done"?"result":"match");
           if(p.phase==="done"||m.setup.mode!=="cpu"||p.turn!==1)break;
           command=null;
         }
       }finally{busy=false;if(active())render();}
     }
     function act(id,value){
+      if(cupScreen){
+        if(busy)return true;
+        if(cup.act(id,value))return true;
+        const m=cup.field(),p=position(m);
+        if(id==="spar-view"){
+          const v=String(value);
+          show(v==="retire"?"cup:concede":v==="cup"||v.startsWith("cup:")||v==="lobby"?v:"cup:"+v);return true;
+        }
+        if(id==="spar-move"&&m&&p?.turn===0){void take(value,true);return true;}
+        if(id==="spar-cpu"&&m&&p?.turn===1){void take(null,true);return true;}
+        return false;
+      }
       if(!busy&&library?.act(id,value))return true;
       if(typeof id!=="string"||!id.startsWith("spar-"))return false;
       if(busy)return true;
@@ -405,19 +440,22 @@
       return true;
     }
     function key(e,value){
-      const v=String(value||"");
-      if(!live()&&library?.key(e,v))return true;
-      if(v.startsWith("edit:")&&!live())return builder.key(e,v);
+      let v=String(value||"");
+      const inCup=Boolean(cup&&(v==="cup"||v.startsWith("cup:")));
+      if(inCup){if(cup.key(e,v))return true;v=v.slice(4);}
+      if(!inCup&&!live()&&library?.key(e,v))return true;
+      if(!inCup&&v.startsWith("edit:")&&!live())return builder.key(e,v);
       if(v!=="match"||e.repeat||busy)return false;
-      const m=rec().match,p=position(m);
+      const m=inCup?cup.field():rec().match,p=position(m);
       if(!m||m.handoff||p.phase!=="move"||(m.setup.mode==="cpu"&&p.turn===1))return false;
       if(/^[1-3]$/.test(e.key)){
         const skill=sim.options(p).filter(o=>["attack","guard","heal"].includes(o.kind))[Number(e.key)-1];
         if(skill?.available)act("spar-move",skill.id);return true;
       }
-      if(e.key==="4"&&signatureFor(p)){show("cmd:signature");return true;}
+      const navigate=v=>show(inCup?"cup:"+v:v);
+      if(e.key==="4"&&signatureFor(p)){navigate("cmd:signature");return true;}
       const dest={d:"cmd:duet",s:"cmd:swap",h:"coach"}[e.key.toLowerCase()];
-      if(dest){show(dest);return true;}return false;
+      if(dest){navigate(dest);return true;}return false;
     }
     function loadFragment(hash){
       if(hash==="#sparring"){pending=null;return true;}

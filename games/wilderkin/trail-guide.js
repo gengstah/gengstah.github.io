@@ -57,7 +57,7 @@ window.WilderPages = {
     }
     function localLinks() {
       return area().sites.map((a,i)=>row("walk-site",a.label,i,
-        ({warden:"Warden trial",wild:"Follow creature tracks",camp:"Rest and retrain",travel:"Atlas and crossings",activities:"Regional field station"})[a.kind||a.id]));
+        ({warden:"Warden trial",wild:"Follow creature tracks",camp:"Rest and retrain",travel:"Atlas and crossings",activities:"Regional field station","lantern-cup":"Enter the Lantern Cup"})[a.kind||a.id]));
     }
     function localSpecies(id,action="open-kin",wild=action==="track") {
       const base=game.species[id],p=member(id),k=wild?base:own(id);
@@ -356,7 +356,8 @@ window.WilderPages = {
       const i=s().region,local=fair.games.filter(g=>g.region===i),notices=fair.quests.filter(q=>q.region===i);
       const sections=[heading("Fieldwork",[nav("expedition","Regional commission",game.expedition().title),nav("licenses","Training ledger")],2)];
       sections.unshift(heading("Loaner Circuit",[nav("circuit","Enter the circuit","Draft a team and scout the next bout.")]));
-      sections.unshift(heading("Sparring Hall",[nav("sparring","Build a trio and spar","Scout eight rival teams or play another person on this device.")]));
+      sections.unshift(heading("Sparring Hall",[nav("sparring","Build a trio and spar","Scout eight rival teams or play another person on this device."),
+        open("sparring","cup","Lantern Cup","Choose three from your six for each bout.")],2));
       if(i>=3)sections.push(heading("Route survey",[nav("passage","Naturalist’s report")]));
       if (!s().landmark || s().landmark!=="activities") sections.unshift(heading("Local station",[wayTo("activities","station","Walk to the station")]));
       sections.push(heading("Games",local.length?local.map(g=>open("game-info",g.id,g.name,game.gamePass(g.id).reason)):[nav("games","Games register","Find a host region.")]));
@@ -462,8 +463,9 @@ window.WilderPages = {
         return open("growth",id,g.formName,g.baseName+"’s two camp disciplines",{image:"art/growth/"+g.formId+".png"});
       });
       const lodge=game.wardens.find(i=>!s().wardenLessons.includes(i))??0;
-      return page("What’s new in Wilderkin","FIELD DISPATCH   /   THORNBRIDGE",[
+      return page("What’s new in Wilderkin","FIELD DISPATCH   /   LANTERN CUP",[
         heading("Sparring Hall",[
+          open("sparring","cup","Enter the Lantern Cup","Register six kin. Choose your lead and two reserves again between bouts."),
           open("sparring","bench:grove","The Thornbridge crossing","Protect a teammate with Mossbell or read a rival’s attack with Fernprickle."),
           open("sparring","bench:workshop","The Earth Wire wager","Try one piece of equipment against Earth Wire’s trio."),
           open("sparring","edit:left:gear:0","Choose your lead’s equipment","Inspect six pieces and see exactly when each activates."),
@@ -479,7 +481,7 @@ window.WilderPages = {
           nav("stillwake","Investigate the fourth sounding","Follow an unlisted signal across the trail."),
           nav("circuit","Draft a loaner team","Try a three-bout course with a fresh squad.")]),
         heading("Adventure",[row("root",s().battle?"Return to your battle":"Explore the map",null,"",{tone:"primary"})])],
-        "Two Grove kin are waiting at Thornbridge. Play their opening turns from either side, then finish the fight with your chosen lead.");
+        "Three captains are taking challengers at the lantern grounds. Bring six kin and see what your opponent changes after the first bout.");
     }
     function help() {
       return page("Controls","TRAIL HANDBOOK",[
