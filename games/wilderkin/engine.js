@@ -77,11 +77,13 @@
   };
 
   const species = dex.expand(originalSpecies);
+  const regularCount=Object.values(species).filter(k=>!k.bonus).length;
   const regions = window.WilderAtlas.regions;
   const wardens = regions.map((r, i) => r.warden ? i : -1).filter(i => i >= 0);
   const pools = dex.encounterPools;
   const homes = Object.fromEntries(Object.keys(species).map(id => [id, []]));
   pools.forEach((pool, i) => pool.forEach(id => homes[id].push(i)));
+  if(species.stillwake)homes.stillwake=[regions.length-1];
   const count = n => Number.isSafeInteger(n) && n >= 0 ? n : 0;
   const enrolled = (id, party) => party.some(p => p.id === id);
 
@@ -96,15 +98,18 @@
   const unique = values => Array.from(new Set(values));
   const field=window.WilderFieldwork?.create({species,pools,regions});
   const walking=window.WilderWalkingPartner?.create({species,regions});
+  const growth=window.WilderGrowth;
+  const coaches=window.WilderWardens;
 
   function newGame() {
     return {
       version: 3, region: 0, positions: {}, party: starters.map(id => makeMember(id, 5)),
       lead: starters[0], crests: [], met: [], seen: starters.slice(), battle: null,
       team: starters.slice(), visited: [0], quests: {}, clears: {}, rests: 0,
-      sound: true, wins: 0, bag:{reed:5,sap:5,ore:2,kinweave:4,balm:3,tonic:1,sparkseed:1},
-      surveys:{},localWins:{},licenses:[],passes:[],crafted:{},landmark:null,forageReady:true,
-      story:story.restore(null),refit:0,animationSpeed:1,music:1,
+      sound: true, wins: 0, bag:{reed:5,sap:5,ore:2,kinweave:4,balm:3,tonic:1,sparkseed:1,broth:0},reports:[],
+      surveys:{},localWins:{},licenses:[],passes:[],crafted:{},landmark:null,forageReady:true,wardenLessons:[],
+      stillwake:window.WilderStillwake?.restore(null)||{},
+      story:story.restore(null),refit:0,animationSpeed:1,music:1,growth:growth?.restore(null)||{},
       fieldwork:field?.restore(null)||{},caravan:window.WilderCaravans?.restore(null,[])||{},
       circuit:window.WilderTrials?.restore(null)??null,pins:[],destination:null,
       walking:walking?.restore(null,[])||{},hollows:window.WilderHollows?.restore(null)||{}
@@ -138,6 +143,8 @@
       || !saved.party.every(p => validFighter(p) && integer(p.xp, 0, xpNeeded(p.level) - 1))
       || unique(saved.party.map(p => p.id)).length !== saved.party.length) return null;
     fresh.party = saved.party;
+    fresh.stillwake=window.WilderStillwake?.restore(saved.stillwake,fresh.party)||{};
+    fresh.growth=growth?.restore(saved.growth)||{};
     fresh.animationSpeed=[1,2,3].includes(saved.animationSpeed)?saved.animationSpeed:1;
     fresh.music=[0,1,2].includes(saved.music)?saved.music:saved.sound===false?0:1;
     fresh.fieldwork=field?.restore(saved.fieldwork)||{};
@@ -147,6 +154,7 @@
     fresh.destination=fresh.pins.includes(saved.destination)?saved.destination:null;
     fresh.walking=walking?.restore(saved.walking,fresh.party)||{};
     fresh.hollows=window.WilderHollows?.restore(saved.hollows)||{};
+    fresh.reports=unique((Array.isArray(saved.reports)?saved.reports:[]).filter(i=>validRegion(i)&&i>=3));
     fresh.team = unique((Array.isArray(saved.team) ? saved.team : fresh.party.map(p => p.id))
       .filter(id => enrolled(id, fresh.party))).slice(0, 6);
     if (!fresh.team.length) fresh.team = starters.slice();
@@ -155,6 +163,7 @@
       fresh.crests.push(i);
     }
     fresh.met = unique([...(Array.isArray(saved.met) ? saved.met.filter(i => wardens.includes(i)) : []), ...fresh.crests]);
+    fresh.wardenLessons=fresh.crests.filter(i=>Array.isArray(saved.wardenLessons)&&saved.wardenLessons.includes(i));
     fresh.seen = unique([...(Array.isArray(saved.seen) ? saved.seen.filter(validSpecies) : []), ...fresh.party.map(p => p.id)]);
     const ownsAbility = ability => !ability || fresh.party.some(p => species[p.id].ability === ability);
     const reachable = i => validRegion(i) && regions[i].requiredCrests <= fresh.crests.length && ownsAbility(regions[i].ability);
@@ -213,8 +222,14 @@
         beats:integer(battle.beats,0,3)?battle.beats:1,
         lastPart:["strike","guard","care","switch"].includes(battle.lastPart)?battle.lastPart:null,
         opening:battle.opening===true,
+        cover:integer(battle.cover,0,2)?battle.cover:0,reserveHp:[],
         log: battle.log.filter(entry => typeof entry === "string").slice(-8)
       };
+      const rest=fresh.battle.remaining;
+      if(battle.kind==="warden"&&coaches)fresh.battle.coach=coaches.restore(battle.coach,regions[fresh.region]);
+      if(Array.isArray(battle.reserveHp)&&battle.reserveHp.length===rest.length){
+        fresh.battle.reserveHp=rest.map((id,i)=>integer(battle.reserveHp[i],1,hpAt(id,battle.enemy.level))?battle.reserveHp[i]:hpAt(id,battle.enemy.level));
+      }
     }
     if (!fresh.team.some(id => fresh.party.find(p => p.id === id)?.hp > 0)) fresh.party.forEach(p => { p.hp = p.maxHp; });
     return fresh;
@@ -246,8 +261,8 @@
       const previous = regions[wardens[r.requiredCrests - 1]];
       return {open:false, reason:"Earn the " + previous.crest + " at " + previous.lodge + "."};
     }
-    if (!state.visited.includes(index) && index>0 && count(state.surveys[index-1]) < campaign.length(index-1)) {
-      return {open:false,hintRegion:index-1,reason:"Chart "+regions[index-1].name+" by finishing its field commission."};
+    if (!state.visited.includes(index) && index>0 && !surveyedPassage(index-1)) {
+      return {open:false,hintRegion:index-1,reason:surveyInstruction(index-1)};
     }
     if (r.ability && !state.visited.includes(index)) {
       if (!state.licenses.includes(r.ability)) {
@@ -255,7 +270,7 @@
         return {open:false,hintRegion:school.region,reason:"Earn the "+r.ability+" license at "+regions[school.region].name+"."};
       }
       const carrier = state.party.find(p => species[p.id].ability === r.ability);
-      if (carrier) return {open:true, carrier:carrier.id, reason:species[carrier.id].name + " can use " + r.ability + "."};
+      if (carrier) return {open:true, carrier:carrier.id, reason:ownedKin(carrier.id).name + " can use " + r.ability + "."};
       const nearby = [r.routeStart, ...state.visited, ...regions.map((_, i) => i)].find(i =>
         regions[i] && regions[i].requiredCrests <= state.crests.length && !regions[i].ability &&
         pools[i].some(id => species[id].ability === r.ability));
@@ -276,11 +291,11 @@
         return {title:"Recover the missing dispatch",description:"Read chapter "+(r.ordinal+1)+" in the story journal. Its trailhead is "+regions[trail].name+".",target:trail};
       }
       if (!story.ending(state)) return {title:"Write the last dispatch",description:"Read the final testimony in the story journal. Your answer determines the ending."};
-      return state.party.length < Object.keys(species).length
+      return state.party.filter(p=>!species[p.id].bonus).length < regularCount
         ? {title:"Befriend every Wilderkin",description:"Track missing companions through the field guide."}
         : {title:"The trail is yours",description:"Every crest and Wilderkin is yours. The field stations remain open."};
     }
-    const firstUncharted=regions.findIndex((r,i)=>r.requiredCrests===state.crests.length && count(state.surveys[i])<campaign.length(i));
+    const firstUncharted=regions.findIndex((r,i)=>r.requiredCrests===state.crests.length && !surveyedPassage(i));
     if (firstUncharted>=0) {
       const a=access(firstUncharted);
       if (!a.open) return {title:"Open the trail to "+regions[firstUncharted].name,description:a.reason,target:a.hintRegion};
@@ -316,11 +331,36 @@
     if (!state.visited.includes(index)) state.visited.push(index);
     state.region = index;
     state.landmark = null;
-    return commit("travel", (gate.carrier ? species[gate.carrier].name + " used " + regions[index].ability + "! " : "") + "You arrived in " + regions[index].name + ".");
+    return commit("travel", (gate.carrier ? ownedKin(gate.carrier).name + " used " + regions[index].ability + "! " : "") + "You arrived in " + regions[index].name + ".");
   }
 
   const member = id => state.party.find(p => p.id === id);
   const team = () => state.team.map(member);
+  function kin(id,{owned=false}={}) {
+    if(!validSpecies(id))return null;
+    const base=species[id];
+    return owned&&!usingLoaners&&growth&&state.growth[id]?.selected&&member(id)?growth.decorate(base,state):base;
+  }
+  const ownedKin=id=>kin(id,{owned:true});
+  function growthInfo(id) {
+    if(!growth||usingLoaners||!Object.hasOwn(state.growth,id)||!member(id))return null;
+    const form=growth.info(state,id);
+    return form?{...form,baseName:species[id].name}:null;
+  }
+  function chooseGrowth(id,discipline) {
+    const f=growthInfo(id);
+    if(!f||!f.atCamp)return error("Visit a trail camp with your starter to train.");
+    if(!f.earned)return error(f.requirements.find(task=>!task.done).label);
+    if(discipline!==null&&!f.disciplines.some(d=>d.id===discipline))return error("Choose a listed discipline.");
+    state.growth[id].selected=discipline;
+    return commit("growth",discipline?f.formName+" trained as a "+f.disciplines.find(d=>d.id===discipline).name+".":f.baseName+" returned to its earlier form.");
+  }
+  function growthAppearance(id,classic) {
+    const f=growthInfo(id);
+    if(!f?.selected||!f.atCamp||typeof classic!=="boolean")return error("Choose a trained starter at camp.");
+    state.growth[id].classic=classic;
+    return commit("appearance",f.formName+" now wears its "+(classic?"familiar":"grown")+" appearance.");
+  }
   function enlist(id, replace) {
     if (state.battle) return error("Finish the battle before changing your team.");
     if (!member(id) || state.team.includes(id)) return error("Choose a companion from your reserve.");
@@ -331,14 +371,14 @@
       state.team[slot] = id;
       if (state.lead === replace) state.lead = id;
     }
-    return commit("team", species[id].name + " joined your traveling party.");
+    return commit("team", ownedKin(id).name + " joined your traveling party.");
   }
   function setLead(id) {
     if (state.battle) return error("Use a battle switch to change your active companion.");
     const p = member(id);
     if (!state.team.includes(id) || !p || p.hp === 0) return error("Choose a companion with some health remaining.");
     state.lead = id;
-    return commit("lead", species[id].name + " is leading your party.");
+    return commit("lead", ownedKin(id).name + " is leading your party.");
   }
 
   function heal() {
@@ -370,8 +410,8 @@
     if (!r?.warden) return {open:false,reason:"There is no Warden trial here."};
     if (state.crests.includes(index)) return {open:true,reason:"Friendly rematch"};
     if (state.crests.length!==r.ordinal) return {open:false,reason:"Earn the preceding trail crests."};
-    const unfinished=regions.findIndex((area,i)=>area.ordinal===r.ordinal && count(state.surveys[i])<campaign.length(i));
-    if (unfinished>=0) return {open:false,target:unfinished,reason:"Chart the field commission in "+regions[unfinished].name+"."};
+    const unfinished=regions.findIndex((area,i)=>area.ordinal===r.ordinal && !surveyedPassage(i));
+    if (unfinished>=0) return {open:false,target:unfinished,reason:surveyInstruction(unfinished)};
     if (!story.chapterDone(state,r.ordinal)) return {open:false,reason:"Hear chapter "+(r.ordinal+1)+" in your story journal."};
     return {open:true,reason:"The trial is ready."};
   }
@@ -384,7 +424,7 @@
     const message=label+" "+species[enemy.id].name+" takes the field.";
     if (!state.seen.includes(enemy.id)) state.seen.push(enemy.id);
     state.battle={kind,activeId:ready.id,enemy,remaining:ids.slice(1),turn:1,
-      commissioned:null,bonus:null,weather:null,condition:null,lastAttack:null,beats:1,lastPart:null,opening:false,...options,log:[message]};
+      commissioned:null,bonus:null,weather:null,condition:null,lastAttack:null,beats:1,lastPart:null,opening:false,cover:0,reserveHp:[],...options,log:[message]};
     return commit("battle",message);
   }
 
@@ -403,7 +443,8 @@
     const size = r.ordinal===0?1:r.ordinal<3?2:r.ordinal<9?3:r.ordinal<18?4:r.ordinal<24?5:6;
     const roster=Array.from({length:size-1},(_,k)=>pool[1+k%(pool.length-1)]);
     roster.push(pool[0]);
-    return beginEncounter(kind,roster,r.wardenLevel,"Warden "+r.warden+" gives the signal.");
+    const options=coaches?{coach:coaches.restore(null,r)}:{};
+    return beginEncounter(kind,roster,r.wardenLevel,"Warden "+r.warden+" gives the signal.",options);
   }
 
   function damage(power, level, type, defender) {
@@ -426,10 +467,13 @@
   }
 
   function winBattle(message) {
+    const response=applyCoaching(true);
+    if(response?.message)message+=" "+response.message;
     const {kind,activeId,enemy,remaining,commissioned,bonus}=state.battle;
     if (remaining.length) {
       const id = remaining.shift();
       state.battle.enemy = makeMember(id,enemy.level);
+      if(state.battle.reserveHp?.length)state.battle.enemy.hp=state.battle.reserveHp.shift();
       state.battle.opening=false;
       if (!state.seen.includes(id)) state.seen.push(id);
       if (state.battle.condition==="shelter") {
@@ -454,8 +498,9 @@
       const catchup=gap>2 ? 1.7 : gap< -3 ? .2 : 1;
       const gain=Math.max(1, Math.round(xp*catchup*(p.id===activeId?1:.72)));
       if(p.id===activeId && p.level<MAX_LEVEL) activeGain=gain;
-      if (giveXp(p,gain)) levels.push(species[p.id].name+" reached Lv. "+p.level+"!");
+      if (giveXp(p,gain)) levels.push(ownedKin(p.id).name+" reached Lv. "+p.level+"!");
     }
+    const lesson=kind==="warden"?wardenLesson():null;
     state.battle=null;
     state.wins++;
     state.localWins[state.region]=count(state.localWins[state.region])+1;
@@ -470,16 +515,21 @@
       walking?.remember(state,"crest",state.region);
       message += " You earned the " + region.crest + "! " + region.farewell;
     }
-    message += " " + species[activeId].name + " gained " + activeGain + " XP.";
+    if(lesson&&!lesson.mastered&&lesson.progress>=lesson.total) {
+      state.wardenLessons.push(state.region);
+      state.bag.tonic++;state.bag.kinweave+=2;
+      message+=" "+region.warden+" signs your "+lesson.title+" lesson seal. Received one Brighthorn tonic and two Kinweaves.";
+    }
+    message += " " + ownedKin(activeId).name + " gained " + activeGain + " XP.";
     if (levels.length) message += " " + levels.join(" ");
     return commit("victory", message);
   }
 
-  function foeIntent() {
+  function foeIntent(enemyId=state.battle?.enemy.id) {
     const b = state.battle;
     if (!b) return null;
     const r = regions[state.region];
-    const attacks = species[b.enemy.id].skills.filter(skill => skill.kind === "attack");
+    const attacks = species[enemyId].skills.filter(skill => skill.kind === "attack");
     const laterTrial = b.kind === "warden" && r.requiredCrests >= 3;
     // Veteran Wardens train different rhythms. Their opponents can read the next move before committing.
     const rhythm = laterTrial ? [3, 2, 4][r.requiredCrests % 3] : 3;
@@ -487,12 +537,14 @@
     const signature = attacks[Math.floor(b.turn / rhythm - 1) % attacks.length] || attacks[0];
     const skill = charged ? signature : {name:r.basicMove, type:"Neutral", power:5};
     const guarding = b.kind!=="wild" && !charged && (b.turn+r.ordinal)%4===0;
-    return {skill,charged,guarding,power:skill.power+(charged ? rhythm + (laterTrial ? 2 : 0) : 0)};
+    const base={skill,charged,guarding,power:skill.power+(charged ? rhythm + (laterTrial ? 2 : 0) : 0)};
+    return b.kind==="warden"&&coaches?coaches.intent(r,b,base,signature):base;
   }
 
-  function returnHit(defender,guardFactor,intent=foeIntent()) {
+  function returnHit(defender,guardFactor,intent=foeIntent(),covered=state.battle.cover>0) {
+    if(intent.support || guardFactor===0)return 0;
     const hit=damage(intent.power,state.battle.enemy.level,intent.skill.type,defender);
-    return Math.max(1,Math.floor(hit*guardFactor));
+    return Math.max(1,Math.floor(hit*guardFactor*(covered ? .4 : 1)));
   }
 
   function counterattack(firstMessage, guardFactor=1) {
@@ -501,9 +553,13 @@
     const enemySpecies = species[enemy.id];
     const active = member(battle.activeId);
     const intent=foeIntent(),skill=intent.skill;
-    const dealt=Math.min(active.hp,returnHit(active,guardFactor,intent));
+    const interrupted=guardFactor===0;
+    const dealt=interrupted?0:Math.min(active.hp,returnHit(active,guardFactor,intent));
+    if(!interrupted&&!intent.support&&battle.cover>0)battle.cover--;
     active.hp -= dealt;
-    let reply = enemySpecies.name + " used " + skill.name + " for " + dealt + " damage.";
+    let reply = intent.support?"":interrupted?enemySpecies.name+" lost its charged response.":enemySpecies.name + " used " + skill.name + " for " + dealt + " damage.";
+    const response=applyCoaching(false);
+    if(response?.message)reply+=(reply?" ":"")+response.message;
     if (active.hp === 0) {
       const next = team().find(p => p.hp > 0);
       if (!next) {
@@ -514,15 +570,35 @@
         return commit("defeat", "Your party ran out of strength. You returned to the trailhead, where your companions recovered to full health.");
       }
       battle.activeId = next.id;
-      reply += " " + species[active.id].name + " needs a rest. " + species[next.id].name + " stepped in.";
+      reply += " " + ownedKin(active.id).name + " needs a rest. " + ownedKin(next.id).name + " stepped in.";
     }
     battle.turn++;
     battle.log = [...battle.log, firstMessage, reply].slice(-8);
-    return commit("turn", firstMessage + " " + reply);
+    const outcome=commit("turn", firstMessage + " " + reply);
+    return intent.support?{...outcome,skipCounterFx:true,foeShifted:!!response?.shifted,replySkill:skill}:outcome;
   }
 
+  function wardenLesson(i=state.region) {
+    return coaches?.lesson(state,regions[i],i)||null;
+  }
+  function wardenForecast() {
+    return coaches?.forecast(state,regions[state.region],state.region)||null;
+  }
+  function rotateFoe() {
+    const b=state.battle;
+    const hp=b.reserveHp?.length?b.reserveHp:b.remaining.map(id=>hpAt(id,b.enemy.level));
+    const incoming=makeMember(b.remaining.shift(),b.enemy.level);
+    incoming.hp=hp.shift();
+    b.remaining.push(b.enemy.id);hp.push(b.enemy.hp);b.reserveHp=hp;b.enemy=incoming;b.opening=false;
+    if(!state.seen.includes(incoming.id))state.seen.push(incoming.id);
+  }
+  function applyCoaching(knockedOut) {
+    if(!state.battle?.coach)return null;
+    return coaches.respond({state,region:regions[state.region],dex,species,member,team,rotate:rotateFoe,knockedOut});
+  }
   function earnBeat(part) {
     const b=state.battle;
+    if(b.coach)b.coach.action=part;
     if (part!==b.lastPart) b.beats=Math.min(3,b.beats+1);
     b.lastPart=part;
   }
@@ -545,10 +621,10 @@
     const damageDone=Math.min(foe.hp-(role==="lure"?1:0),Math.max(1,Math.round(combined*.82*score.strength*brace)));
     const restore=p=>role==="mend" ? Math.min(p.maxHp-p.hp,Math.ceil(p.maxHp/4)) : 0;
     const healLead=restore(lead),healPartner=restore(partner),switchLead=role==="relay";
-    const defender=switchLead?partner:lead,defenderName=species[defender.id].name;
+    const defender=switchLead?partner:lead,defenderName=ownedKin(defender.id).name;
     const falls=damageDone===foe.hp,opens=role==="mark"&&!falls;
     const returnDamage=falls?0:Math.min(defender.hp+restore(defender),returnHit(defender,score.counter,intent));
-    const reason=!partner.hp ? species[partner.id].name+" needs to recover." :
+    const reason=!partner.hp ? ownedKin(partner.id).name+" needs to recover." :
       battle.beats<cost ? "Needs "+(cost-battle.beats)+" more "+(cost-battle.beats===1?"beat.":"beats.") : "";
     const details=[damageDone+" damage"];
     if (role==="lure") details.push("leaves at least 1 HP");
@@ -579,23 +655,100 @@
     if (!option) return error("Choose a duet with another traveling companion.");
     if (!option.available) return error(option.reason);
     const lead=member(b.activeId),partner=member(partnerId);
+    if(b.coach)b.coach.action=option.switchLead?"switch":"duet";
+    if(!usingLoaners&&state.growth.cindlet&&[lead.id,partnerId].includes("cindlet"))state.growth.cindlet.demonstrated=true;
     b.beats-=option.cost;b.lastPart=null;b.lastAttack=null;
     b.enemy.hp-=option.damage;
     lead.hp+=option.healLead;partner.hp+=option.healPartner;
     if (option.opens) b.opening=true;
     if (option.switchLead) b.activeId=partnerId;
-    let message=species[lead.id].name+" and "+species[partnerId].name+" used "+option.name+" for "+option.damage+" damage.";
+    let message=ownedKin(lead.id).name+" and "+ownedKin(partnerId).name+" used "+option.name+" for "+option.damage+" damage.";
     if (option.healLead||option.healPartner) message+=" Restored "+option.healLead+" / "+option.healPartner+" HP.";
     if (option.opens) message+=" The foe is exposed!";
-    if (option.switchLead) message+=" "+species[partnerId].name+" takes the lead.";
+    if (option.switchLead) message+=" "+ownedKin(partnerId).name+" takes the lead.";
     return b.enemy.hp===0?winBattle(message):counterattack(message,option.counter);
+  }
+
+  function skillPreview(id) {
+    const b=state.battle;
+    if(!b)return null;
+    const lead=member(b.activeId),skill=ownedKin(lead.id).skills.find(s=>s.id===id&&s.trained);
+    if(!skill)return null;
+    let intent=foeIntent(),receiver=lead,reason="",hit=0,guard=1,healing=0,tax=0,gain=0,target=null,shift=null;
+    const details=[];
+    switch(id){
+      case "wattle-ward":
+        if(b.cover>0)reason="The team's cover is still active.";
+        details.push("Cover the next two hits, including this reply.");break;
+      case "briar-seam":
+        hit=damage(5,lead.level,skill.type,b.enemy)*(intent.guarding?2:1);
+        if(intent.guarding)gain=1;
+        details.push(intent.guarding?"Break guard and refund one beat.":"Expose the foe for your next attack.");break;
+      case "backdraft-cut":
+        if(!intent.charged)reason="Wait for a charged enemy move.";
+        hit=damage(8,lead.level,skill.type,b.enemy);guard=0;
+        details.push("Interrupt "+intent.skill.name+".");break;
+      case "cinder-handoff":{
+        tax=Math.ceil(lead.maxHp/6);gain=Math.min(2,3-b.beats);
+        const roster=team(),index=roster.indexOf(lead),next=[...roster.slice(index+1),...roster.slice(0,index)].find(p=>p.hp>0);
+        if(!next)reason="Another conscious teammate must be available.";
+        else if(lead.hp<=tax)reason="Kilnwing must keep at least 1 HP after paying "+tax+".";
+        else if(!gain)reason="The beat meter is already full.";
+        if(next){receiver=next;target=next.id;}
+        guard=.5;details.push("Pay "+tax+" HP. Hand "+gain+" beat"+(gain===1?"":"s")+" and the lead to "+ownedKin(receiver.id).name+".");break;
+      }
+      case "harbor-pool":{
+        const patient=team().filter(p=>p.hp>0&&p.hp<p.maxHp).sort((a,b)=>a.hp/a.maxHp-b.hp/b.maxHp)[0];
+        if(!patient)reason="Your conscious teammates are already at full health.";
+        else{
+          target=patient.id;healing=Math.min(patient.maxHp-patient.hp,Math.ceil(patient.maxHp/3));
+          details.push("Restore "+healing+" HP to "+ownedKin(patient.id).name+".");
+        }
+        guard=.5;break;
+      }
+      case "turn-the-lock":
+        guard=.5;
+        if(b.remaining.length){shift=b.remaining[0];intent=foeIntent(shift);details.push("Send "+species[b.enemy.id].name+" to the back at "+b.enemy.hp+" HP. "+species[shift].name+" comes forward.");}
+        else details.push("Expose the lone foe for your next attack.");
+        break;
+    }
+    if(skill.kind==="attack"){
+      if(b.opening){hit=Math.round(hit*1.5);details.push("Strike the opening.");}
+      if(b.condition==="echo"&&b.lastAttack===id){hit=Math.max(1,Math.round(hit*.75));details.push("Echo dulls the repeat.");}
+    }
+    hit=Math.min(hit,b.enemy.hp);
+    if(hit)details.push(hit+" damage.");
+    const effect=details.join(" "),replyHp=receiver.hp+(receiver.id===target?healing:0);
+    const returnDamage=hit===b.enemy.hp||!guard?0:Math.min(replyHp,returnHit(receiver,guard,intent,b.cover>0||id==="wattle-ward"));
+    details.push(returnDamage?ownedKin(receiver.id).name+" takes "+returnDamage+" in reply"+(returnDamage===replyHp?" and faints.":"."):"No return hit.");
+    if(b.beats<skill.cost)reason="Needs "+skill.cost+" beats; you have "+b.beats+".";
+    return {available:!reason,reason,effect,detail:details.join(" "),kind:skill.kind,cost:skill.cost,damage:hit,returnDamage,
+      guard,healing,tax,gain,target,shift,replySkill:intent.skill};
+  }
+
+  function trainedTurn(skill,lead) {
+    const b=state.battle,plan=skillPreview(skill.id);
+    if(!plan.available)return error(plan.reason);
+    if(b.coach)b.coach.action=({"wattle-ward":"guard","briar-seam":"guard","backdraft-cut":"guard","cinder-handoff":"switch","harbor-pool":"care","turn-the-lock":"switch"})[skill.id]||"strike";
+    b.beats=b.beats-skill.cost+plan.gain;b.lastPart=null;b.lastAttack=skill.kind==="attack"?skill.id:null;
+    if(skill.kind==="attack")b.opening=false;
+    b.enemy.hp-=plan.damage;
+    const note=ownedKin(lead.id).name+" used "+skill.name+". ";
+    if(skill.id==="wattle-ward")b.cover=2;
+    if(skill.id==="briar-seam"||skill.id==="turn-the-lock"&&!plan.shift)b.opening=true;
+    if(plan.healing)member(plan.target).hp+=plan.healing;
+    if(skill.id==="cinder-handoff"){lead.hp-=plan.tax;b.activeId=plan.target;}
+    if(plan.shift)rotateFoe();
+    const message=note+plan.effect;
+    const outcome=b.enemy.hp===0?winBattle(message):counterattack(message,plan.guard);
+    return {...outcome,foeShifted:Boolean(plan.shift)||!!outcome.foeShifted,skipCounterFx:!plan.guard||!!outcome.skipCounterFx,replySkill:plan.replySkill};
   }
 
   function useSkill(id) {
     const battle = state.battle;
     if (!battle) return error("There is no active encounter.");
     const active = member(battle.activeId);
-    const user = species[active.id];
+    const user = ownedKin(active.id);
     if (id === "trail-feint" && battle.kind === "wild") {
       const foe = battle.enemy;
       const hit = Math.min(foe.hp - 1, Math.ceil(foe.maxHp / 4));
@@ -606,11 +759,13 @@
     }
     const skill = user.skills.find(s => s.id === id);
     if (!skill) return error("Choose a skill your active companion knows.");
+    if(skill.trained)return trainedTurn(skill,active);
     if (skill.kind === "heal") {
       if (active.hp === active.maxHp) return error(user.name + " is already at full health.");
       earnBeat("care");
       const regained = Math.min(active.maxHp - active.hp, Math.ceil(active.maxHp / 3));
       active.hp += regained;
+      if(!usingLoaners&&state.growth.dewfin&&active.id==="dewfin"&&id==="dew-bath")state.growth.dewfin.demonstrated=true;
       return counterattack(user.name + " used " + skill.name + " and recovered " + regained + " HP.");
     }
     const enemy = battle.enemy;
@@ -628,6 +783,7 @@
     const pairing = multiplier > 1 ? " Elemental advantage!" : multiplier < 1 ? " The target resisted." : "";
     const message = user.name + " used " + skill.name + " for " + hit + " damage." + pairing + (exposed?" Struck the opening!":"") + (repeated ? " Echo dulled the repeat." : "") + (braced ? skill.kind==="guard" ? " Broke its guard!" : " It braced for the strike." : "");
     if (enemy.hp === 0) return winBattle(message);
+    if(!usingLoaners&&state.growth.sprigkit&&active.id==="sprigkit"&&id==="brush-dash"&&foeIntent().charged)state.growth.sprigkit.demonstrated=true;
     return counterattack(message,skill.kind==="guard" ? (battle.condition==="ledge" ? .33 : .5) : 1);
   }
 
@@ -639,7 +795,7 @@
     earnBeat("switch");
     battle.activeId = id;
     battle.lastAttack=null;
-    return counterattack("You called in "+species[id].name+".",battle.condition==="gale" ? .25 : .5);
+    return counterattack("You called in "+ownedKin(id).name+".",battle.condition==="gale" ? .25 : .5);
   }
 
   function recruit() {
@@ -696,9 +852,9 @@
 
   function training(amount) {
     const p = member(state.lead);
-    if (p.level===MAX_LEVEL) return species[p.id].name+" is fully trained.";
+    if (p.level===MAX_LEVEL) return ownedKin(p.id).name+" is fully trained.";
     const leveled = giveXp(p, amount);
-    return species[p.id].name + " gained " + amount + " XP" + (leveled ? " and reached level " + p.level : "") + ".";
+    return ownedKin(p.id).name + " gained " + amount + " XP" + (leveled ? " and reached level " + p.level : "") + ".";
   }
   function awardGame(id) {
     const activity = activities.games.find(g => g.id === id);
@@ -763,6 +919,16 @@
   }
 
   function useItem(id,targetId) {
+    if(id==="broth"){
+      if(state.battle)return error("Share a meal between encounters.");
+      if(!state.bag.broth)return error("Prepare Trailpot broth in your satchel.");
+      const guests=team().filter(p=>p.hp>0&&p.hp<p.maxHp);
+      if(!guests.length)return error("Your traveling party has no injuries a meal can heal.");
+      let restored=0;
+      for(const p of guests){const gain=Math.min(p.maxHp-p.hp,Math.ceil(p.maxHp/3));p.hp+=gain;restored+=gain;}
+      state.bag.broth--;
+      return commit("item","Shared Trailpot broth. "+guests.length+" companions recovered "+restored+" HP together.");
+    }
     if (!Object.hasOwn(items,id)) return error("Unknown item.");
     if (id==="kinweave") return recruit();
     const item=items[id], p=member(targetId || state.battle?.activeId || state.lead);
@@ -774,7 +940,7 @@
     const regained=Math.min(p.maxHp-p.hp,Math.ceil(p.maxHp*(id==="tonic" ? 1 : .5)));
     p.hp+=regained;
     state.bag[id]--;
-    const message=items[id].name+" restored "+regained+" HP to "+species[p.id].name+".";
+    const message=items[id].name+" restored "+regained+" HP to "+ownedKin(p.id).name+".";
     if (state.battle) {earnBeat("care");return counterattack(message);}
     return commit("item",message);
   }
@@ -790,6 +956,33 @@
       description:done?"The passage is charted for travelers.":work.description,
       step:completed+1,completed,total,done,atSite:index===state.region && state.landmark===work.targetSite,
       choices:done?[]:work.choices};
+  }
+  function surveyedPassage(i) {
+    return count(state.surveys[i])>=campaign.length(i)||state.reports.includes(i);
+  }
+  function surveyInstruction(i) {
+    return "Chart "+regions[i].name+(i>=3?" through its commission or a naturalist’s report.":" by finishing its field commission.");
+  }
+  function passageReport(i=state.region) {
+    if(!validRegion(i)||i<3)return null;
+    const pool=pools[i],studies=pool.filter(id=>state.fieldwork[id]?.complete).length;
+    const observed=Math.min(3,pool.length),legs=Math.ceil(campaign.length(i)/3);
+    const requirements=[
+      {label:"File "+observed+" local wildlife observations ("+studies+"/"+observed+")",done:studies>=observed},
+      {label:"Befriend an inhabitant of "+regions[i].name,done:pool.some(id=>member(id))},
+      {label:"Chart "+legs+" regional field legs",done:count(state.surveys[i])>=legs}
+    ];
+    return {region:i,filed:state.reports.includes(i),requirements,atDesk:i===state.region&&state.landmark==="travel"&&!state.battle};
+  }
+  function filePassage() {
+    const i=state.region,r=passageReport();
+    if(!r||!r.atDesk)return error("Bring your report to the local trailpost.");
+    if(r.filed)return error("The station has already accepted this report.");
+    const missing=r.requirements.find(req=>!req.done);
+    if(missing)return error(missing.label+".");
+    state.reports.push(i);
+    for(const p of team())if(p.level<regions[i].wildLevel)giveXp(p,xpNeeded(p.level));
+    return commit("report","Report filed. The station recognizes your survey for onward travel and the Warden trial. The remaining commission is open.");
   }
 
   function finishLeg() {
@@ -931,7 +1124,10 @@
     return reply;
   }
   window.WilderGame = {
+    wardenLesson,wardenForecast,
+    passageReport,filePassage,
     pinRegion,setWalker,walkerPose:(time,reduced)=>walking?.pose(state,time,reduced),walkerInfo:()=>walking.info(state),walkerSense:()=>walking.sense(state,field.sightings(state.region),expedition(),objective()),
+    stillwake:window.WilderStillwake?.create({state:()=>state,commit,regions,species,makeMember,story,duetPair}),
     hollows:window.WilderHollows?.create({state:()=>state,commit,regions,species,items}),
     withLoaners,saveCircuit,loaner:(id,level)=>validSpecies(id)&&integer(level,1,MAX_LEVEL)?makeMember(id,level):null,
     caravan:window.WilderCaravans?.create({state:()=>state,commit,hpAt,regions,species,items}),
@@ -941,7 +1137,7 @@
     get canSave() { return canSave; },
     items,conditions:campaign.conditions,visitSite,gather,craft,useItem,expedition,expeditionAction,license,claimLicense,
     gamePass,unlockGame,storyStep,trialAccess,wildLevel:i=>regions[i]?.wildLevel,
-    species, regions, wardens, homes, pools, access, team, enlist, foeIntent, maxLevel:MAX_LEVEL,
+    species,kin,growthInfo,chooseGrowth,growthAppearance,skillPreview,regions, wardens, homes, pools, access, team, enlist, foeIntent, maxLevel:MAX_LEVEL,
     awardGame, questAction, xpNeeded, objective, setPosition, travel, setLead,
     heal, meetWarden, startBattle, useSkill, duetPair, duets, useDuet, swap, recruit, flee, setSound, reset
   };

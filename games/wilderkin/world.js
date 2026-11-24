@@ -1274,11 +1274,12 @@
     const x=Math.round(p.x*TILE+8),y=Math.round(p.y*TILE+10);
     const stride=t?Math.sin(Math.PI*p.progress):0;
     const bob=p.gait==="glide"?2+(t?Math.round(Math.sin(t*2)):0):p.gait==="step"?Math.round(2*stride):0;
-    const img=window.WilderFieldwork.sprite(p.id),size=19;
+    const img=window.WilderFieldwork.sprite(p.id,p.src),size=19;
     rect(c,"#587057",x-6,y-1,13,2);
     if(img.complete&&img.naturalWidth) {
       c.save();c.translate(x,y-bob);
-      if(p.dx>0)c.scale(-1,1);
+      const facesRight=["sprigkit","glimmeray","dewfin","coalmoth"].includes(p.id);
+      if((p.dx>0&&!facesRight)||(p.dx<0&&facesRight))c.scale(-1,1);
       c.drawImage(img,-10,-18,size,size);c.restore();
     }
     // Teal trail ribbon distinguishes a companion from the gold marks around a wild kin.

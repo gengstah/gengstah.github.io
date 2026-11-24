@@ -3,6 +3,7 @@
   "use strict";
 
   const items = {
+    broth:{name:"Trailpot broth",use:"meal",recipe:{balm:1,reed:2,sap:2},description:"A shared meal between encounters. Restore one third of each conscious traveling companion’s maximum health."},
     reed:{name:"Silver reed",use:"material",description:"Fibers harvested from trail edges. Used to weave capture loops and splints."},
     sap:{name:"Sun sap",use:"material",description:"A fragrant resin for medicine and kin-binding knots."},
     ore:{name:"Bellstone",use:"material",description:"A resonant mineral that holds a charge in emergency supplies."},

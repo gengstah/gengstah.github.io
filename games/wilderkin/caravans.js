@@ -18,6 +18,10 @@
   }
 
   function create({state,commit,hpAt,regions,species,items}) {
+    const companionName=id=>{
+      const s=state(),base=species[id];
+      return s.growth && window.WilderGrowth ? window.WilderGrowth.decorate(base,s).name : base.name;
+    };
     function ledger() {
       const s=state();
       return s.caravan ||= restore(null,s.party);
@@ -54,7 +58,7 @@
       if (previous?.lead===lineup.lead && previous.team.join("|")===lineup.team.join("|"))
         return error("This pennant already records the traveling lineup.");
       ledger().slots[index]=lineup;
-      return commit("formation",pennants[index]+" now records "+species[lineup.lead].name+" and company.");
+      return commit("formation",pennants[index]+" now records "+companionName(lineup.lead)+" and company.");
     }
     function apply(lineup,undo) {
       const info=status(lineup);
@@ -64,7 +68,7 @@
       s.team=info.team;
       s.lead=info.readyLead;
       book.previous=undo?null:previous;
-      return commit("formation",(undo?"Earlier lineup restored. ":"Formation recalled. ")+species[s.lead].name+" leads the party.");
+      return commit("formation",(undo?"Earlier lineup restored. ":"Formation recalled. ")+companionName(s.lead)+" leads the party.");
     }
     function recallFormation(slot) {return apply(ledger().slots[slotIndex(slot)],false);}
     function undoFormation() {return apply(ledger().previous,true);}
@@ -98,21 +102,21 @@
       const hp=kin.hp===0?0:Math.max(1,Math.floor(maxHp*kin.hp/kin.maxHp));
       for (const [key,quantity] of Object.entries(lesson.cost)) s.bag[key]-=quantity;
       Object.assign(kin,{level:lesson.target,maxHp,hp});
-      return commit("mentored",species[lesson.teacher].name+" trained "+species[id].name+" to level "+lesson.target+".");
+      return commit("mentored",companionName(lesson.teacher)+" trained "+companionName(id)+" to level "+lesson.target+".");
     }
     return {formations,saveFormation,recallFormation,undoFormation,training,trainReserve};
   }
 
   function pages({game,row,image,go,render,notify,locate}) {
-    const api=game.caravan;
+    const api=game.caravan,own=id=>game.kin?.(id,{owned:true}) || game.species[id];
     const heading=(title,rows,columns=1)=>({title,rows,columns});
     const view=(name,value,label,detail="",extra={})=>row("view",label,name+"|"+value,detail,extra);
     const headingPage=(title,kicker,subtitle,sections)=>({title,kicker,subtitle,sections});
-    const names=team=>team.map(id=>game.species[id].name).join(" · ");
+    const names=team=>team.map(id=>own(id).name).join(" · ");
     let mentoringPage=0,walkingTo=null;
     function lineupRows(team,lead) {
       return team.map(id=>{
-        const kin=game.state.party.find(p=>p.id===id),species=game.species[id];
+        const kin=game.state.party.find(p=>p.id===id),species=own(id);
         return row("open-kin",species.name,id,"Lv. "+kin.level+" · "+kin.hp+"/"+kin.maxHp+" HP · "+species.types.join(" / "),
           {image:image(id),badge:id===lead?"LEAD":""});
       });
@@ -134,7 +138,7 @@
       const same=old && s.lead===old.lead && s.team.join("|")===old.team.join("|");
       const actions=[];
       if (old && !confirmReplace) actions.push(row("caravan-recall","Recall this lineup",slot,
-        old.reason || ("Lead with "+game.species[old.readyLead].name+" · Undo is available after recalling."),{disabled:!!old.reason,tone:"primary"}));
+        old.reason || ("Lead with "+own(old.readyLead).name+" · Undo is available after recalling."),{disabled:!!old.reason,tone:"primary"}));
       if (old && !confirmReplace) actions.push(view("formation-replace",slot,"Replace with traveling party",names(s.team),{disabled:!!s.battle||same}));
       else actions.push(row("caravan-save",confirmReplace?"Replace recorded lineup":"Record traveling lineup",slot,
         names(s.team),{disabled:!!s.battle,tone:"primary"}));
@@ -146,10 +150,10 @@
     }
     function mentoring() {
       const s=game.state, list=s.party.filter(p=>!s.team.includes(p.id)).map(p=>api.training(p.id));
-      list.sort((a,b)=>b.gain-a.gain || game.species[a.id].name.localeCompare(game.species[b.id].name));
+      list.sort((a,b)=>b.gain-a.gain || own(a.id).name.localeCompare(own(b.id).name));
       const limit=8,total=Math.max(1,Math.ceil(list.length/limit));
       mentoringPage=Math.max(0,Math.min(mentoringPage,total-1));
-      const selections=list.slice(limit*mentoringPage,limit*(mentoringPage+1)).map(l=>view("mentor",l.id,game.species[l.id].name,
+      const selections=list.slice(limit*mentoringPage,limit*(mentoringPage+1)).map(l=>view("mentor",l.id,own(l.id).name,
         l.gain?"Lv. "+l.level+" → "+l.target:"Lv. "+l.level+" · Trained for this camp",{image:image(l.id),badge:l.gain?"+"+l.gain+" LV":""}));
       const sections=[heading("Reserve companions",selections.length?selections:[{label:"Your whole company is traveling together.",detail:"Additional companions join the reserve after your sixth party member."}],2)];
       if (total>1) sections.push(heading("Page "+(mentoringPage+1)+" of "+total,[
@@ -161,13 +165,13 @@
     function mentor(id) {
       const lesson=api.training(id),s=game.state;
       if (!lesson) return mentoring();
-      const species=game.species[id],cost=Object.entries(lesson.cost).map(([key,n])=>
+      const species=own(id),cost=Object.entries(lesson.cost).map(([key,n])=>
         ({label:game.items[key].name,detail:n+" required · "+(s.bag[key]||0)+" held"}));
       const actions=[];
       if (lesson.gain>0 && !lesson.atCamp && !s.battle) actions.push(row("caravan-walk","Walk to the training yard",id));
       actions.push(row("caravan-train","Train "+species.name,id,lesson.reason||"Spend the listed supplies for one lesson.",{disabled:!lesson.available,tone:"primary"}));
       if (!s.team.includes(id)) actions.push(view("enlist",id,"Add to the traveling party"));
-      const sections=[{title:"Lesson level",text:(lesson.teacher?game.species[lesson.teacher].name+" can mentor at Lv. "+lesson.teacherLevel+". ":"A healthy traveling mentor is needed. ")+
+      const sections=[{title:"Lesson level",text:(lesson.teacher?own(lesson.teacher).name+" can mentor at Lv. "+lesson.teacherLevel+". ":"A healthy traveling mentor is needed. ")+
         "Local wild kin are Lv. "+lesson.regionalLevel+". This camp teaches to Lv. "+lesson.target+"."}];
       if (cost.length) sections.push(heading("Supplies",cost,3));
       sections.push(heading("At the yard",actions));

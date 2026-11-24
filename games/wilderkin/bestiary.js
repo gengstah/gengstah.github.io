@@ -161,7 +161,9 @@
       const entry = originalSpecies[id];
       all[id] = {...entry, types:[entry.type], ability:legacyAbilities[id] || null};
     }
-    return Object.assign(all, additions);
+    Object.assign(all,additions);
+    if(window.WilderStillwake)all.stillwake=window.WilderStillwake.kin;
+    return all;
   }
 
   const allIDs = [...legacyIDs,...Object.keys(additions)];

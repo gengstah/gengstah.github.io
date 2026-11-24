@@ -264,12 +264,13 @@
     basalt:["#d7b9a3","#ae947d","#8e756a","#685655","#c29c7c","#b37e6b"],ice:["#dce6e3","#b3cbca","#95b1b5","#6e909b","#c6cfc1","#8cb9c4"]
   };
   const images=new Map(),landscapes=new Map();
-  function sprite(id) {
-    if(!images.has(id)) {
+  function sprite(id,appearanceUrl) {
+    const key=appearanceUrl||id;
+    if(!images.has(key)) {
       if(images.size>=60)images.delete(images.keys().next().value);
-      const image=new Image();image.src=window.WilderKinDex.spriteUrl(id);images.set(id,image);
+      const image=new Image();image.src=appearanceUrl||window.WilderKinDex.spriteUrl(id);images.set(key,image);
     }
-    return images.get(id);
+    return images.get(key);
   }
   // Paint on the renderer's single canvas. The native-pixel study scene retains silhouettes on small screens.
   function panel(study) {

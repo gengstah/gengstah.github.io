@@ -15,6 +15,7 @@
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
   const clamp = (v,low,high) => Math.max(low,Math.min(high,v));
   const pi = Math.PI;
+  const rightFacing=new Set(["art/sprigkit.png","art/glimmeray.png","art/dewfin.png","art/coalmoth.png","art/growth/brackenveil.png","art/growth/rillwarden.png"]);
   const getFont = (size,kind="body",weight=500) => `${weight} ${size}px ${kind==="title" ? 'Pixelify, monospace' : kind==="mono" ? 'monospace' : '"DM Sans", system-ui, sans-serif'}`;
   const inside = (x,y,r) => x>=r.x && x<r.x+r.w && y>=r.y && y<r.y+r.h;
   function rect(c,x,y,w,h,fill,stroke) {
@@ -437,6 +438,38 @@
     function section(s,x,y,w,t) {
       if(!s)return 0;
       let sy=y;
+      if(s.reveal){
+        const m=s.reveal,h=w<520?195:242,sz=h-27,cx=x+w/2,cy=sy+h*.48;
+        const phase=reduced.matches?1:clamp((t-m.start)/1150,0,1),tint=affinity[m.type]||affinity.Neutral;
+        const gradient=c.createRadialGradient(cx,cy,5,cx,cy,w*.65);
+        gradient.addColorStop(0,tint[1]);gradient.addColorStop(1,C.forest);
+        c.fillStyle=gradient;c.fillRect(x,sy,w,h);
+        c.save();c.beginPath();c.rect(x,sy,w,h);c.clip();
+        if(phase<1){c.globalAlpha=1-phase;picture(m.from,cx-sz*.43,cy-sz*.43,sz*.86,sz*.86);}
+        c.globalAlpha=phase;picture(m.to,cx-sz/2,cy-sz/2,sz,sz);
+        c.globalAlpha=.8;
+        for(let i=0;i<16;i++){
+          const theta=Math.PI*2*i/16+.15*phase,rad=sz*(.33+phase*.32);
+          star(c,cx+Math.cos(theta)*rad,cy+Math.sin(theta)*rad*.64,1.5+(1-phase)*3,tint[1]);
+        }
+        c.restore();sy+=h+12;
+      }
+      if(s.growth){
+        const g=s.growth,half=w/2,h=w<550?142:185,colors=affinity[g.type]||affinity.Neutral;
+        const size=h-31,bob=pulse(t)*2.5;
+        rect(c,x,sy,w,h,"#eef0df",C.line);
+        for(let i=0;i<2;i++){
+          const center=x+(i+.5)*half;
+          const gw=Math.min(half-14,size*(i?1:.78));
+          ellipse(c,center,sy+h-30,gw*.36,5,colors[1]+"66");
+          picture(i?g.to:g.from,center-gw/2,sy+h-29-gw+bob,gw,gw);
+          label(c,i?g.toName:g.fromName,center,sy+h-23,15,C.ink,"title",650,"center");
+        }
+        const mid=x+half,my=sy+h*.52;
+        line(c,mid-10,my,mid+10,my,colors[0],2);
+        line(c,mid+4,my-5,mid+10,my,colors[0],2);line(c,mid+4,my+5,mid+10,my,colors[0],2);
+        sy+=h+10;
+      }
       if(s.title){c.font=getFont(21,"title",650);const headings=wrap(c,s.title,w);sy+=paragraph(c,headings,x,sy,21,23,C.ink,"title",650)+5;}
       if(s.text){
         c.font=getFont(15,"body",500);
@@ -618,7 +651,7 @@
         ellipse(c,point.x,point.y+tile*.46,tile*.32,Math.max(2,tile*.047),"#324d3438");
         c.save();c.globalAlpha=alpha;
         // Generated kin face left. The six legacy illustration orientations vary.
-        const forward=["sprigkit","glimmeray","dewfin","coalmoth"].some(id=>p.src==="art/"+id+".png");
+        const forward=rightFacing.has(p.src);
         const flip=p.flip??(side==="ally"?!forward:forward);
         picture(p.src||p.image,point.x+dx-size/2,point.y+dy-size/2,size,size,"contain",flip);
         c.restore();
@@ -627,7 +660,7 @@
         const partnerSize=tile*.71, xx=points.ally.x+tile*.64, yy=points.ally.y+tile*.19;
         c.save();
         c.globalAlpha=reduced.matches?1:Math.min(1,elapsed*7,(1-elapsed)*8);
-        picture(active.partner,xx-partnerSize/2,yy-partnerSize/2,partnerSize,partnerSize,"contain",!["sprigkit","glimmeray","dewfin","coalmoth"].some(id=>active.partner==="art/"+id+".png"));
+        picture(active.partner,xx-partnerSize/2,yy-partnerSize/2,partnerSize,partnerSize,"contain",!rightFacing.has(active.partner));
         c.restore();
         impact({...active,type:active.partnerType,kind:"attack"},elapsed,{ally:{x:xx,y:yy},foe:points.foe},tile*.77);
       }

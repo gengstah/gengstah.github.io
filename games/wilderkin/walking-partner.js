@@ -48,6 +48,7 @@
   function create({species,regions}) {
     let animation=null;
     const normalise=(raw,party)=>restore(raw,party,species,regions);
+    const companion=(s,id)=>s.growth && window.WilderGrowth ? window.WilderGrowth.decorate(species[id],s) : species[id];
     const mode=s=>s.walking?.mode||"lead";
     const current=s=>mode(s)==="hidden"?null:mode(s)==="lead"?s.lead:mode(s);
     const playerPoint=s=>s.positions[s.region]||window.WilderWorld.regions[s.region].spawn;
@@ -84,7 +85,7 @@
       if(s.battle)return {ok:false,kind:"error",message:"Choose your walking companion after the encounter."};
       if(value!=="lead"&&value!=="hidden"&&!s.party.some(p=>p.id===value))return {ok:false,kind:"error",message:"Choose a companion you have befriended."};
       s.walking.mode=value;animation=null;
-      return {ok:true,kind:"walker",message:value==="hidden"?"Finch will walk alone.":value==="lead"?"Your party leader will walk beside Finch.":species[value].name+" will walk beside Finch."};
+      return {ok:true,kind:"walker",message:value==="hidden"?"Finch will walk alone.":value==="lead"?"Your party leader will walk beside Finch.":companion(s,value).name+" will walk beside Finch."};
     }
     function remember(s,kind,subject) {
       const id=current(s);
@@ -96,14 +97,14 @@
     function memoryText(s,id) {
       const m=s.walking?.memories[id];
       if(!m)return "";
-      const r=regions[m.region],name=species[id].name;
+      const r=regions[m.region],name=companion(s,id).name;
       if(m.kind==="crest")return "After you earned the "+r.crest+", Finch sat down outside "+r.lodge+". "+name+" nosed the new crest until the metal stopped swinging. That is the part Finch drew.";
       return "In "+r.name+", Finch and "+name+" stayed quiet long enough to read "+species[m.subject].name+"’s signs. The first line in their shared notebook still has a smudge at the edge.";
     }
     function info(s) {
       const id=current(s),setting=mode(s);
       if(!id)return {id:null,mode:setting,name:"Walking alone"};
-      const p=s.party.find(p=>p.id===id),k=species[id],r=regions[s.region],voice=moods[k.type]||moods.Grove;
+      const p=s.party.find(p=>p.id===id),k=companion(s,id),r=regions[s.region],voice=moods[k.type]||moods.Grove;
       const hurt=p.hp*3<=p.maxHp;
       let moment=k.name+" "+voice[0]+".";
       if(!p.hp)moment=k.name+" rests against Finch at every stop. It perks up a little when Finch turns toward the camp trail.";
@@ -154,14 +155,15 @@
   }
 
   function pages({game,row,image,go,render,notify,locate}) {
+    const own=id=>game.kin(id,{owned:true});
     const select=(value,label,detail,extra={})=>row("walk-partner-select",label,value,detail,extra);
     const show=(value,label,detail)=>row("walk-partner-page",label,value,detail);
     function model(value) {
       const s=game.state,p=game.walkerInfo();
       if(String(value||"").startsWith("roster")) {
-        const list=s.party.slice().sort((a,b)=>game.species[a.id].name.localeCompare(game.species[b.id].name));
+        const list=s.party.slice().sort((a,b)=>own(a.id).name.localeCompare(own(b.id).name));
         const total=Math.ceil(list.length/8),page=Math.min(total-1,Math.max(0,parseInt(String(value).split("-")[1])||0));
-        const rows=list.slice(page*8,page*8+8).map(c=>select(c.id,game.species[c.id].name,
+        const rows=list.slice(page*8,page*8+8).map(c=>select(c.id,own(c.id).name,
           (s.team.includes(c.id)?"Traveling party":"At camp")+" · Lv. "+c.level,{image:image(c.id),badge:p.id===c.id?"WALKING":"",disabled:!!s.battle}));
         const nav=[];
         if(page>0)nav.push(show("roster-"+(page-1),"Previous page"));
@@ -180,7 +182,7 @@
         return {title:"Trail sense",kicker:p.name+"   /   "+p.region,sections};
       }
       const selection=[show("roster","Choose any companion",s.party.length+" befriended"),
-        select("lead","Walk with the battle leader",game.species[s.lead].name,{badge:p.mode==="lead"?"AUTO":"",disabled:!!s.battle}),
+        select("lead","Walk with the battle leader",own(s.lead).name,{badge:p.mode==="lead"?"AUTO":"",disabled:!!s.battle}),
         select("hidden","Walk alone","Let your companion rest off the map.",{badge:p.mode==="hidden"?"ACTIVE":"",disabled:!!s.battle})];
       const sections=[];
       if(p.id) {

@@ -5,7 +5,7 @@ const {readFileSync} = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
-const scripts = ["atlas","bestiary","activities","campaign","story","duets","caravans","fieldwork","walking-partner","hollows","trials","world","engine"].map(name => {
+const scripts = ["atlas","bestiary","activities","campaign","story","duets","caravans","fieldwork","walking-partner","hollows","trials","growth","stillwake","wardens","world","engine"].map(name => {
   const filename=path.join(__dirname,"../games/wilderkin",name+".js");
   return new vm.Script(readFileSync(filename,"utf8"),{filename});
 });
@@ -125,11 +125,11 @@ test("a veteran with all crests can recover all missing dispatches and reach the
 // A repeatable expert route through actual progression actions. The player seeks useful affinities,
 // uses kit shortcuts, declares each expedition at its landmark and still collects every species.
 function playCampaign(itinerary) {
-  const collector=itinerary==="Collector", specialist=itinerary==="Specialist";
+  const collector=itinerary==="Collector", specialist=itinerary==="Specialist",naturalist=itinerary==="Naturalist";
   const loaded=load(), {game:g,dex,fair,story,world}=loaded;
   const s=()=>g.state, party=id=>s().party.find(p=>p.id===id);
   const meter={visits:0,landmarks:0,charted:0,formed:0,foes:0,skills:0,swaps:0,items:0,rests:0,crafts:0,captures:0,gathers:0,lines:0,words:0,passes:0,tiles:0,fieldActions:0,enrollments:0,leaderChanges:0};
-  const ids=Object.keys(g.species);
+  const ids=Object.keys(g.species).filter(id=>!g.species[id].bonus);
   assert.equal(g.regions.length,150);assert.equal(new Set(g.regions.map(r=>r.name)).size,150);
   assert.equal(ids.length,500);assert.equal(new Set(ids.map(id=>g.species[id].name)).size,500);
   assert.equal(new Set(g.pools.flat()).size,500);assert.equal(g.wardens.length,30);
@@ -138,9 +138,9 @@ function playCampaign(itinerary) {
   assert.ok(!g.travel(149).ok && !g.startBattle("wild","unknown").ok && !g.awardGame(fair.games[0].id).ok);
   assert.ok(!g.startBattle("warden").ok && !g.unlockGame(fair.games[0].id).ok);
   const distanceCache=new Map();
-  function site(kind) {
-    const i=s().region, region=world.regions[i], goal=region.sites.find(l=>l.id===kind);
-    const start=s().positions[i] || region.spawn, key=[i,start.x,start.y,kind].join("/");
+  function walkTo(goal) {
+    const i=s().region,region=world.regions[i],start=s().positions[i]||region.spawn;
+    const key=[i,start.x,start.y,goal.x,goal.y].join("/");
     if(!distanceCache.has(key)) {
       const queue=[[start.x,start.y,0]], seen=new Set();
       for(let j=0;j<queue.length;j++) {
@@ -155,7 +155,10 @@ function playCampaign(itinerary) {
     }
     assert.ok(distanceCache.has(key),region.name+" must have a walkable route to "+goal.label);
     meter.tiles+=distanceCache.get(key);
-    assert.ok(g.setPosition(goal.x,goal.y));assert.ok(g.visitSite(kind));meter.landmarks++;
+    assert.ok(g.setPosition(goal.x,goal.y));meter.landmarks++;
+  }
+  function site(kind) {
+    walkTo(world.regions[s().region].sites.find(l=>l.id===kind));assert.ok(g.visitSite(kind));
   }
   function rest() {site("camp");ok(g.heal());meter.rests++;}
   function craft(id) {ok(g.craft(id));meter.crafts++;}
@@ -230,7 +233,15 @@ function playCampaign(itinerary) {
     const requests=fair.quests.filter(q=>q.region===i);
     if(requests.length)site("activities");
     for(const request of requests) ok(g.questAction(request.id));
-    for(let leg=0;!g.expedition().done && leg<20;leg++) {
+    if(naturalist && i>=3){
+      assert.equal(g.filePassage().ok,false);
+      for(const kin of g.sightings().slice(0,3)){
+        walkTo(kin);const d=g.study(kin.species);
+        ok(g.observe(kin.species,d.clues[0].id));ok(g.observe(kin.species,"try-"+d.variant));
+      }
+    }
+    for(let leg=g.expedition().completed;!g.expedition().done && leg<20;leg++) {
+      if(naturalist && i>=3 && g.passageReport().requirements.every(r=>r.done))break;
       const job=g.expedition();
       site(job.targetSite);
       if(s().forageReady && (s().bag.ore<3 || s().bag.sap<6 || s().bag.reed<4)) gather();
@@ -249,7 +260,10 @@ function playCampaign(itinerary) {
       assert.equal(g.expedition().completed,leg+1,"lost at "+r.name+" leg "+leg);
       meter.charted++;
     }
-    assert.ok(g.expedition().done);
+    if(naturalist && i>=3){
+      site("travel");ok(g.filePassage());assert.equal(g.filePassage().ok,false);
+      assert.ok(g.passageReport().filed && !g.expedition().done);
+    }else assert.ok(g.expedition().done);
     for(const ability of Object.keys(dex.abilities)) {
       const l=g.license(ability);if(l.region!==i)continue;
       assert.ok(!g.claimLicense(ability).ok);
@@ -279,6 +293,7 @@ function playCampaign(itinerary) {
     }
   }
   assert.equal(crossed.size,6);assert.equal(s().visited.length,150);assert.equal(s().crests.length,30);
+  if(naturalist)assert.equal(s().reports.length,147);
   if (collector) assert.equal(s().party.length,500);
   assert.equal(s().team.length,6);assert.equal(s().passes.length,fair.games.length);
   readScene(loaded,"ending",()=>Boolean(story.ending(s())),meter);
@@ -291,6 +306,8 @@ function playCampaign(itinerary) {
   }
   assert.deepEqual(copy(load(loaded.save()).game.state),copy(s()));
   console.log(itinerary+" itinerary:",JSON.stringify(meter));
+  // This route proves reachability. A human reader's time solving wildlife clues isn't measured.
+  if(naturalist)return;
   const turns=meter.skills+meter.swaps+meter.items;
   const support=meter.rests+meter.gathers+meter.crafts+meter.leaderChanges+meter.enrollments+meter.captures+meter.visits;
   // 1.102 s was measured keydown-to-ready for 32 normal attack/counter cycles in the canvas.
@@ -311,3 +328,4 @@ test("collect every species and crest, complete 150 commissions and reach the en
 test("a smaller specialist roster can finish the campaign and earn all field licenses",()=>playCampaign("Specialist"));
 
 test("a regular roster and regional preparations reach the ending",()=>playCampaign("Regular"));
+test("a naturalist reaches the ending through 147 wildlife reports while retaining the optional commissions",()=>playCampaign("Naturalist"));
