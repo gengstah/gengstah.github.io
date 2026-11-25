@@ -25,13 +25,14 @@ function load(raw) {
     field:window.WilderFieldwork.create(game),reload:()=>load(records.get("wilderkin.trail.v3"))};
 }
 const distance=(a,b)=>Math.abs(a.x-b.x)+Math.abs(a.y-b.y);
-function reachable(world,index) {
+function reachable(world,index,avoid=[]) {
   const queue=[world.regions[index].spawn],seen=new Set([queue[0].x+","+queue[0].y]);
+  const closed=new Set(avoid.map(p=>p.x+","+p.y));
   for(let i=0;i<queue.length;i++) {
     const p=queue[i];
     for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
       const x=p.x+dx,y=p.y+dy,key=x+","+y;
-      if(!seen.has(key)&&world.walkable(index,x,y)){seen.add(key);queue.push({x,y});}
+      if(!seen.has(key)&&!closed.has(key)&&world.walkable(index,x,y)){seen.add(key);queue.push({x,y});}
     }
   }
   return seen;
@@ -62,17 +63,29 @@ test("all 150 maps have reachable two-way walking trails and a visible local wil
   const {game,world,trails}=load();
   const quarry=game.regions.findIndex(r=>r.name==="Fossil Steps");
   assert.ok(trails.layout(0).signs.some(s=>s.to===quarry&&s.level>game.team()[0].level+10));
+  const bearings={up:[0,-1,"down"],down:[0,1,"up"],right:[1,0,"left"],left:[-1,0,"right"]};
   for(let i=0;i<game.regions.length;i++){
-    const area=trails.layout(i),connected=reachable(world,i);
+    const region=world.regions[i],area=trails.layout(i);
     assert.ok(area.signs.length>=1);
+    assert.equal(area.signs,region.exits);
+    assert.equal(new Set(area.signs.map(s=>s.direction)).size,area.signs.length);
+    if(i>0)assert.ok(area.signs.some(s=>s.to===i-1),"main trail to "+(i-1));
     assert.ok(area.roamer&&area.roamer.stops.length===2,"patrol in "+i);
+    const connected=reachable(world,i,[...area.signs,...area.roamer.stops]);
+    for(const site of [...region.sites,...game.sightings(i)])assert.ok(connected.has(site.x+","+site.y),"landmark "+site.id+" in "+i);
+    assert.ok(area.roamer.stops.some(p=>[[1,0],[0,1],[-1,0],[0,-1]].some(([dx,dy])=>connected.has((p.x+dx)+","+(p.y+dy)))),"unreachable patrol in "+i);
     assert.ok(game.pools[i].includes(area.roamer.species));
     for(const sign of area.signs){
-      assert.ok(trails.layout(sign.to).signs.some(s=>s.to===i),"return trail from "+sign.to+" to "+i);
+      const [dx,dy,opposite]=bearings[sign.direction],back=trails.layout(sign.to).signs.find(s=>s.to===i);
+      assert.equal(back?.direction,opposite,"return trail from "+sign.to+" to "+i);
+      assert.equal(sign.arrival.x,sign.x-dx);assert.equal(sign.arrival.y,sign.y-dy);
+      assert.ok(connected.has(sign.arrival.x+","+sign.arrival.y),"interior landing in "+i);
+      assert.ok(world.walkable(i,sign.x,sign.y));
+      assert.ok(sign.x+dx<0||sign.y+dy<0||sign.x+dx>=region.cols||sign.y+dy>=region.rows);
+      assert.ok([...game.sightings(i),...area.roamer.stops].every(p=>distance(p,sign.arrival)>1));
       assert.equal(sign.level,game.wildLevel(sign.to));
     }
     for(const tile of [...area.signs,...area.roamer.stops]){
-      assert.ok(connected.has(tile.x+","+tile.y),"unreachable marker in "+i);
       assert.ok([...world.regions[i].sites,...game.sightings(i),world.regions[i].spawn].every(p=>distance(p,tile)>1));
     }
     const first=trails.markers(i,0).at(-1),next=trails.markers(i,2600).at(-1);

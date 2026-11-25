@@ -46,7 +46,8 @@
       paths:[
         [[-10,100],[37,100],[65,106],[95,108],[127,99],[154,93],[169,87]],
         [[114,104],[143,108],[161,120],[186,126],[213,125],[235,115],[259,113],[286,119],[326,119],[353,120],[393,108]],
-        [[181,125],[188,151],[177,171],[181,194],[178,217]], [[226,118],[238,95],[244,76]]
+        [[181,125],[188,151],[177,171],[181,194],[178,217]], [[226,118],[238,95],[244,76]],
+        [[177,171],[167,181],[153,188],[152,217]]
       ],
       houses:[['camp',53,92],['lodge',168,76],['mill',243,73]],
       groves:[[-11,3,108,34],[81,-14,144,38],[196,-12,229,23],[310,-13,403,38],[-13,32,28,78],[357,38,403,87],[-12,145,63,230],[61,185,133,229],[202,167,247,232],[335,156,404,229]],
@@ -801,6 +802,48 @@
     window.WilderAtlas.regions.slice(3).forEach((meta,j)=>regions.push(expeditionRegion(meta,j+3)));
   }
   const steps=[[0,-1],[1,0],[0,1],[-1,0]];
+  const bearings=['up','right','down','left'];
+  const villageGates=[{right:7,down:9,left:6},{right:4,left:7},{right:5,left:6}];
+
+  function placeExit(index,to,side) {
+    const region=regions[index],direction=bearings[side],[dx,dy]=steps[side];
+    const fixed=villageGates[index]?.[direction],span=dx?ROWS:COLS;
+    const preferred=fixed??Math.floor(span/2)+(region.seed+side)%5-2;
+    const positions=Array.from({length:span-4},(_,i)=>i+2).sort((a,b)=>Math.abs(a-preferred)-Math.abs(b-preferred));
+    for(const offset of positions){
+      const x=dx?(dx<0?0:COLS-1):offset,y=dy?(dy<0?0:ROWS-1):offset;
+      const arrival={x:x-dx,y:y-dy};
+      // Give generated entrances a clear landing beyond any nearby building or landmark.
+      if(fixed===undefined && (region.sites.some(s=>Math.abs(s.x-arrival.x)+Math.abs(s.y-arrival.y)<2) ||
+        region.structures.some(({target,kind})=>Math.abs(arrival.x-target.x)<=(kind==='lodge'?2:1)&&
+          arrival.y<target.y&&arrival.y>=target.y-(kind==='lodge'?3:2))))continue;
+      const dest=window.WilderAtlas.regions[to];
+      return {id:'road-'+to,kind:'road',to,x,y,direction,arrival,facesLeft:dx<0,level:dest.wildLevel,label:'Trail to '+dest.name};
+    }
+    throw new Error('No clear '+direction+' entrance in '+region.name);
+  }
+  for(const region of regions)region.exits=[];
+  if(window.WilderAtlas){
+    function join(a,b,preferred){
+      if(a<0||b<0||a===b)return;
+      const occupied=(i,side)=>regions[i].exits.some(e=>e.direction===bearings[side]);
+      const side=[preferred,2,0,1,3].find(s=>!occupied(a,s)&&!occupied(b,(s+2)%4));
+      if(side===undefined)throw new Error('No paired entrances for '+regions[a].name+' and '+regions[b].name);
+      regions[a].exits.push(placeExit(a,b,side));
+      regions[b].exits.push(placeExit(b,a,(side+2)%4));
+    }
+    const atlas=window.WilderAtlas.regions;
+    // Reserve district roads and the old quarry cut before laying the eastbound trunk.
+    join(0,atlas.findIndex(r=>r.name==='Fossil Steps'),3);
+    let lastDistrict=0;
+    for(let i=1;i<atlas.length;i++){
+      if(atlas[i].district===atlas[i-1].district)continue;
+      join(lastDistrict,i,2);
+      lastDistrict=i;
+    }
+    for(let i=1;i<atlas.length;i++)join(i-1,i,1);
+    for(const region of regions)region.exits.sort((a,b)=>a.to-b.to);
+  }
   function survey(region) {
     if(region.survey)return region.survey;
     const rnd=random(region.seed),phase=rnd()*6,turn=rnd()*6,offset=8+rnd()*8;
@@ -881,7 +924,19 @@
       objects.push({x:x*TILE+7+Math.floor(rnd()*5),y:y*TILE+11,kind,variant:Math.floor(rnd()*3)});
       blocked[i]=1;
     }
-    return region.survey={levels,blocked,roads,objects};
+    // Extend the existing landmarks' trails without reshuffling scenery or changing
+    // building footprints in older saves. Route around stands of trees where possible.
+    const cell=o=>Math.floor(o.y/TILE)*COLS+Math.floor(o.x/TILE);
+    for(const o of objects){const i=cell(o);blocked[i]=0;cost[i]+=4;}
+    for(const exit of region.exits){
+      trail(region.spawn,exit.arrival);
+      const side=bearings.indexOf(exit.direction);
+      roads[exit.arrival.y*COLS+exit.arrival.x]|=1<<side;
+      roads[exit.y*COLS+exit.x]|=1<<((side+2)%4);
+    }
+    const standing=objects.filter(o=>!roads[cell(o)]);
+    for(const o of standing)blocked[cell(o)]=1;
+    return region.survey={levels,blocked,roads,objects:standing};
   }
 
   function trailBoard(style) {
@@ -1004,6 +1059,10 @@
         const x=i%COLS*TILE+8,y=Math.floor(i/COLS)*TILE+8;
         if(roads[i]&2){ground.moveTo(x,y);ground.lineTo(x+TILE,y);}
         if(roads[i]&4){ground.moveTo(x,y);ground.lineTo(x,y+TILE);}
+      }
+      for(const exit of region.exits){
+        const [dx,dy]=steps[bearings.indexOf(exit.direction)],x=exit.x*TILE+8,y=exit.y*TILE+8;
+        ground.moveTo(x,y);ground.lineTo(x+dx*TILE,y+dy*TILE);
       }
       ground.stroke();
     }
@@ -1329,7 +1388,7 @@
   // Choose from the connected component of the arrival tile. A clearing separated by
   // water or scenery can never strand a player looking for a field notebook entry.
   function sightingTiles(index,count) {
-    const region=regions[index],queue=[region.spawn],seen=new Set([region.spawn.y*COLS+region.spawn.x]);
+    const region=regions[index],queue=[region.spawn],seen=new Set([region.spawn,...region.exits].map(p=>p.y*COLS+p.x));
     for(let i=0;i<queue.length;i++) {
       const p=queue[i];
       for(const [dx,dy] of steps) {
@@ -1340,7 +1399,8 @@
     const distance=(a,b)=>Math.abs(a.x-b.x)+Math.abs(a.y-b.y);
     const wild=region.sites.find(s=>s.id==="wild")||region.spawn;
     const candidates=queue.filter(p=>p.x>0&&p.x<COLS-1&&p.y>1&&p.y<ROWS-1&&
-      !region.sites.some(s=>distance(p,s)<2)&&distance(p,region.spawn)>1);
+      !region.sites.some(s=>distance(p,s)<2)&&distance(p,region.spawn)>1&&
+      region.exits.every(s=>distance(p,s)>1&&distance(p,s.arrival)>1));
     const chosen=[];
     while(chosen.length<count) {
       let best=null,bestScore=-Infinity;

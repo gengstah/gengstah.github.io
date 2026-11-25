@@ -25,23 +25,41 @@ function boot(hash,save=null,prepare){
     matchMedia:()=>({matches:true}),requestAnimationFrame:cb=>frames.push(cb)});
   for(const [file,script] of scripts){if(file==="game.js")prepare?.(w.WilderGame);script.runInContext(ctx);}
   return {g:w.WilderGame,model:()=>model,save:()=>save,externalSave:raw=>{save=raw;},key:key=>input.key({key}),tile:(x,y)=>input.tile(x,y),hash:value=>{w.location.hash=value;listeners.hashchange();},
-    click(id,value){const rows=[model.atlas,...(model.objective?.routes||[model.objective]),...model.sections.flatMap(s=>s.rows||[])].filter(Boolean);const found=rows.find(r=>r.id===id&&(value===undefined||value===r.value));
+    click(id,value){const rows=[model.atlas,...(model.exits||[]),...(model.objective?.routes||[model.objective]),...model.sections.flatMap(s=>s.rows||[])].filter(Boolean);const found=rows.find(r=>r.id===id&&(value===undefined||value===r.value));
       assert.ok(found&&!found.disabled,id+" / "+value+" on "+model.title);input.action(found.id,found.value);},
     walk(){for(let i=0;frames.length&&i<300;i++){time+=130;frames.shift()(time);}assert.equal(frames.length,0);}
   };
 }
 const ok=result=>assert.ok(result.ok,result.message);
-test("walking a quarry sign crosses to the reciprocal sign, and touching its wild kin starts a native-level battle",()=>{
+test("walk through the quarry exit, reload beside its return trail and cross back by keyboard",()=>{
   const run=boot(""),{g}=run;
   const quarry=g.regions.findIndex(r=>r.name==="Fossil Steps");
   const sign=run.model().player().trailMarkers.find(s=>s.to===quarry);
-  run.tile(sign.x,sign.y);run.walk();assert.equal(run.model().id,"region:"+quarry);
-  run.click("travel",quarry);
-  const markers=run.model().player().trailMarkers,back=markers.find(s=>s.to===0),wild=markers.find(s=>s.kind==="roamer");
-  assert.deepEqual(clone(g.state.positions[quarry]),{x:back.x,y:back.y});
-  assert.deepEqual(clone(boot("",run.save()).g.state.positions[quarry]),{x:back.x,y:back.y});
+  run.tile(sign.x,sign.y);run.walk();assert.equal(run.model().kind,"world");assert.equal(g.state.region,quarry);
+  const back=run.model().player().trailMarkers.find(s=>s.to===0);
+  assert.deepEqual(clone(g.state.positions[quarry]),clone(back.arrival));
+  assert.equal(Math.abs(back.arrival.x-back.x)+Math.abs(back.arrival.y-back.y),1);
+  const resumed=boot("",run.save());
+  assert.equal(resumed.g.state.region,quarry);assert.deepEqual(clone(resumed.g.state.positions[quarry]),clone(back.arrival));
+  resumed.key({left:"ArrowLeft",right:"ArrowRight",up:"ArrowUp",down:"ArrowDown"}[back.direction]);resumed.walk();
+  assert.equal(resumed.g.state.region,0);assert.deepEqual(clone(resumed.g.state.positions[0]),clone(sign.arrival));
+  resumed.key("e");assert.equal(resumed.g.state.region,quarry);assert.equal(resumed.model().kind,"world");
+  const wild=run.model().player().trailMarkers.find(s=>s.kind==="roamer");
   run.tile(wild.x,wild.y);run.walk();
   assert.equal(g.state.battle.enemy.id,wild.species);assert.equal(g.state.battle.enemy.level,20);assert.equal(g.state.crests.length,0);
+});
+test("the labeled map exits walk the player through successive regions without using the atlas",()=>{
+  const run=boot("");
+  for(const to of [1,2,3,0]){
+    const from=run.g.state.region,sign=run.model().player().trailMarkers.find(s=>s.to===to);
+    const exit=run.model().exits.find(e=>e.value===sign.id);
+    assert.equal(exit.label,run.g.regions[to].name);
+    run.click(exit.id,exit.value);assert.equal(run.g.state.region,from);
+    run.walk();assert.equal(run.g.state.region,to);assert.equal(run.model().kind,"world");
+    const entry=run.model().player().trailMarkers.find(s=>s.to===from);
+    assert.deepEqual(clone(run.g.state.positions[to]),clone(entry.arrival));
+  }
+  assert.deepEqual(clone(run.g.state.visited),[0,1,2,3]);assert.equal(run.g.state.crests.length,0);
 });
 test("the opening atlas offers distinct wild levels and a return trip without a crest",()=>{
   const app=boot(""),g=app.g;

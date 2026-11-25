@@ -632,7 +632,7 @@ window.WilderPages = {
       });
       const lodge=game.wardens.find(i=>!s().wardenLessons.includes(i))??0;
       return page("What’s new in Wilderkin","FIELD DISPATCH   /   MOSSBROOK VALE",[
-        heading("The open trails",[nav("atlas","Set out from Mossbrook","Walk a signposted road or travel anywhere on the atlas. A red diamond marks wild kin that fight on contact. Rest at a camp to set your recovery point.")]),
+        heading("The open trails",[nav("atlas","Set out from Mossbrook","Step onto a marked exit at the map edge, or select its destination to walk there. Red diamonds mark wild kin that fight on contact. Rest at a camp to set your recovery point.")]),
         ...(window.WilderRealm?[heading("Lantern Commons",[nav("online","Join the online world","Meet couriers on the map, light waystations together or challenge a live trio.")])]:[]),
         ...(game.firstBattle?[heading("The Clover Clearing tracks",[nav("first-battle","Face Opalclasp with your starter","Pick a lead, earn duet beats and bring a third companion into the fight.")])]:[]),
         ...(window.WilderThirdBeat?[heading("Three kin, one opening",[nav("third-beat","Meet Iona at the ferry","Play a duet, then let a third kin take the lead with its own skill."),row("open-trios","Build a trio around a favorite")])]:[]),
@@ -749,7 +749,7 @@ window.WilderPages = {
           heading("Your current expedition will be erased",[row("back","Keep my adventure",null,"",{tone:"primary"}),row("reset-save","Erase save and start over",null,"",{tone:"danger"})])]);
         case "landmarks":{
           const markers=(trailMarkers?.()||[]).map(m=>row("walk-marker",m.label,m.id,m.kind==="road"
-            ?"Read the sign · wild Lv. "+m.level+" at the other end.":"Approach to start a wild battle.",{badge:m.kind==="road"?"ROAD":"WILD"}));
+            ?"Walk through the exit · wild Lv. "+m.level+" on the other side.":"Approach to start a wild battle.",{badge:m.kind==="road"?"EXIT":"WILD"}));
           return page(here().name,"LOCAL LANDMARKS",[...(markers.length?[heading("Beyond the trailhead",markers)]:[]),heading("Walk to",localLinks())]);
         }
         default:return caravans.model(name,value);

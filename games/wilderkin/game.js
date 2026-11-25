@@ -4,6 +4,7 @@
   const game=window.WilderGame, world=window.WilderWorld, dex=window.WilderKinDex;
   const wildTrails=window.WilderWildTrails?.create(game,world);
   const trailMarkers=()=>wildTrails?.markers(game.state.region,motion.matches?0:performance.now())||[];
+  const exits=(region=game.state.region)=>world.regions[region].exits;
   const scene=()=>game.regions[game.state.region], area=()=>world.regions[game.state.region];
   const spec=(id,owned=true)=>game.kin(id,{owned});
   const image=(id,owned=true)=>{
@@ -13,6 +14,7 @@
   const row=(id,label,value,detail="",extra={})=>({id,label,value,detail,...extra});
   const member=id=>game.state.party.find(p=>p.id===id);
   const dirs={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]};
+  const inward={up:"down",right:"left",down:"up",left:"right"};
   const keys={w:"up",s:"down",a:"left",d:"right",ArrowUp:"up",ArrowDown:"down",ArrowLeft:"left",ArrowRight:"right"};
   const shortcuts=[
     ["world","Explore","E"],["expedition","Expedition","X"],["quests","Quests","Q"],["chronicle","Story","C"],["online","Play online","O"],
@@ -396,6 +398,8 @@
     const pinned=destination===null?null:{kicker:"ATLAS PIN",title:game.regions[destination].name,description:destination===state.region?"You are here. Open the pin for the region’s landmarks.":pages.trailRisk(destination).levels,id:"view",value:"region|"+destination};
     return {kind:"world",title:r.name,kicker:"THE MISSING BEAT   /   "+r.district+"   /   REGION "+String(state.region+1).padStart(3,"0")+" OF 150",
       subtitle:risk.danger?risk.label+" · "+risk.levels+". Red diamonds mark wild battles.":r.description,region:state.region,player:samplePlayer,party:game.team().map(p=>partyDisplay(p)),realm:realm?.banner(),
+      exits:exits().map(sign=>row("walk-marker",game.regions[sign.to].name,sign.id,"",{
+        x:sign.x,y:sign.y,direction:sign.direction,level:sign.level,near:near===sign})),
       atlas:row("nav","World atlas","atlas","Travel to any region and compare wild levels."),
       objective:pinned||sharedOuting||firstQuest||(opening?{title:"Open Finch’s first dispatch",description:"The Mossbrook bell has skipped a beat. Read the note Finch carried during the flood.",id:"view",value:"scene|chapter-1"}
         :{title:obj.title,description:obj.description,id:"nav",value:"objective"}),
@@ -406,7 +410,7 @@
         ...(nextHunt?[nextHunt]:[]),
         ...(!firstQuest&&state.region===0&&!state.crests.includes(0)&&!nextHunt&&first.outcome!=="victory"&&first.outcome!=="recruited"?
           [row("nav","Battle Opalclasp","first-battle","Pick a starter to lead at Clover Clearing.",{image:image("opalclasp",false)})]:[]),
-        row("interact",near ? near.label : "Local landmarks",null,near?"Interact here":"Walk to a place",{key:"E"}),
+        row("interact",near ? near.label : "Local landmarks",null,near?.kind==="road"?"Enter this region":near?"Interact here":"Walk to a place",{key:"E"}),
         row("nav","Wild calls","wild-calls",risk.levels,{tone:risk.danger?"danger":undefined}),
         ...(yard?[row("nav","Practice at the Chalkyard","practice-yard","Try a new lineup against a local opponent.")]:[]),
         ...(kitBench&&(!state.trailFittings?.claimed?.includes("camp")||state.crests.includes(0)&&!state.trailFittings?.claimed?.includes("crest"))?
@@ -714,12 +718,16 @@
   }
   function nearestSite() {
     if (!player) return null;
-    return [...area().sites,...game.sightings(),...trailMarkers()].map(site=>({site,d:Math.abs(site.x-player.x)+Math.abs(site.y-player.y)})).filter(s=>s.d<=1).sort((a,b)=>a.d-b.d)[0]?.site;
+    const sites=[...area().sites,...game.sightings(),...trailMarkers()];
+    const adjacent=s=>Math.abs(s.x-player.x)+Math.abs(s.y-player.y)===1;
+    return sites.find(s=>s.x===player.x&&s.y===player.y)||exits().find(adjacent)||sites.find(adjacent);
   }
   function move(dir,now) {
     if (!dir || game.state.battle || screen.name!=="world") return false;
     const [dx,dy]=dirs[dir],x=player.x+dx,y=player.y+dy;
     player.facing=dir;
+    const gate=exits().find(s=>s.x===x&&s.y===y || s.x===player.x&&s.y===player.y&&s.direction===dir);
+    if(gate){crossExit(gate);return true;}
     if (!world.walkable(game.state.region,x,y)) return false;
     const old=nearestSite();tween={x:player.x,y:player.y,time:now};player.x=x;player.y=y;
     if(game.setPosition(x,y)===false&&trailUpdatePending)return false;
@@ -732,8 +740,11 @@
     if (old!==nearestSite()) render();
     ui.invalidate();return true;
   }
-  function routeTo(x,y) {
+  function routeTo(x,y,avoid=[]) {
     const queue=[{x:player.x,y:player.y,steps:[]}],visited=new Set([player.x+","+player.y]);
+    // A walk to a local landmark must never take a shortcut through another region.
+    for(const gate of exits())if(gate.x!==x||gate.y!==y)visited.add(gate.x+","+gate.y);
+    for(const tile of avoid)visited.add(tile.x+","+tile.y);
     for (let i=0;i<queue.length;i++) {
       const tile=queue[i];
       if (tile.x===x && tile.y===y) return tile.steps;
@@ -747,11 +758,7 @@
   }
   function visit(site,next) {
     const kind=site.kind||site.id;
-    if(kind==="road"){
-      go("region",site.to);
-      if(screen.name==="region")screen.roadFrom=game.state.region;
-      return;
-    }
+    if(kind==="road")return crossExit(site);
     if(kind==="roamer")return fight("wild",site.species);
     if(kind==="realm-lantern")return realm.arrive(site.id);
     if(kind==="sighting") return go("study",site.species);
@@ -769,7 +776,9 @@
   }
   function walk(target,site,next) {
     if (game.state.battle) return root();
-    const steps=routeTo(target.x,target.y);
+    const patrol=site?.kind==="road"&&wildTrails?.layout(game.state.region).roamer?.stops;
+    const safe=patrol&&routeTo(target.x,target.y,patrol);
+    const steps=safe||routeTo(target.x,target.y);
     if (!steps) return notify("That spot is blocked. Pick open ground or a landmark.");
     if (screen.name!=="world") go("world",null,"root");
     stopWalk();route=steps;arrival=site?{site,next}:null;
@@ -798,12 +807,18 @@
     if(!site && window.WilderWalkingPartner.hit(game.walkerPose(performance.now(),true),x,y))return go("walker");
     walk(site||{x,y},site);
   }
-  function travel(i,after) {
-    const onFoot=screen.name==="region"&&Number(screen.value)===i&&screen.roadFrom===game.state.region;
-    const sign=onFoot?wildTrails.layout(i).signs.find(s=>s.to===game.state.region):null;
-    const res=game.travel(i,sign);
+  function crossExit(gate) {
+    const entrance=exits(gate.to).find(s=>s.to===game.state.region);
+    if(entrance)travel(gate.to,null,entrance);
+  }
+  function travel(i,after,entrance) {
+    stopWalk();
+    const res=game.travel(i,entrance?.arrival);
     if (!res.ok) return notify(res.message);
-    restorePlayer();playTone("battle");if(after)go(after.name,after.value,"root");else root();notify(res.message);
+    restorePlayer();
+    if(entrance)player.facing=inward[entrance.direction];
+    realm?.publish(true);
+    playTone(entrance?"click":"battle");if(after)go(after.name,after.value,"root");else root();notify(res.message);
   }
   function keydown(e) {
     if (e.altKey || e.ctrlKey || e.metaKey || e.type==="keyup") return false;
