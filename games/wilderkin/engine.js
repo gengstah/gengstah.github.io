@@ -11,6 +11,7 @@
   const starters = ["sprigkit", "cindlet", "dewfin"];
   const dex = window.WilderKinDex;
   const activities = window.WilderActivities;
+  const crossingQuests = new Map(activities.quests.filter(q=>q.crossing).map(q=>[q.crossing.to,q]));
 
   function strike(id, name, type, power, description, guard = false) {
     return { id, name, type, power, kind: guard ? "guard" : "attack", description };
@@ -561,10 +562,22 @@
     catch{return true;}
   }
 
+  function questCrossing(index) {
+    const q=crossingQuests.get(index);
+    if(!q)return null;
+    const {to,cause}=q.crossing;
+    const open=state.visited.includes(to)||state.quests[q.id]==="claimed";
+    const reason=open?"The trail to "+regions[to].name+" is open.":
+      cause+" Complete “"+q.name+"” for "+q.requester.split(",")[0]+" in "+regions[q.region].name+".";
+    return {to,questId:q.id,questName:q.name,postingRegion:q.region,cause,open,reason};
+  }
+
   function access(index) {
     if (!validRegion(index)) return {open:false, reason:"Unknown trail."};
     const r = regions[index];
     if (state.visited.includes(index)) return {open:true,reason:"Previously visited"};
+    const crossing=questCrossing(index);
+    if(crossing&&!crossing.open)return crossing;
     if (r.ability && state.licenses.includes(r.ability)) {
       const carrier = state.party.find(p => species[p.id].ability === r.ability);
       if (carrier) return {open:true,carrier:carrier.id,reason:ownedKin(carrier.id).name+" can use "+r.ability+" to find 1 Bellstone."};
@@ -1861,7 +1874,8 @@
     const progress = activities.progress(q, state);
     if (progress.current < progress.total) return error(progress.label);
     state.quests[id] = "claimed";
-    return commit("claimed", q.requester + " thanks you. " + training(75));
+    return commit("claimed", q.requester + " thanks you. " + training(75) +
+      (q.crossing?" The trail to "+regions[q.crossing.to].name+" is open.":""));
   }
 
   function nearSite(kind) {
@@ -2204,7 +2218,7 @@
     get canSave() { return canSave; },
     items,conditions:campaign.conditions,visitSite,gather,craft,itemForecast,expedition,expeditionAction,license,claimLicense,
     gamePass,unlockGame,storyStep,trialAccess,wildLevel:i=>regions[i]?.wildLevel,
-    species,kin,growthInfo,chooseGrowth,growthAppearance,skillPreview,regions, wardens, homes, pools, access, team, enlist, foeIntent, maxLevel:MAX_LEVEL,
+    species,kin,growthInfo,chooseGrowth,growthAppearance,skillPreview,regions, wardens, homes, pools, access, questCrossing, team, enlist, foeIntent, maxLevel:MAX_LEVEL,
     awardGame, questAction, xpNeeded, objective, setPosition, realmWalking, travel, setLead,
     heal, meetWarden, startBattle, duetPair, duets, familyTechnique, recruit, flee, setSound, reset
   };

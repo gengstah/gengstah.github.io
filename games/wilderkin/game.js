@@ -395,12 +395,16 @@
     const destination=state.destination,localHollow=game.hollows?.at(state.region);
     const sharedOuting=realm?.mapOuting();
     const risk=pages.trailRisk(state.region);
+    const crossings=exits().map(sign=>{
+      const gate=game.access(sign.to);
+      return row("walk-marker",game.regions[sign.to].name,sign.id,"",{
+        x:sign.x,y:sign.y,direction:sign.direction,level:sign.level,near:near===sign,blocked:!gate.open,reason:gate.reason});
+    });
+    const nearExit=crossings.find(exit=>exit.near);
     const pinned=destination===null?null:{kicker:"ATLAS PIN",title:game.regions[destination].name,description:destination===state.region?"You are here. Open the pin for the region’s landmarks.":pages.trailRisk(destination).levels,id:"view",value:"region|"+destination};
     return {kind:"world",title:r.name,kicker:"THE MISSING BEAT   /   "+r.district+"   /   REGION "+String(state.region+1).padStart(3,"0")+" OF 150",
       subtitle:risk.danger?risk.label+" · "+risk.levels+". Red diamonds mark wild battles.":r.description,region:state.region,player:samplePlayer,party:game.team().map(p=>partyDisplay(p)),realm:realm?.banner(),
-      exits:exits().map(sign=>row("walk-marker",game.regions[sign.to].name,sign.id,"",{
-        x:sign.x,y:sign.y,direction:sign.direction,level:sign.level,near:near===sign})),
-      atlas:row("nav","World atlas","atlas","Travel to any region and compare wild levels."),
+      exits:crossings,atlas:row("nav","World atlas","atlas","Check routes, crossings and wild levels."),
       objective:pinned||sharedOuting||firstQuest||(opening?{title:"Open Finch’s first dispatch",description:"The Mossbrook bell has skipped a beat. Read the note Finch carried during the flood.",id:"view",value:"scene|chapter-1"}
         :{title:obj.title,description:obj.description,id:"nav",value:"objective"}),
       status:game.canSave?"Saved on this device":"Session only · browser storage unavailable",
@@ -410,7 +414,7 @@
         ...(nextHunt?[nextHunt]:[]),
         ...(!firstQuest&&state.region===0&&!state.crests.includes(0)&&!nextHunt&&first.outcome!=="victory"&&first.outcome!=="recruited"?
           [row("nav","Battle Opalclasp","first-battle","Pick a starter to lead at Clover Clearing.",{image:image("opalclasp",false)})]:[]),
-        row("interact",near ? near.label : "Local landmarks",null,near?.kind==="road"?"Enter this region":near?"Interact here":"Walk to a place",{key:"E"}),
+        row("interact",near ? near.label : "Local landmarks",null,nearExit?(nearExit.blocked?"Read the closure notice":"Enter this region"):near?"Interact here":"Walk to a place",{key:"E"}),
         row("nav","Wild calls","wild-calls",risk.levels,{tone:risk.danger?"danger":undefined}),
         ...(yard?[row("nav","Practice at the Chalkyard","practice-yard","Try a new lineup against a local opponent.")]:[]),
         ...(kitBench&&(!state.trailFittings?.claimed?.includes("camp")||state.crests.includes(0)&&!state.trailFittings?.claimed?.includes("crest"))?
@@ -808,6 +812,7 @@
     walk(site||{x,y},site);
   }
   function crossExit(gate) {
+    if(!game.access(gate.to).open)return go("region",gate.to);
     const entrance=exits(gate.to).find(s=>s.to===game.state.region);
     if(entrance)travel(gate.to,null,entrance);
   }

@@ -43,7 +43,7 @@ test("local studies, a local friend, field legs and the trailpost are independen
   const flow=load(checkpoint),g=flow.g;
   assert.equal(g.passageReport(0),null);assert.equal(g.passageReport(2),null);
   assert.equal(g.passageReport(150),null);
-  assert.ok(g.access(4).open);assert.equal(g.trialAccess(8).target,3);
+  assert.equal(g.access(4).questId,"four-corners");assert.equal(g.trialAccess(8).target,3);
   flow.visit("travel");
   assert.deepEqual(copy(g.passageReport().requirements.map(r=>r.done)),[false,false,false]);
   assert.ok(!g.filePassage().ok);
@@ -74,11 +74,12 @@ test("local studies, a local friend, field legs and the trailpost are independen
   flow.visit("travel");
   const before=copy(g.team());ok(g.filePassage());
   assert.equal(g.state.surveys[3],5);assert.equal(g.expedition().done,false);
-  assert.ok(g.access(4).open);assert.equal(g.trialAccess(8).target,4);
+  assert.equal(g.access(4).open,false);assert.equal(g.trialAccess(8).target,4);
   for(const p of before){
     const after=g.state.party.find(k=>k.id===p.id);
     assert.equal(after.level,p.level+(p.level<g.wildLevel(3)?1:0));assert.equal(after.xp,p.xp);
   }
+  ok(g.questAction("four-corners"));ok(g.questAction("four-corners"));assert.ok(g.access(4).open);
   const paid=flow.save();assert.ok(!g.filePassage().ok);assert.deepEqual(flow.save(),paid);
   const restored=load(paid);assert.ok(restored.g.passageReport().filed);ok(restored.g.travel(4));
   assert.ok(!restored.g.filePassage().ok);assert.ok(restored.g.access(5).open);

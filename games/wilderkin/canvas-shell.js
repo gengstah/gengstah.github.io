@@ -388,13 +388,19 @@
       paragraph(c,lines,tx,y+25+dy,13,18,"#655e44");
       return h;
     }
-    function trailArrow(x,y,direction,bright) {
+    function trailSign(x,y,way,bright) {
       c.save();c.translate(x,y);
-      c.rotate(({left:pi,up:-pi/2,down:pi/2})[direction]||0);
-      // A high-contrast enamel arrow in the palette of the trail stones.
-      poly(c,[[-10,-8],[3,-8],[11,0],[3,8],[-10,8]],"#163c35");
-      poly(c,[[-8,-6],[2,-6],[8,0],[2,6],[-8,6]],bright?"#ffe8a4":"#edc472");
-      poly(c,[[-5,-1],[0,-1],[0,-4],[5,0],[0,4],[0,1],[-5,1]],"#284b3a");
+      if(way.blocked){
+        poly(c,[[-7,-9],[7,-9],[10,-6],[10,6],[7,9],[-7,9],[-10,6],[-10,-6]],"#613a30");
+        const gold=bright?"#fff0bd":"#ffda95";
+        rect(c,-3,-6,6,2,gold);rect(c,-4,-4,2,4,gold);rect(c,2,-4,2,4,gold);
+        rect(c,-5,-1,10,7,gold);rect(c,-1,1,2,3,"#613a30");
+      }else{
+        c.rotate(({left:pi,up:-pi/2,down:pi/2})[way.direction]||0);
+        poly(c,[[-10,-8],[3,-8],[11,0],[3,8],[-10,8]],"#163c35");
+        poly(c,[[-8,-6],[2,-6],[8,0],[2,6],[-8,6]],bright?"#ffe8a4":"#edc472");
+        poly(c,[[-5,-1],[0,-1],[0,-4],[5,0],[0,4],[0,1],[-5,1]],"#284b3a");
+      }
       c.restore();
     }
     function mapExits(region,x,y,w,h) {
@@ -417,17 +423,19 @@
           const direction=way.direction,heading=compass[direction];
           const gx=x+(way.x+.5)*w/region.cols,gy=y+(way.y+.5)*h/region.rows;
           const ax=clamp(gx,x+12,x+w-12),ay=clamp(gy,y+12,y+h-12);
-          const action={...way,detail:"",aria:(way.near?"Enter ":"Walk to ")+way.label+" via the "+heading.toLowerCase()+" exit. Wild level "+way.level};
-          const meta=(way.near?"Enter · ":heading+" · ")+"Wild Lv. "+way.level;
+          const approach=way.blocked?"Read the quest gate sign for ":way.near?"Enter ":"Walk to ";
+          const action={...way,detail:"",aria:approach+way.label+" via the "+heading.toLowerCase()+" exit. Wild level "+way.level+(way.blocked&&way.reason?". "+way.reason:"")};
+          const meta=way.blocked?(way.near?"Read sign":"Quest gate")+" · Lv. "+way.level:(way.near?"Enter · ":heading+" · ")+"Wild Lv. "+way.level;
           const marker=control(action,ax-12,ay-12,24,24);
           marker.pointerOnly=true;
           if(compact){
             const left=x+j*cellW,top=y+h+listH;
             const hit=control(action,left,top,cellW,rowH);
             const hot=highlighted(hit)||highlighted(marker);
-            trailArrow(ax,ay,direction,hot||way.near);
-            rect(c,left,top,cellW,rowH,hot||way.near?"#f9ecc7":"#f5f1dd","#b6b79c");
-            trailArrow(left+16,top+rowH/2,direction,hot||way.near);
+            trailSign(ax,ay,way,hot||way.near);
+            const fill=way.blocked?(hot||way.near?"#f3d8bb":"#f3e5d6"):(hot||way.near?"#f9ecc7":"#f5f1dd");
+            rect(c,left,top,cellW,rowH,fill,"#b6b79c");
+            trailSign(left+16,top+rowH/2,way,hot||way.near);
             const ty=top+(rowH-names[j].length*15-12)/2;
             paragraph(c,names[j],left+32,ty,13,15,C.deep,"body",700);
             label(c,meta,left+32,ty+names[j].length*15+1,10,C.secondary,"body",650);
@@ -439,10 +447,11 @@
             const hit=control(action,left,top,bw,bh);
             const hot=highlighted(hit)||highlighted(marker);
             rect(c,left+1,top+2,bw,bh,"#17362ccc");
-            rect(c,left,top,bw,bh,hot||way.near?"#345d48":"#254535","#d6b56d");
+            const fill=way.blocked?(hot||way.near?"#774e3a":"#5d4035"):(hot||way.near?"#345d48":"#254535");
+            rect(c,left,top,bw,bh,fill,"#d6b56d");
             label(c,way.label,left+8,top+4,14,"#fff5ce","body",700);
             label(c,meta,left+8,top+21,10,"#e3e7ca","body",600);
-            trailArrow(ax,ay,direction,hot||way.near);
+            trailSign(ax,ay,way,hot||way.near);
           }
         });
         if(compact)listH+=rowH;
@@ -1225,7 +1234,7 @@
         for(const cell of [...(s.rows||[]),...(s.grid?.cells||[])])if(!cell.id)narration.push(cell.label,cell.detail);
       }
       const text=narration.filter(Boolean).join(". ");
-      const sig=text+"|"+[...unique].map(([key,h])=>key+(h.disabled?"_off":"")+(h.row.detail||"")+(h.row.badge||"")).join(";");
+      const sig=text+"|"+[...unique].map(([key,h])=>key+(h.disabled?"_off":"")+(h.row.aria||"")+(h.row.detail||"")+(h.row.badge||"")).join(";");
       if(sig===mirrorSig)return;
       mirrorSig=sig;
       const reading=document.createElement("p");reading.textContent=text;

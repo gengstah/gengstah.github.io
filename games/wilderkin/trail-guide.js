@@ -93,9 +93,9 @@ window.WilderPages = {
       const other=districtStarts.filter(i=>i>0&&i<current&&i!==near&&game.regions[i].district!==here().district).reverse();
       const picks=[near,...farther,...other].slice(0,3);
       return heading("Travel from "+here().name,picks.map(i=>{
-        const r=game.regions[i],risk=trailRisk(i),id=game.pools[i][0];
+        const r=game.regions[i],risk=trailRisk(i),id=game.pools[i][0],gate=game.access(i);
         return open("region",i,r.name,risk.levels+" · "+game.species[id].name,
-          {badge:risk.label,tone:risk.danger?"danger":undefined,image:image(id,false)});
+          {badge:gate.open?risk.label:"Quest gate",tone:risk.danger?"danger":undefined,image:image(id,false)});
       }));
     }
     function atlas() {
@@ -107,7 +107,7 @@ window.WilderPages = {
       const results=game.regions.flatMap((r,i)=>{
         if (query?![r.name,r.district,r.warden||"",r.ability||""].join(" ").toLowerCase().includes(query):i<route.start||i>route.end) return [];
         const risk=trailRisk(i);
-        return [open("region",i,r.name,risk.levels,{badge:i===s().region?"You are here":risk.label,tone:risk.danger?"danger":undefined})];
+        return [open("region",i,r.name,risk.levels,{badge:i===s().region?"You are here":game.access(i).open?risk.label:"Quest gate",tone:risk.danger?"danger":undefined})];
       });
       const change=heading("Find a route",[
         row("route-step","Previous route",-1,"",{disabled:filter.atlasRoute===0}),row("route-step","Next route",1,"",{disabled:filter.atlasRoute===routes.length-1}),
@@ -122,11 +122,11 @@ window.WilderPages = {
       sections.push(heading("Map case",[nav("districts","All districts"),nav("pins","Saved pins",s().pins.length+" locations"),nav("hollows","Hidden hollows")],3));
       if(!query)sections.push(window.WilderRouteMap.chart(nodes));
       return page("World atlas",s().visited.length+" / "+game.regions.length+" VISITED",[...sections,change,...pages(results,"atlasPage")],
-        query?"Matching regions":filter.atlasRoute===routeOf(s().region)?"Every region is open. Wild kin keep their local levels.":game.regions[route.start].district+" · "+game.regions[route.end].name);
+        query?"Matching regions":filter.atlasRoute===routeOf(s().region)?"Wild kin keep their local levels. Select a marked quest gate to see who can reopen it.":game.regions[route.start].district+" · "+game.regions[route.end].name);
     }
     function mapNode(i,id,value,label) {
-      const risk=trailRisk(i);
-      return {id,value,label,detail:risk.label+" · "+risk.levels,biome:game.regions[i].biome,current:s().region===i,visited:s().visited.includes(i),open:game.access(i).open,pin:s().pins.includes(i)};
+      const risk=trailRisk(i),gate=game.access(i);
+      return {id,value,label,detail:(gate.open?risk.label:"Quest gate")+" · "+risk.levels,biome:game.regions[i].biome,current:s().region===i,visited:s().visited.includes(i),open:gate.open,pin:s().pins.includes(i)};
     }
     function districts(value) {
       const names=[...new Set(game.regions.map(r=>r.district))];
@@ -146,7 +146,12 @@ window.WilderPages = {
     }
     function regionPage(i) {
       const r=game.regions[i],gate=game.access(i),job=game.expedition(i),risk=trailRisk(i);
-      const travelNote=risk.danger&&!gate.carrier?"If every companion falls in a wild battle, you wake at camp.":gate.reason;
+      const q=!gate.open&&fair.quests.find(quest=>quest.id===gate.questId);
+      const notice=q?[{title:"Reopen the crossing",text:gate.cause,rows:[
+        open("request",q.id,q.name,q.requester+" · "+game.regions[q.region].name,{tone:"primary",badge:requestStatus(q)}),
+        row("root","Return to the trail")
+      ]}]:[];
+      const travelNote=q?"Turn in "+q.name+" to open this route.":risk.danger&&!gate.carrier?"If every companion falls in a wild battle, you wake at camp.":gate.reason;
       const actions=[row("travel",i===s().region?"Return to this region":gate.carrier?"Cross with "+r.ability:"Travel here",i,travelNote,{disabled:!gate.open||!!s().battle,tone:risk.danger?"danger":"primary"})];
       if (gate.hintRegion!=null && gate.hintRegion!==i) actions.push(open("region",gate.hintRegion,"Find the way through",game.regions[gate.hintRegion].name));
       if (r.ability) actions.push(open("license",r.ability,r.ability+" training",window.WilderAtlas.abilities[r.ability]));
@@ -155,8 +160,8 @@ window.WilderPages = {
       if(hollow)actions.push(open("hollow",hollow.id,hollow.title,"Hidden hollow · "+(hollow.ability||"Introductory trail")));
       const pinned=s().pins.includes(i),tracked=s().destination===i;
       const marks=[row("atlas-pin",pinned?"Remove pin":"Save a pin",i+"|"+(pinned?"remove":"save")),row("atlas-pin",tracked?"Stop tracking":"Track destination",i+"|"+(tracked?"untrack":"track"))];
-      return page(r.name,r.district+"   /   "+format(i+1),[heading("Travel",actions),heading("Map pin",marks,2),heading("Local tracks",game.pools[i].map(id=>localSpecies(id,"open-kin",true)))],
-        risk.label+" · "+risk.levels+". "+r.description,{src:thumb(i),caption:job.completed+"/"+job.total+" field legs charted"});
+      return page(r.name,(q?"CLOSED CROSSING   /   ":"")+r.district+"   /   "+format(i+1),[...notice,heading("Travel",actions),heading("Map pin",marks,2),heading("Local tracks",game.pools[i].map(id=>localSpecies(id,"open-kin",true)))],
+        q?risk.levels:risk.label+" · "+risk.levels+". "+r.description,q?undefined:{src:thumb(i),caption:job.completed+"/"+job.total+" field legs charted"});
     }
     function guideScope(state){
       const held=new Set(state.party.map(p=>p.id));
@@ -495,16 +500,40 @@ window.WilderPages = {
     function quests() {
       const entries=fair.quests.filter(q=>filter.questFilter==="All"||requestStatus(q)===filter.questFilter||
         (filter.questFilter==="Active" && requestStatus(q)==="Ready")).map(q=>open("request",q.id,q.name,q.requester+" · "+game.regions[q.region].name,{badge:requestStatus(q)}));
+      const crossings=fair.quests.filter(q=>q.crossing).map(q=>open("request",q.id,game.regions[q.crossing.to].name,q.name,
+        {badge:game.access(q.crossing.to).open?"Route open":requestStatus(q)}));
       return page("Quest journal","FIELD NOTES",[
         heading("Campaign", [nav("objective","Main objective",game.objective().title),nav("expedition","Field commission"),nav("bonds","Character quests"),nav("licenses","Traversal lessons"),nav("stillwake","The fourth sounding","Investigate the unlisted signal.")],2),
-        heading("Regional requests",[row("cycle-quests","Filter: "+filter.questFilter),nav("crests","Crest ledger")],2),...pages(entries,"questPage")],
+        heading("Trail crossings",crossings),heading("Regional requests",[row("cycle-quests","Filter: "+filter.questFilter),nav("crests","Crest ledger")],2),...pages(entries,"questPage")],
         Object.values(s().quests).filter(v=>v==="claimed").length+" / "+fair.quests.length+" local requests completed.");
     }
     function request(id) {
       const q=fair.quests.find(q=>q.id===id),p=fair.progress(q,s()),status=requestStatus(q);
+      const crossing=q.crossing&&game.questCrossing(q.crossing.to);
       const options=[open("region",q.region,"Posting region",game.regions[q.region].name)];
-      if (status==="Available" || status==="Ready") options.unshift(row("request-step",status==="Available"?"Accept request":"Claim 75 XP",id,"",{tone:"primary",disabled:!!s().battle}));
-      return page(q.name,q.requester+"   /   "+status,[heading("Journal",[info(p.label,p.current+" / "+p.total),...options])],q.description);
+      const sections=[];
+      if(crossing){
+        const region=game.regions[crossing.to],reward=crossing.open?"The road to "+region.name+" is open.":"Turn in this request to open the road to "+region.name+".";
+        const rows=[];
+        if(status==="Undiscovered"){
+          rows.push(row("request-travel","Visit "+game.regions[q.region].name,q.region+"|"+id,"Meet "+q.requester,{disabled:!!s().battle}));
+        }else if(status==="Active"&&q.kind==="route"){
+          const next=q.target.find(i=>!s().visited.includes(i));
+          if(next!=null)rows.push(row("request-travel","Collect the "+game.regions[next].name+" postmark",next+"|"+id,"Travel there to stamp the route.",{disabled:!!s().battle}));
+        }else if(status==="Active"&&p.current<p.total){
+          const matches=kin=>q.kind==="species"?kin===q.target:game.species[kin].ability===q.target;
+          const habitat=game.pools.findIndex((pool,i)=>game.access(i).open&&pool.some(matches));
+          if(habitat>=0)rows.push(open("region",habitat,"Find "+game.species[game.pools[habitat].find(matches)].name,game.regions[habitat].name+" · local wild kin"));
+        }
+        if(crossing.open){
+          const exit=area().exits.find(e=>e.to===crossing.to);
+          rows.push(exit?row("walk-marker","Walk to "+region.name,exit.id,"Follow the open crossing.",{disabled:!!s().battle}):open("region",crossing.to,"View "+region.name,"World atlas"));
+        }
+        sections.push({title:"Crossing",text:reward,rows});
+      }
+      const turnIn=crossing&&!crossing.open?"Open "+game.regions[crossing.to].name+" and claim 75 XP":"Claim 75 XP";
+      if (status==="Available" || status==="Ready") options.unshift(row("request-step",status==="Available"?"Accept request":turnIn,id,"",{tone:"primary",disabled:!!s().battle}));
+      return page(q.name,q.requester+"   /   "+status,[heading("Journal",[info(p.label,p.current+" / "+p.total),...options]),...sections],q.description);
     }
     function games() {
       const entries=fair.games.map(a=>open("game-info",a.id,a.name,game.regions[a.region].name,{badge:s().passes.includes(a.id)?"PASS":"LOCKED"}));
@@ -673,7 +702,7 @@ window.WilderPages = {
     }
     function help() {
       return page("Controls","TRAIL HANDBOOK",[
-        {title:"Explore",text:"Click or tap a landmark to walk there. Move with WASD or the arrow keys and press E to interact. The World atlas lets you travel to any region. Wild kin marked with a red diamond start a battle on contact. Check their level before approaching."},
+        {title:"Explore",text:"Click or tap a landmark to walk there. Move with WASD or the arrow keys and press E to interact. A padlock at a map exit marks a closed crossing. Read its sign to find the quest that opens it. Red diamonds mark wild kin that start a battle on contact."},
         {title:"Battle",text:"Use 1–4 to select skills. After a knockout, use the letter beside a reserve to send it in for free."},
         {title:"Journal shortcuts",text:"Q quests · X expedition · C chronicle · G field guide · N wildlife notebook · P party · M atlas · B satchel · F field games · V sparring hall · L loaner circuit · R battle duets · ? settings."},
         {title:"Menus",text:"Tap Menu or press F1 for all screens. Scroll or swipe to see more. Tab moves between controls, Enter selects, and Escape goes back."}]);
@@ -748,8 +777,12 @@ window.WilderPages = {
         case "reset-confirm":return page("Begin a new adventure?","SAVE FILE",[
           heading("Your current expedition will be erased",[row("back","Keep my adventure",null,"",{tone:"primary"}),row("reset-save","Erase save and start over",null,"",{tone:"danger"})])]);
         case "landmarks":{
-          const markers=(trailMarkers?.()||[]).map(m=>row("walk-marker",m.label,m.id,m.kind==="road"
-            ?"Walk through the exit · wild Lv. "+m.level+" on the other side.":"Approach to start a wild battle.",{badge:m.kind==="road"?"EXIT":"WILD"}));
+          const markers=(trailMarkers?.()||[]).map(m=>{
+            if(m.kind!=="road")return row("walk-marker",m.label,m.id,"Approach to start a wild battle.",{badge:"WILD"});
+            const gate=game.access(m.to);
+            return row("walk-marker",m.label,m.id,gate.open?"Walk through the exit · wild Lv. "+m.level+" on the other side.":gate.reason,
+              {badge:gate.open?"EXIT":"QUEST GATE"});
+          });
           return page(here().name,"LOCAL LANDMARKS",[...(markers.length?[heading("Beyond the trailhead",markers)]:[]),heading("Walk to",localLinks())]);
         }
         default:return caravans.model(name,value);
@@ -817,6 +850,7 @@ window.WilderPages = {
         case "track":return fight("wild",value);
         case "rest":return setResult(game.heal());
         case "request-step":return setResult(game.questAction(value));
+        case "request-travel":return travel(Number(a),{name:"request",value:b});
         case "travel":return travel(Number(value));
         case "story-kind":filter.storyKind=value;filter.storyPage=0;return render();
         case "story-step":

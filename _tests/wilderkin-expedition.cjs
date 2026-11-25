@@ -46,9 +46,9 @@ test("atlas pins and playback preferences survive a reload without changing trai
   assert.deepEqual(copy(restored.pins),[2]);assert.equal(restored.destination,null);assert.equal(restored.animationSpeed,1);
 });
 
-test("a fresh team can roam all 150 regions and resume a distant encounter before earning any crest",()=>{
+test("a fresh team can roam 147 regions and resume a distant encounter before earning any crest",()=>{
   const loaded=load(),g=loaded.game;
-  assert.ok(g.regions.every((_,i)=>g.access(i).open));
+  assert.deepEqual(copy(g.regions.map((_,i)=>i).filter(i=>!g.access(i).open)),[4,13,83]);
   const destination=g.regions.length-1,memberLevels=g.team().map(p=>p.level);
   ok(g.travel(destination));
   assert.deepEqual(copy(g.state.visited),[0,destination]);
@@ -66,6 +66,41 @@ test("a fresh team can roam all 150 regions and resume a distant encounter befor
   ok(restored.flee());ok(restored.travel(0));
   assert.deepEqual(copy(restored.state.crests),[]);
   assert.deepEqual(copy(restored.team().map(p=>p.level)),copy(memberLevels));
+});
+
+test("both entrances and atlas travel honor each claimed quest; earlier visitors keep their crossings",()=>{
+  const {game:fresh}=load();
+  const s=copy(fresh.state);
+  // The ability shortcut needs a license and carrier. Neither clears a quest gate.
+  for(const i of [13,83]){
+    const ability=fresh.regions[i].ability;
+    if(!s.licenses.includes(ability))s.licenses.push(ability);
+    const carrier=Object.values(fresh.species).find(p=>p.ability===ability);
+    s.party.push({id:carrier.id,level:5,maxHp:carrier.baseHp,hp:carrier.baseHp,xp:0});
+  }
+  const loaded=load(JSON.stringify(s)),g=loaded.game;
+  for(const [to,id,source] of [[4,"four-corners",3],[13,"moth-signal",9],[83,"winter-trail",82]]){
+    const gate=g.questCrossing(to);
+    assert.equal(gate.questId,id);assert.equal(gate.postingRegion,source);
+    assert.ok(gate.reason.includes(g.regions[source].name)&&gate.reason.includes(gate.questName));
+    ok(g.travel(source));ok(g.questAction(id));
+    for(const entrance of loaded.world.regions[to].exits){
+      ok(g.travel(entrance.to));
+      const before=loaded.save();
+      assert.equal(g.travel(to,entrance.arrival).ok,false);
+      assert.equal(g.travel(to).ok,false);
+      assert.equal(loaded.save(),before);
+    }
+  }
+  ok(g.travel(1));ok(g.travel(2));
+  const unlock=g.questAction("four-corners");ok(unlock);assert.match(unlock.message,/Minnow Ditches/);
+  assert.equal(g.questCrossing(4).open,true);
+  ok(load(loaded.save()).game.travel(4));
+  const veteran=load(JSON.stringify({...s,visited:[0,4,13,83]})).game;
+  for(const to of [4,13,83]){
+    assert.ok(veteran.questCrossing(to).open);
+    ok(veteran.travel(to));ok(veteran.travel(0));
+  }
 });
 
 test("legacy in-flight battles and permanent old achievements migrate into a separate save",()=>{
@@ -252,7 +287,8 @@ function playCampaign(itinerary) {
       const ability=g.species[id].ability;
       const newCarrier=ability && !s().party.some(p=>g.species[p.id].ability===ability);
       const localAdmission=fair.games.some(game=>game.region===i && g.gamePass(game.id).requirements.some(r=>r.label.startsWith("Befriend")&&!r.done));
-      if(!collector && !newCarrier && !localAdmission && !((!specialist || i%3===0) && slot===i%g.pools[i].length)) continue;
+      const questKin=fair.quests.some(q=>q.crossing&&q.kind==="species"&&q.target===id);
+      if(!collector && !newCarrier && !localAdmission && !questKin && !((!specialist || i%3===0) && slot===i%g.pools[i].length)) continue;
       if(!s().bag.kinweave){gather();craft("kinweave");}
       if(g.team().every(p=>p.hp<p.maxHp*.55))rest();
       train(g.team().sort((a,b)=>b.hp-a.hp)[0].id);
@@ -265,7 +301,14 @@ function playCampaign(itinerary) {
     }
     const requests=fair.quests.filter(q=>q.region===i);
     if(requests.length)site("activities");
-    for(const request of requests) ok(g.questAction(request.id));
+    for(const request of requests){
+      ok(g.questAction(request.id));
+      if(request.crossing){
+        assert.equal(g.questCrossing(request.crossing.to).open,false);
+        const claim=g.questAction(request.id);ok(claim);
+        assert.ok(claim.message.includes(g.regions[request.crossing.to].name));
+      }
+    }
     if(naturalist && i>=3){
       assert.equal(g.filePassage().ok,false);
       for(const kin of g.sightings().slice(0,3)){
@@ -335,7 +378,8 @@ function playCampaign(itinerary) {
     const p=fair.progress(q,s());
     if(!collector && p.current<p.total)continue;
     assert.equal(p.current,p.total,q.name);
-    ok(g.questAction(q.id));assert.ok(!g.questAction(q.id).ok);
+    if(s().quests[q.id]!=="claimed")ok(g.questAction(q.id));
+    assert.ok(!g.questAction(q.id).ok);
   }
   assert.deepEqual(copy(load(loaded.save()).game.state),copy(s()));
   console.log(itinerary+" itinerary:",JSON.stringify(meter));

@@ -24,12 +24,19 @@ function renderMap(width) {
   const ui=window.WilderCanvas.create(canvas,{action:(id,value)=>actions.push([id,value])});
   const exits=[["up",10,0,"The Silver Windfalls"],["left",0,5,"Fossil Steps"],["right",23,7,"Cinderfall Ridge"],["down",11,12,"Kingfisher Narrows"]]
     .map(([direction,x,y,label],i)=>({id:"walk-marker",value:"road-"+i,direction,x,y,label,level:10+i,near:i===0}));
-  ui.show({id:"world:",kind:"world",title:"Crossroads",region:0,sections:[],exits});
+  const model={id:"world:",kind:"world",title:"Crossroads",region:0,sections:[],exits};
+  ui.show(model);
+  const exitButtons=()=>buttons.filter(b=>b.dataset.action==="walk-marker");
+  function updateExit(index,changes){
+    Object.assign(exits[index],changes);
+    paints.length=0;ui.show(model);
+    return exitButtons().findLast(b=>b.dataset.value===exits[index].value);
+  }
   function tap(x,y){
     const ev={clientX:x,clientY:y,button:0,pointerId:1};
     canvas.listeners.pointerdown(ev);canvas.listeners.pointerup(ev);
   }
-  return {paints,buttons:buttons.filter(b=>b.dataset.action==="walk-marker"),actions,exits,tap};
+  return {paints,buttons:exitButtons(),actions,exits,tap,updateExit};
 }
 
 for(const width of [320,1280]){
@@ -46,5 +53,20 @@ for(const width of [320,1280]){
       tap(text.x+2,text.y+3);
       assert.deepEqual(actions.slice(i*2),[["walk-marker",exit.value],["walk-marker",exit.value]]);
     }
+  });
+  test("a closed exit sign gives quest directions and becomes an entrance after completion at "+width+"px",()=>{
+    const map=renderMap(width),reason="Finish the survey at the quarry.";
+    for(const near of [false,true]){
+      const b=map.updateExit(1,{blocked:true,near,reason});
+      assert.equal(b.disabled,false);
+      assert.ok(b.textContent.includes("Read the quest gate sign")&&b.textContent.includes(reason));
+      assert.ok(map.paints.some(t=>t.value===(near?"Read sign":"Quest gate")+" · Lv. 11"));
+      const name=map.paints.find(t=>t.value==="Fossil Steps");
+      map.tap(name.x+2,name.y+3);
+      assert.deepEqual(map.actions.at(-1),["walk-marker","road-1"]);
+    }
+    const open=map.updateExit(1,{blocked:false});
+    assert.ok(open.textContent.startsWith("Enter Fossil Steps")&&!open.textContent.includes(reason));
+    assert.ok(map.paints.some(t=>t.value==="Enter · Wild Lv. 11"));
   });
 }

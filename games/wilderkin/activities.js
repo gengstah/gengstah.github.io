@@ -449,8 +449,8 @@
 
   // Each request has its own owner, delivery, and evidence. Lifetime milestones carry over on acceptance.
   const quests=[];
-  function quest(id,name,region,requester,description,kind,target,amount=1) {
-    quests.push({id,name,region,requester,description,kind,target,amount});
+  function quest(id,name,region,requester,description,kind,target,amount=1,crossing=null) {
+    quests.push({id,name,region,requester,description,kind,target,amount,crossing});
   }
   quest("lantern-watch","Lights for the Night Watch",0,"Mira, lamplighter",
     "Four firefly jars went dark along the cottage lane. Mira needs the right pairs to coax them alight again.","game","firefly-pairs");
@@ -461,13 +461,15 @@
   quest("river-pilot","A Pilot for the Mailboat",2,"Elna, ferrymaster",
     "The mailboat lost its oars. Elna will reopen the run once you find a companion that knows Raftwake.","ability","Raftwake");
   quest("four-corners","Postmarks in Green Ink",3,"Saff, post runner",
-    "Saff is reopening the old post road. Collect village postmarks by visiting each of the four settlements on her route.","route",[0,1,2,3]);
+    "Saff is reopening the old post road. Collect village postmarks by visiting each of the four settlements on her route.","route",[0,1,2,3],1,
+    {to:4,cause:"The old post road is closed until Saff has all four postmarks."});
   quest("night-shift","A Pillow by the Fire",5,"Dory, innkeeper",
     "Dory is testing the new camp mattresses. Rest your team at camp three times and report how they slept.","rests",null,3);
   quest("spring-vial","A Measure for Dry Roots",7,"Wick, gardener",
     "The nursery’s last sapling needs exactly four cups of water. Ask the sluice keeper for the two measuring jugs.","game","sluice");
   quest("moth-signal","Cinders in the Storm",9,"Rilka, signal tender",
-    "Rain keeps putting out the signal tower. A Coalmoth can keep watch with its glowing wing spots. Befriend one for Rilka.","species","coalmoth");
+    "Rain keeps putting out the signal tower. A Coalmoth can keep watch with its glowing wing spots. Befriend one for Rilka.","species","coalmoth",1,
+    {to:13,cause:"Fog hides the bluff trail. Rilka needs a Coalmoth to light the signal tower."});
   quest("many-footprints","Twelve Sets of Tracks",12,"Ashwin, track caster",
     "Ashwin makes casts of the prints outside camp. Let him study the tracks of twelve different companions.","owned",null,12);
   quest("sky-letter","A Letter for the Loft",16,"Fen, loft keeper",
@@ -505,7 +507,8 @@
   quest("reed-song","Across the Lily Pads",76,"Jem, marsh guide",
     "The marsh chorus has split into two frog families. Help the green and blue singers trade nesting banks.","game","frog-cross");
   quest("winter-trail","A Footbridge of Frost",82,"Toma, bridgewright",
-    "Toma’s winter travelers have arrived early. Find a companion that knows Frostspan to make the crossing.","ability","Frostspan");
+    "Toma’s winter travelers have arrived early. Find a companion that knows Frostspan to make the crossing.","ability","Frostspan",1,
+    {to:83,cause:"The footbridge has washed out. Toma needs a Frostspan companion to bridge the gap."});
   quest("deep-bores","Flags for the Drill Crew",85,"Osa, ground engineer",
     "Steam pockets keep bursting beneath the old drilling rig. Mark all three vents in the Steam Survey.","game","vent-survey");
   quest("seven-notes","Seven Affinities in Chorus",91,"Vessa, choir leader",

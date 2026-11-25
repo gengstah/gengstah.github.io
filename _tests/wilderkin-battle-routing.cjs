@@ -61,6 +61,26 @@ test("the labeled map exits walk the player through successive regions without u
   }
   assert.deepEqual(clone(run.g.state.visited),[0,1,2,3]);assert.equal(run.g.state.crests.length,0);
 });
+test("a blocked road leads to the right request, earns its opening, then persists across reload",()=>{
+  const run=boot("");
+  run.click("walk-marker","road-3");run.walk();
+  const east=()=>run.model().exits.find(e=>e.value==="road-4");
+  assert.ok(east().blocked);assert.match(east().reason,/Postmarks in Green Ink/);
+  run.click("walk-marker","road-4");run.walk();
+  assert.equal(run.g.state.region,3);assert.ok(!run.g.state.visited.includes(4));
+  assert.equal(run.model().id,"region:4");
+  const rows=()=>run.model().sections.flatMap(s=>s.rows||[]);
+  assert.ok(rows().find(r=>r.id==="travel").disabled);
+  run.click("view","request|four-corners");run.click("request-step","four-corners");
+  for(const target of [1,2])run.click("request-travel",target+"|four-corners");
+  assert.equal(run.model().title,"Postmarks in Green Ink");assert.equal(run.g.access(4).open,false);
+  run.click("request-step","four-corners");assert.ok(run.g.access(4).open);
+  run.click("view","region|4");run.click("travel",4);
+  const resumed=boot("",run.save());assert.equal(resumed.g.state.region,4);
+  resumed.click("walk-marker","road-3");resumed.walk();
+  assert.equal(resumed.model().exits.find(e=>e.value==="road-4").blocked,false);
+  resumed.key("e");assert.equal(resumed.g.state.region,4);
+});
 test("the opening atlas offers distinct wild levels and a return trip without a crest",()=>{
   const app=boot(""),g=app.g;
   assert.equal(app.model().atlas.label,"World atlas");
