@@ -12,14 +12,14 @@ function boot(){
   const context=vm.createContext({window:{}});
   scripts.forEach(script=>script.runInContext(context));
   const game=context.window.WilderGame;
-  let screen;
+  let screen;const effects=[];
   const school=context.window.WilderReedbank.create({game,image:id=>id,go:(_,page)=>{screen=page;},
-    row:(id,label,value,detail,extra)=>({id,label,value,detail,...extra}),render(){},notify(message){assert.fail(message);}});
-  return {game,school,opened:()=>school.model(screen)};
+    row:(id,label,value,detail,extra)=>({id,label,value,detail,...extra}),animate:fx=>{effects.push(fx);},render(){},notify(message){assert.fail(message);}});
+  return {game,school,effects,opened:()=>school.model(screen)};
 }
 
 test("replaying the same relay with the other scout changes which crossing Cindlet clears",async()=>{
-  const {game,school,opened}=boot();
+  const {game,school,effects,opened}=boot();
   game.startBattle("wild","gustlance");
   const career=()=>JSON.stringify({...game.state,relayClears:[]});
   const original=career();
@@ -31,8 +31,13 @@ test("replaying the same relay with the other scout changes which crossing Cindl
     school.act(choose.id,choose.value);
     assert.equal(opened().kind,"battle");
     const move=opened().sections[0].rows.find(r=>r.value===action);
+    effects.length=0;
     school.act(move.id,move.value);
     await new Promise(resolve=>setImmediate(resolve));
+    const [handoff,reply]=effects;
+    assert.equal(handoff.impact.ally.fighter.species,"cindlet");assert.equal(reply.impact.ally.id,"cindlet");
+    assert.equal(reply.impact.ally.hp-handoff.impact.ally.hp,reply.impact.ally.change);
+    assert.ok(reply.impact.ally.change<0);
     if(course==="bell"){
       const hit=opened().sections[0].rows.find(r=>r.value==="ember-pop");
       school.act(hit.id,hit.value);

@@ -607,12 +607,29 @@
   }
   async function resolveBattle(fn,fx) {
     if (resolving || !game.state.battle) return;
-    const b=game.state.battle, originalFoe=b.enemy, oldEnemy=originalFoe.id, activeId=b.activeId, kind=b.kind,secondBell=!!b.secondBell;
-    const intent=game.foeIntent(),oldTurn=b.turn,oldCrests=game.state.crests.length;
+    const b=game.state.battle,oldEnemy=b.enemy.id,activeId=b.activeId,kind=b.kind,secondBell=!!b.secondBell;
+    const intent=game.foeIntent(),oldCrests=game.state.crests.length;
     const firstTurn=firstCoach?.before(fx);
     const cardTurn=fieldCard?.before(fx?.kind==="swap"&&fx.pass==="field-swap"?"Switch to "+fx.name:fx?.name||"Leave the encounter");
     // Show the original arena even if a throw, item, or swap was chosen from the satchel.
-    ui.show({...battleModel(),id:"battle:"});
+    const arena={...battleModel(),id:"battle:"};
+    ui.show(arena);
+    function impactView(phase) {
+      if(!phase)return;
+      const hit={...phase};
+      for(const side of ["ally","foe"]){
+        const fighter=phase[side];
+        if(fighter && (fighter.changedFront || fighter.id!==arena[side].species)){
+          hit[side]={...fighter,fighter:partyDisplay(fighter,side==="ally")};
+        }
+      }
+      return hit;
+    }
+    function animateHandoff(side,phase) {
+      const incoming=phase[side].fighter;
+      return ui.animate({type:incoming.types[0],kind:"swap",side,name:incoming.name,
+        pass:"field-swap",incomingKin:incoming,impact:{[side]:phase[side],message:phase.message}});
+    }
     resolving=true;
     try {
       const res=fn();
@@ -623,29 +640,38 @@
       }
       fieldCard?.after(cardTurn,res);
       const firstExchange=firstCoach?.after(firstTurn,res);
+      const strike=impactView(res.impacts?.ally),reply=impactView(res.impacts?.foe);
       if (fx) {
         if(fx.kind==="duet"||fx.kind==="trio")score.answer();
         playTone(["heal","item","wild-call"].includes(fx.kind)?"care":"strike");
-        await ui.animate({...fx,side:"ally"});
+        // A paid handoff spends HP on the outgoing kin. Keep it on screen for that cost.
+        // A forced enemy switch likewise brings its new front in on the swap animation.
+        const contact=strike&&{...strike};
+        if(strike?.ally.departing)contact.ally=strike.ally.departing;
+        if(strike?.foe.changedFront)delete contact.foe;
+        await ui.animate({...fx,side:"ally",impact:contact});
       }
       await animateFittings(res.fittingEvents, false);
       const now=game.state.battle;
-      if(res.foeHeal)await ui.animate({type:"Ember",kind:"heal",side:"foe",name:res.replySkill.name});
-      if(res.foeShifted && now){
-        ui.show({...battleModel(),id:"battle:"});
-        await ui.animate({type:spec(now.enemy.id,false).type,kind:"swap",side:"foe",name:spec(now.enemy.id,false).name});
-      }
-      if (!res.skipCounterFx && ((now && now.turn>oldTurn && (now.enemy===originalFoe||res.foeShifted)) || res.kind==="defeat")) {
-        const reply=res.replySkill||intent?.skill;
-        await ui.animate({type:reply?.type||"Neutral",kind:"attack",side:"foe",name:reply?.name});
+      if(strike?.ally.departing)await animateHandoff("ally",strike);
+      if(strike?.foe.changedFront)await animateHandoff("foe",strike);
+      if(reply){
+        const replySkill=res.replySkill||intent?.skill;
+        const shifted=reply.foe.changedFront?"foe":reply.ally.changedFront?"ally":null;
+        if(shifted&&res.skipCounterFx){
+          await animateHandoff(shifted,reply);
+        }else if(!res.skipCounterFx||res.foeHeal||reply.ally.change>0||reply.foe.change>0){
+          await ui.animate({type:replySkill?.type||"Neutral",kind:res.skipCounterFx?"heal":"attack",side:"foe",name:replySkill?.name,impact:reply});
+        }
       }
       await animateFittings(res.fittingEvents, true);
       if(res.learnedGuard){
         playTone("reward");
         await ui.animate({kind:"learn",side:"ally",type:spec(activeId).type,name:res.learnedGuard+" learned"});
       }
-      if ((now && now.enemy!==originalFoe && !res.foeShifted) || res.kind==="victory" || res.kind==="defeat") {
-        await ui.animate({type:"Neutral",kind:"defeat",side:res.kind==="defeat"?"ally":"foe",name:res.kind==="defeat"?spec(activeId).name:spec(oldEnemy,false).name});
+      if (strike?.foe.hp===0 || res.kind==="defeat") {
+        const lost=res.kind==="defeat";
+        await ui.animate({type:"Neutral",kind:"defeat",side:lost?"ally":"foe",name:lost?spec(reply?.ally.id||activeId).name:spec(oldEnemy,false).name});
       }
       const pick=game.replacements?.();
       if(pick){

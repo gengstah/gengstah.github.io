@@ -126,6 +126,8 @@
     const occurrences=new Map();
     let arenaRect=null,lastPage=0,fx=null,notice=null,header=58,footer=50,clipTop=58,clipBottom=0;
     let passedLeads={};
+    let impactLog=null;
+    const healthLabels={};
     let mirrorSig="",destroyed=false;
     const surface = {get busy(){return Boolean(fx);},show,animate,toast,invalidate:()=>{dirty=true;},destroy};
     const twinField=window.WilderTwinField?.create({c,rect,ellipse,label,getFont,fit,source,picture,rightFacing,control,highlighted});
@@ -190,7 +192,11 @@
       if(changed){
         scroll=0;focus="";hover="";lastPage=performance.now();
       }
-      twinField?.update(next.twinField);model=next;passedLeads={};if(changed||!liveRefresh)menu=false;dirty=true;
+      for(const side of ["ally","foe"]){
+        const marker=healthLabels[side],fighter=next[side];
+        if(marker&&(next.kind!=="battle"||fighter?.species!==marker.id||fighter.hp!==marker.hp))delete healthLabels[side];
+      }
+      twinField?.update(next.twinField);model=next;passedLeads={};impactLog=null;if(changed||!liveRefresh)menu=false;dirty=true;
       // Update controls synchronously so a screen reader can follow each transition.
       render(performance.now());
       if(next.twinField?.focus&&next.subtitle&&live.textContent!==next.subtitle)live.textContent=next.subtitle;
@@ -706,9 +712,11 @@
         const sx=x+i*(half+4),accent=i?"#896182":"#4a785b",sz=half>=205?32:25;
         rect(c,sx,y,half,h,"#f8f3df",C.line);
         const teamX=sx+8;
-        side.team.forEach((kin,slot)=>{
+        const lead=passedLeads[i?"foe":"ally"];
+        side.team.forEach((entry,slot)=>{
+          const kin=lead?.species===entry.id?lead:entry;
           const px=teamX+slot*(sz+2),top=y+(h-sz-4)/2;
-          if(slot===side.active)rect(c,px,top,sz,sz+5,i?"#f1e2e4":"#e0edcf",accent);
+          if(lead?kin===lead:slot===side.active)rect(c,px,top,sz,sz+5,i?"#f1e2e4":"#e0edcf",accent);
           c.save();c.globalAlpha=kin.hp?1:.36;picture(kin.src,px+2,top+1,sz-4,sz-3);c.restore();
           hpBar(px+3,top+sz,sz-6,kin);
         });
@@ -773,7 +781,7 @@
       const tile=Math.min(sh*.77,w*.27),footY=yy+sh*.89;
       const points={ally:{x:x+w*.25,y:footY-tile*.46},foe:{x:x+w*.75,y:footY-tile*.56}};
       for(const side of ["ally","foe"]){
-        const p=leads[side],sign=side==="ally"?1:-1,point=points[side];
+        const p=handoff&&active.side===side?active.outgoing:leads[side],sign=side==="ally"?1:-1,point=points[side];
         ellipse(c,point.x,point.y+tile*.46,tile*.32,Math.max(2,tile*.047),"#324d3438");
         if(handoff&&active.side===side){
           if(active.kind==="trio"){
@@ -843,9 +851,25 @@
           label(c,move,x+w/2,yy+9,12,C.cream,"body",650,"center");
         }
       }
+      for(const side of ["ally","foe"]){
+        const marker=healthLabels[side];
+        if(!marker)continue;
+        const age=t-marker.time;
+        if(age>=950){delete healthLabels[side];continue;}
+        const fighter=side==="ally"?ally:foe;
+        if(fighter.species!==marker.id)continue;
+        const value=(marker.change<0?"−":"+")+Math.abs(marker.change);
+        const size=mobile?19:25;
+        c.font=getFont(size,"mono",700);
+        const bw=Math.ceil(c.measureText(value).width)+10;
+        const cx=points[side].x+(side==="ally"?-1:1)*tile*.34;
+        const top=Math.max(yy+6,points[side].y-tile*.33-(reduced.matches?0:Math.min(8,age*.022)));
+        rect(c,cx-bw/2,top,bw,size+5,marker.change<0?"#652f32":"#23513c","#fff2ce");
+        label(c,value,cx,top+1,size,"#fff7db","mono",700,"center");
+      }
       c.restore();
       let bottom=yy+sh+6;
-      const logs=(Array.isArray(model.log)?model.log:[model.log]).filter(Boolean);
+      const logs=(impactLog?[impactLog]:Array.isArray(model.log)?model.log:[model.log]).filter(Boolean);
       if(logs.length){
         c.font=getFont(13,"body",550);
         const lines=wrap(c,logs.join("  ·  "),w-24);
@@ -1024,6 +1048,26 @@
       }
       c.restore();
     }
+    function applyImpact(token,t) {
+      if(!token.impact||token.landed||destroyed||model!==token.view)return;
+      token.landed=true;
+      const spoken=[];
+      for(const side of ["ally","foe"]){
+        const hit=token.impact[side];
+        if(!hit)continue;
+        const current=passedLeads[side]||model[side];
+        const incoming=side===token.side?token.incomingKin:null;
+        const fighter=hit.fighter||(incoming?.species===hit.id?incoming:current);
+        if(!fighter||fighter.species!==hit.id)continue;
+        passedLeads[side]={...fighter,hp:hit.hp,maxHp:hit.maxHp};
+        if(side===token.side&&token.handoff?.species===hit.id)token.handoff=passedLeads[side];
+        if(!hit.change)continue;
+        healthLabels[side]={id:hit.id,hp:hit.hp,change:hit.change,time:t};
+        spoken.push(fighter.name+(hit.change<0?" lost ":" gained ")+Math.abs(hit.change)+" HP. "+hit.hp+" of "+hit.maxHp+" HP.");
+      }
+      impactLog=token.impact.message||null;
+      if(spoken.length)live.textContent=spoken.join(" ");
+    }
     function animate(effect={}) {
       if(fx)return fx.promise;
       const kind=effect.kind||"attack",speed=window.WilderGame?.state.animationSpeed||1;
@@ -1033,11 +1077,14 @@
       const duration=reduced.matches?(passing||kind==="learn"||kind==="fitting"?190:95):(trio?900:passing?640:({heal:610,capture:820,defeat:460,swap:350,item:600,fitting:540,duet:850,learn:760}[kind]||550))/speed;
       let resolve;
       const promise=new Promise(done=>{resolve=done;});
-      const token={...effect,kind,side,duration,started:performance.now(),promise};
+      // The impact burst starts 45% into a strike. A trio strikes after the handoff.
+      const contact=trio ? .43+.57*.45 : ["heal","item"].includes(kind) ? .22 : .45;
+      const token={...effect,kind,side,duration,started:performance.now(),promise,view,contact:reduced.matches?0:contact};
       if(passing){
         source(portrait);
         if(trio){source(effect.source);source(effect.partner);}
         token.handoffView=view;
+        token.outgoing=passedLeads[side]||model[side];
         token.handoff={...(effect.incomingKin||passedLeads[side]||model[side]),flip:effect.incomingKin?.flip,src:portrait};
       }
       if(model.kind==="battle" && arenaRect && (arenaRect.y<clipTop || arenaRect.y+arenaRect.h>clipBottom)){
@@ -1048,6 +1095,7 @@
       // Finishes even if the tab is backgrounded halfway through a move.
       setTimeout(()=>{
         if(fx===token){
+          applyImpact(token,performance.now());
           if(token.handoff&&model===view)passedLeads[side]=token.handoff;
           fx=null;dirty=true;
         }
@@ -1095,12 +1143,18 @@
       if(model.formationStrip)narration.push(model.formationStrip.label,...model.formationStrip.slots.map((s,i)=>
         (i+1)+". "+s.name+(s.lead?", leader":"")+", level "+s.level+(s.maxHp?", "+s.hp+" of "+s.maxHp+" health":"")));
       if(model.objective)narration.push(model.objective.title,model.objective.description);
-      if(model.log)narration.push(...(Array.isArray(model.log)?model.log:[model.log]));
+      if(impactLog)narration.push(impactLog);
+      else if(model.log)narration.push(...(Array.isArray(model.log)?model.log:[model.log]));
       if(model.lineups)for(const side of [model.lineups.left,model.lineups.right]){
         narration.push(side.label+", "+side.beats+" of 3 duet beats");
-        side.team.forEach((k,i)=>narration.push((k.name||k.id)+(i===side.active?", active":"")+", "+k.hp+" of "+k.maxHp+" health"));
+        const front=passedLeads[side===model.lineups.left?"ally":"foe"];
+        side.team.forEach((k,i)=>{
+          const active=front?front.species===k.id:i===side.active;
+          const hp=active&&front?front.hp:k.hp;
+          narration.push((k.name||k.id)+(active?", active":"")+", "+hp+" of "+k.maxHp+" health");
+        });
       }
-      for(const side of [model.ally,model.foe,...(model.party||[])])if(side)narration.push(side.name+", level "+side.level+", "+side.hp+" of "+side.maxHp+" health"+(side.gear?", "+side.gear.name+(side.gear.spent?", used":", ready"):""));
+      for(const side of [passedLeads.ally||model.ally,passedLeads.foe||model.foe,...(model.party||[])])if(side)narration.push(side.name+", level "+side.level+", "+side.hp+" of "+side.maxHp+" health"+(side.gear?", "+side.gear.name+(side.gear.spent?", used":", ready"):""));
       for(const s of model.sections||[]){
         narration.push(s.title,s.text);
         for(const cell of [...(s.rows||[]),...(s.grid?.cells||[])])if(!cell.id)narration.push(cell.label,cell.detail);
@@ -1126,6 +1180,7 @@
     }
     function render(t) {
       if(destroyed || width<2 || height<2)return;
+      if(fx&&t>=fx.started+fx.contact*fx.duration)applyImpact(fx,t);
       c.setTransform(ratio,0,0,ratio,0,0);c.imageSmoothingEnabled=false;hits=[];occurrences.clear();
       header=width<610?50:59;footer=width<720?47:49;clipTop=header;clipBottom=height-footer;
       background();
@@ -1165,7 +1220,7 @@
       if(destroyed)return;
       // Water, portraits and NPCs idle gently. Battles animate at 60 Hz while a skill plays.
       const interval=fx?12:((model.kind==="world" && !reduced.matches)?32:75);
-      if(!document.hidden && (dirty || t-lastPaint>=interval && (!reduced.matches || fx || notice || (model.sections||[]).some(s=>s.draw||s.meter))))render(t);
+      if(!document.hidden && (dirty || t-lastPaint>=interval && (!reduced.matches || fx || notice || healthLabels.ally || healthLabels.foe || (model.sections||[]).some(s=>s.draw||s.meter))))render(t);
       if(notice && t>=notice.until){notice=null;dirty=true;}
       frame=requestAnimationFrame(tick);
     }

@@ -418,15 +418,21 @@
         right:crew.team,rival:crew.id,mode:"cpu",first:1});
       save({...rec(),setup});show("preview");return true;
     }
-    function effect(p,move){
+    function effect(p,after,move){
       const side=p.turn===0?"ally":"foe",partner=move.targetId;
+      const impact={message:after.log.at(-1)};
+      for(const [i,key] of ["ally","foe"].entries()){
+        const next=member(after.sides[i]),before=p.sides[i].team.find(k=>k.id===next.id);
+        impact[key]={id:next.id,hp:next.hp,maxHp:next.maxHp,level:sim.rules.level,change:next.hp-before.hp};
+        if(next.id!==member(p.sides[i]).id)impact[key].fighter=profile(next);
+      }
       const kind=move.id.startsWith("warmth:")?"heal":move.id==="vent:backdraft"?"attack":move.kind==="signature"?(move.targetId?"swap":"heal"):move.kind==="replace"?"swap":move.kind;
       const family=move.kind==="signature"&&window.WilderSparringSignatures.byId(move.signatureId)?.familyKey;
       if(family){
         const target=p.sides[p.turn].team.find(k=>k.id===partner),incomingKin=profile({...target,hp:target.hp+(move.heal||0)});
-        return {kind:"swap",side,type:move.type,name:move.label,pass:family,incoming:incomingKin.src,incomingKin};
+        return {kind:"swap",side,type:move.type,name:move.label,pass:family,incoming:incomingKin.src,incomingKin,impact};
       }
-      return {kind,name:move.label,type:move.type||species[member(p.sides[p.turn]).id].type,side,
+      return {kind,name:move.label,type:move.type||species[member(p.sides[p.turn]).id].type,side,impact,
         ...(move.kind==="duet"?{partner:image(partner),partnerType:species[partner].type}:{})};
     }
     async function take(command,inCup=false){
@@ -451,7 +457,7 @@
           if(inCup)cup.saveTurn(m,after);
           else {const r=rec();save({...r,match:m,lastReview:m.setup.mode==="cpu"&&after.phase==="done"?tape(m):r.lastReview});}
           playTone?.(move.kind==="heal"||move.kind==="signature"?"care":move.kind==="duet"?"battle":"strike");
-          if(here()&&animate)await animate(effect(p,move));
+          if(here()&&animate)await animate(effect(p,after,move));
           p=after;
           if(!here()||(p.phase!=="done"&&current()!==m))break;
           route(p.phase==="done"?"result":"match");

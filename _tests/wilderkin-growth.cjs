@@ -99,7 +99,11 @@ test("Kilnwing can interrupt a charge or exchange its health and place for a par
   const reply=g.useSkill(id);ok(reply);assert.ok(reply.skipCounterFx);assert.equal(g.team()[1].hp,hp);assert.equal(g.state.battle.turn,4);
   const {g:relay}=ready("cindlet","kindler",{beats:1});
   const offer=relay.skillPreview("cinder-handoff"),leader=relay.team()[1],other=relay.team()[2],before=other.hp;
-  assert.equal(offer.target,"dewfin");ok(relay.useSkill("cinder-handoff"));assert.equal(relay.state.battle.beats,3);
+  assert.equal(offer.target,"dewfin");const handoff=relay.useSkill("cinder-handoff");ok(handoff);assert.equal(relay.state.battle.beats,3);
+  const {ally,foe}=handoff.impacts;
+  assert.equal(ally.ally.departing.id,leader.id);assert.equal(ally.ally.departing.hp,leader.hp);assert.equal(ally.ally.departing.change,-offer.tax);
+  assert.equal(ally.ally.id,other.id);assert.equal(ally.ally.change,0);
+  assert.equal(foe.ally.id,other.id);assert.equal(foe.ally.change,-offer.returnDamage);
   assert.equal(relay.state.battle.activeId,"dewfin");assert.equal(leader.maxHp-leader.hp,offer.tax);assert.equal(other.hp,before-offer.returnDamage);
 });
 test("Harbor Pool treats the most injured conscious partner and forecasts the leader's return damage",()=>{
@@ -115,6 +119,8 @@ test("Turn the Lock preserves the exact HP of duplicate species as they rotate, 
   g.state.battle.enemy.hp=first;g.state.battle.reserveHp=[second,third];
   const oldHp=g.team()[2].hp,p=g.skillPreview("turn-the-lock");const outcome=g.useSkill("turn-the-lock");
   ok(outcome);assert.ok(outcome.foeShifted);assert.equal(g.team()[2].hp,oldHp-p.returnDamage);
+  assert.equal(outcome.impacts.ally.foe.changedFront,true);assert.equal(outcome.impacts.ally.foe.hp,second);
+  assert.equal(outcome.impacts.ally.foe.change,0);assert.equal(outcome.impacts.ally.foe.departing,undefined);
   assert.equal(g.state.battle.enemy.hp,second);assert.deepEqual(Array.from(g.state.battle.reserveHp),[third,first]);
   const restored=load(JSON.stringify(g.state)).g;
   // A trained ally finishes the front opponent. The next opponent arrives with its stored injuries.

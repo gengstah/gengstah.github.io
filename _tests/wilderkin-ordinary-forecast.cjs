@@ -33,6 +33,16 @@ test("ordinary skill forecasts across the roster match both immediate health cha
         assert.ok(plan.available);
         const res=game.useSkill(skill.id);
         assert.ok(res.ok);
+        const strike=res.impacts.ally,reply=res.impacts.foe;
+        assert.equal(strike.foe.hp,before[1]-plan.damage);
+        assert.equal(strike.foe.change,0-plan.damage);
+        assert.equal(strike.ally.hp,before[0]+plan.healing);
+        assert.equal(strike.ally.change,plan.healing);
+        if(plan.finishes)assert.equal(reply,undefined);
+        else{
+          assert.equal(reply.ally.hp,strike.ally.hp-plan.returnDamage);
+          assert.equal(reply.ally.change,0-plan.returnDamage);
+        }
         assert.equal(before[1]-enemy.hp,plan.damage,kin.name+" "+skill.name);
         assert.equal(lead.hp,before[0]+plan.healing-plan.returnDamage,kin.name+" "+skill.name);
         assert.equal(res.kind==="victory",plan.finishes);

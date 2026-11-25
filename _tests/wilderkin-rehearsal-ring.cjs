@@ -47,6 +47,9 @@ test("native ring shows the isolated party, intent, actual damage forecast, read
 test("replaying a turn restores real HP, displays both exchanges and keeps original skill and switch film accessible",async()=>{
   const h=station();h.start("dewfin");const original=h.model(),opts=h.p.read().game.ordinaryForecast("bubble-jet");
   await cmd(h,"useSkill|bubble-jet");
+  const [hit,reply]=h.effects;
+  assert.equal(hit.impact.ally.hp,original.ally.hp);assert.equal(hit.impact.foe.change,-opts.damage);
+  assert.equal(reply.impact.ally.change,-opts.returnDamage);assert.equal(reply.impact.foe.hp,hit.impact.foe.hp);
   assert.equal(h.model().foe.hp,original.foe.hp-opts.damage);
   assert.equal(h.model().sections[1].rows[0].key,"Z");assert.ok(h.ring.key({key:"z"},h.view()));assert.equal(h.model().foe.hp,original.foe.hp);assert.equal(h.model().ally.hp,original.ally.hp);
   assert.ok(h.rows().some(r=>r.label==="Previous · Bubble Jet"&&r.detail.includes(String(original.foe.hp-opts.damage))));
@@ -79,6 +82,17 @@ test("a forced replacement is free and medicines use the practice copy with a re
   await h.press("rehearse-rewind");assert.equal(g.state.bag.balm,stock);
   h.ring.back(h.view());assert.equal(h.view(),"exit");await h.press("rehearse-leave");
   assert.equal(h.exits(),1);assert.equal(h.p.read(),null);assert.equal(JSON.stringify(h.g.state),career);
+});
+test("a trained Cinder Handoff spends the outgoing kin’s health before the incoming kin takes the reply",async()=>{
+  const h=station(),s=h.g.state;
+  s.crests=[0,1];s.visited=[0,1,2];s.growth.cindlet.demonstrated=true;s.growth.cindlet.selected="kindler";
+  h.start("cindlet");const g=h.p.read().game;g.state.battle.beats=1;
+  const plan=g.skillPreview("cinder-handoff");assert.ok(plan.available);
+  await cmd(h,"useSkill|cinder-handoff");
+  const [cost,swap,reply]=h.effects;
+  assert.equal(cost.impact.ally.id,"cindlet");assert.equal(cost.impact.ally.change,-plan.tax);
+  assert.equal(swap.incomingKin.species,"dewfin");assert.equal(swap.impact.ally.change,0);
+  assert.equal(reply.impact.ally.id,"dewfin");assert.equal(reply.impact.ally.change,-plan.returnDamage);
 });
 test("a known Warden brings the campaign lineup and an alternate family lead can rehearse a real handoff",async()=>{
   const h=station();h.g.state.party.push(h.g.loaner("gustlance",6));h.g.state.met.push(0);

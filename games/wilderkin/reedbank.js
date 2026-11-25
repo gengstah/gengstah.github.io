@@ -96,6 +96,10 @@
             Object.assign(fx,{pass:pass.id,incoming:incomingKin.src,incomingKin});
           }
           const turn=handingOff?(action==="pass"?game.useFamilyTechnique("cindlet"):game.swap("cindlet")):game.useSkill(action);
+          fx.impact=turn.impacts?.ally;
+          if(handingOff&&fx.impact?.ally){
+            fx.impact={...fx.impact,ally:{...fx.impact.ally,fighter:profile(fx.impact.ally)}};
+          }
           return {turn,fx,reply:intent.skill};
         });
         if(!turn.ok){notify(turn.message);return;}
@@ -108,8 +112,8 @@
           if(cleared)game.recordRelay(a.course,a.id);
         }
         if(active())await animate?.(fx);
-        if(active())await animate?.(turn.kind==="victory"?{kind:"defeat",side:"foe",name:kin(b.enemy.id).name}:
-          {kind:"attack",side:"foe",name:reply.name,type:reply.type});
+        if(active()&&turn.kind==="victory")await animate?.({kind:"defeat",side:"foe",name:kin(b.enemy.id).name});
+        else if(active()&&turn.impacts?.foe)await animate?.({kind:"attack",side:"foe",name:reply.name,type:reply.type,impact:turn.impacts.foe});
       }finally{busy=false;if(active())render();}
     }
     function model(value) {

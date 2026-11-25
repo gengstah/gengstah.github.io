@@ -51,6 +51,8 @@ test("a fresh party can be knocked out at the native wild level and wakes safely
   const run=boot(),g=run.game,party=plain(g.state.party),bag=plain(g.state.bag);
   const foe=enterDanger(run),origin=g.state.region,level=g.state.battle.enemy.level;
   const back=run.reload(),loss=loseWildFight(back.game);
+  assert.equal(loss.impacts.foe.ally.hp,0);
+  assert.equal(loss.impacts.foe.ally.change,-loss.impacts.ally.ally.hp);
   const camp=back.world.regions[0].sites.find(site=>site.id==="camp");
   assert.deepEqual(plain(loss.rescue),{foe,level,region:origin,campRegion:0,campName:camp.label});
   assert.ok(loss.message.includes("Lv. "+level+" "+g.species[foe].name));

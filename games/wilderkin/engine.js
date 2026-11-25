@@ -120,6 +120,40 @@
   function createInstance(privateState) {
   const rehearsal=!!privateState;
   const pendingFittingEvents=[];
+  let exchange=null;
+
+  // Resolve and save a turn once. The detached snapshots let each animation show
+  // its own HP values even after a knockout changes the lineup or restores camp HP.
+  function withImpacts(action) {
+    return (...args)=>{
+      const b=state.battle;
+      if(!b)return action(...args);
+      const previous=exchange;
+      exchange={hp:new Map([...team(),b.enemy].map(p=>[p,p.hp])),front:{ally:member(b.activeId),foe:b.enemy},impacts:{}};
+      try{
+        const result=action(...args);
+        if(result.ok&&exchange.impacts.ally)result.impacts=exchange.impacts;
+        return result;
+      }finally{exchange=previous;}
+    };
+  }
+  function recordImpact(side,message) {
+    if(!exchange)return;
+    function health(p) {
+      const {id,hp,maxHp,level}=p,change=hp-(exchange.hp.get(p)??hp);
+      return {id,hp,maxHp,level,change};
+    }
+    function snapshot(p,target) {
+      const previous=exchange.front[target],changedFront=p!==previous;
+      exchange.front[target]=p;
+      const result={...health(p),changedFront};
+      if(changedFront && previous.hp!==exchange.hp.get(previous))result.departing=health(previous);
+      return result;
+    }
+    const b=state.battle;
+    exchange.impacts[side]={ally:snapshot(member(b.activeId),"ally"),foe:snapshot(b.enemy,"foe"),message};
+    if(side==="ally")exchange.hp=new Map([...team(),b.enemy].map(p=>[p,p.hp]));
+  }
 
   function newGame() {
     return {
@@ -854,6 +888,7 @@
   }
 
   function winBattle(message) {
+    recordImpact("ally",message);
     delete state.battle.pendingFallen;
     delete state.battle.trioWindow;
     settleTrio(state.battle);
@@ -991,6 +1026,7 @@
 
   function counterattack(firstMessage, guardFactor=1, lesson=null, pair=null) {
     const battle = state.battle;
+    recordImpact("ally",firstMessage);
     delete battle.pendingFallen;
     delete battle.trioWindow;
     const { enemy } = battle;
@@ -1036,6 +1072,7 @@
     settleTrio(battle,intent,dealt);
     if(battle.emberBrace && battle.emberBrace!==battle.activeId)delete battle.emberBrace;
     if(response?.message)reply+=(reply?" ":"")+response.message;
+    if(!interrupted)recordImpact("foe",reply);
     if (active.hp === 0) {
       const ready=team().filter(p=>p.hp>0);
       if (!ready.length) {
@@ -1723,6 +1760,7 @@
     delete b.trioWindow;
     b.turn++;
     const action=ownedKin(actor).name+" used "+option.name+" on "+call.target+".";
+    recordImpact("ally",action);
     b.log=[...b.log,action,call.response].slice(-8);
     return {...commit("turn",action+" "+call.response),skipCounterFx:true};
   }
@@ -2129,12 +2167,14 @@
     });
   }
 
+  const turnActions={useSkill:withImpacts(useSkill),swap:withImpacts(swap),useItem:withImpacts(useItem),useDuet:withImpacts(useDuet),
+    useTrio:withImpacts(useTrio),useFamilyTechnique:withImpacts(useFamilyTechnique),useEmberTechnique:withImpacts(useEmberTechnique)};
   if(rehearsal)return {
     get state(){return state;},
     species,regions,pools,items,kin,team,loaner:makeMember,duetPair,growthInfo,guardTraining,
     startBattle,foeIntent,wardenForecast,wardenLesson,skillPreview,ordinaryForecast,duets,switchForecast,
-    replacements,familyTechnique,emberTechnique,itemForecast,trailFittings,trio,useTrio,
-    useSkill,swap,replaceFainted,useDuet,useFamilyTechnique,useEmberTechnique,useItem,flee,
+    replacements,familyTechnique,emberTechnique,itemForecast,trailFittings,trio,
+    ...turnActions,replaceFainted,flee,
     incomingForecast(id=state.battle?.activeId){
       const p=member(id),intent=foeIntent();
       if(!intent||!p?.hp||!state.team.includes(id))return null;
@@ -2148,11 +2188,11 @@
     }
   };
   return {
-    rehearsalTeam,wardenRoster,trio,useTrio,firstBattle,
+    rehearsalTeam,wardenRoster,trio,...turnActions,firstBattle,
     trailSaveIsCurrent,trailFittings,claimFittings,equipFitting,trailFittingPreview,
     firstOuting:window.WilderOpening?.create({state:()=>state,commit,setLead,sightings:()=>field?.sightings(state.region)||[]}),
-    wardenLesson,wardenForecast,guardTraining,guardPractice,switchForecast,ordinaryForecast,emberTechnique,useEmberTechnique,replacements,replaceFainted,
-    passageReport,filePassage,secondBell,wildCall,answerWildCall,captureStatus,
+    wardenLesson,wardenForecast,guardTraining,guardPractice,switchForecast,ordinaryForecast,emberTechnique,replacements,replaceFainted,
+    passageReport,filePassage,secondBell,wildCall,answerWildCall:withImpacts(answerWildCall),captureStatus,
     pinRegion,setWalker,walkerPose:(time,reduced)=>walking?.pose(state,time,reduced),walkerInfo:()=>walking.info(state),walkerSense:()=>walking.sense(state,field.sightings(state.region),expedition(),objective()),
     stillwake:window.WilderStillwake?.create({state:()=>state,commit,regions,species,makeMember,story,duetPair}),
     hollows:window.WilderHollows?.create({state:()=>state,commit,regions,species,items}),
@@ -2162,11 +2202,11 @@
     notebook:()=>field.notebook(state),canInvite:fieldInvitation,observe,inviteField,cycleAnimationSpeed,cycleMusic,
     get state() { return state; },
     get canSave() { return canSave; },
-    items,conditions:campaign.conditions,visitSite,gather,craft,useItem,itemForecast,expedition,expeditionAction,license,claimLicense,
+    items,conditions:campaign.conditions,visitSite,gather,craft,itemForecast,expedition,expeditionAction,license,claimLicense,
     gamePass,unlockGame,storyStep,trialAccess,wildLevel:i=>regions[i]?.wildLevel,
     species,kin,growthInfo,chooseGrowth,growthAppearance,skillPreview,regions, wardens, homes, pools, access, team, enlist, foeIntent, maxLevel:MAX_LEVEL,
     awardGame, questAction, xpNeeded, objective, setPosition, realmWalking, travel, setLead,
-    heal, meetWarden, startBattle, useSkill, duetPair, duets, useDuet, swap, familyTechnique,useFamilyTechnique, recruit, flee, setSound, reset
+    heal, meetWarden, startBattle, duetPair, duets, familyTechnique, recruit, flee, setSound, reset
   };
   }
   window.WilderGame=createInstance();

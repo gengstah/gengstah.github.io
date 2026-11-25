@@ -21,6 +21,16 @@
         src,hp:p.hp,maxHp:p.maxHp,level:p.level,...(gear?{gear:{id:gear.id,name:gear.name,spent:!!p.spent,
           action:link("Inspect "+gear.name,"team")}}:{})};
     }
+    function impactView(phase,v){
+      if(!phase)return phase;
+      const result={...phase};
+      if(phase.ally&&(phase.ally.changedFront||phase.ally.id!==v.ally.id)){
+        const incoming=v.team.find(p=>p.id===phase.ally.id);
+        result.ally={...phase.ally,fighter:fighter({...incoming,...phase.ally},true)};
+      }
+      if(phase.foe&&(phase.foe.changedFront||phase.foe.id!==v.foe.id))result.foe={...phase.foe,fighter:fighter(phase.foe,false)};
+      return result;
+    }
     function partyPanel(v){
       return {title:"Your practice party",kicker:"FIELD REHEARSAL",sections:[
         group("Companions",v.team.map(p=>{
@@ -227,15 +237,21 @@
         if(!active())return;
         playTone?.(m.kind==="heal"||m.kind==="medicine"?"care":"strike");
         if(animate){
-          await animate(fx);
+          const strike=impactView(res.impacts?.ally,v),departing=strike?.ally?.departing;
+          await animate({...fx,impact:departing?{...strike,ally:departing}:strike});
+          if(departing&&active()){
+            const incoming=strike.ally.fighter;
+            await animate({side:"ally",kind:"swap",pass:"field-swap",type:incoming.types[0],name:incoming.name,
+              incomingKin:incoming,impact:{ally:strike.ally,message:strike.message}});
+          }
           for(const e of (res.fittingEvents||[]).filter(e=>e.id!=="last-stitch")){
             if(!active())break;
             await animate({side:"ally",kind:"fitting",item:e.id,name:meta(e.id)?.name||"Fitting"});
           }
-          if(active()&&m.kind!=="replace"&&!res.skipCounterFx&&((after.game.state.battle&&after.game.state.battle.turn!==v.turn&&
-            after.game.state.battle.enemy.id===v.foe.id)||res.kind==="defeat")){
+          if(active()&&res.impacts?.foe){
             const skill=res.replySkill||v.intent.skill;
-            await animate({side:"foe",kind:"attack",name:skill.name,type:skill.type});
+            const kind=res.foeHeal?"heal":res.skipCounterFx?(res.foeShifted?"swap":"guard"):"attack";
+            await animate({side:"foe",kind,name:skill.name,type:skill.type,impact:impactView(res.impacts.foe,v)});
           }
           if(active()&&res.fittingEvents?.some(e=>e.id==="last-stitch"))
             await animate({side:"ally",kind:"fitting",item:"last-stitch",name:meta("last-stitch").name});

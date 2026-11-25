@@ -248,10 +248,12 @@
           const result=id==="skill"?game.useSkill(value):id==="swap"?game.swap(value):id==="pass"?game.useFamilyTechnique(value):game.useDuet(value);
           const effects=[];
           if(result.ok){
-            effects.push({...fx,side:"ally"});
+            let hit=result.impacts?.ally;
+            if(hit?.ally&&hit.ally.id!==originalId)hit={...hit,ally:{...hit.ally,fighter:profile(hit.ally)}};
+            effects.push({...fx,side:"ally",impact:hit});
             if(result.kind==="victory"||b.enemy!==original)effects.push({kind:"defeat",side:"foe",name:kin(original.id).name});
-            else{
-              effects.push({kind:"attack",side:"foe",type:intent.skill.type,name:intent.skill.name});
+            else if(result.impacts?.foe){
+              effects.push({kind:"attack",side:"foe",type:intent.skill.type,name:intent.skill.name,impact:result.impacts.foe});
               if(result.kind==="defeat" || !game.team().find(p=>p.id===defender).hp)effects.push({kind:"defeat",side:"ally"});
             }
           }

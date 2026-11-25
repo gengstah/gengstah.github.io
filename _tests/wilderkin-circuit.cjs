@@ -123,14 +123,20 @@ for(const [mode,n,route] of [["round",3,0],["night",4,1]]){
 }
 
 test("the committed turn survives a reload during its animation and double input spends one turn",async()=>{
-  let unlock;const h=boot(null,()=>new Promise(resolve=>{unlock=resolve;}));
+  let unlock;const effects=[],h=boot(null,fx=>new Promise(resolve=>{effects.push(fx);unlock=resolve;}));
   launch(h);h.click("route",0);
+  const before=h.api.model();
   h.click("skill","brush-dash");
   assert.equal(run(h).field.battle.turn,2);
+  assert.equal(effects.length,1);assert.equal(effects[0].impact.ally.hp,before.ally.hp);
+  assert.ok(effects[0].impact.foe.hp<before.foe.hp);
   assert.ok(h.api.key({key:"1",repeat:false}));
   assert.equal(run(h).field.battle.turn,2);
   assert.equal(run(h.reload()).field.battle.turn,2);
-  unlock();await tick();unlock();await tick();
+  unlock();await tick();
+  assert.equal(effects[1].side,"foe");assert.ok(effects[1].impact.ally.hp<before.ally.hp);
+  assert.equal(effects[1].impact.foe.hp,effects[0].impact.foe.hp);
+  unlock();await tick();
 });
 
 test("malformed course state is isolated, and a real trail encounter can never advance a loaner fight",()=>{

@@ -71,10 +71,17 @@ test("two seated players alternate only on an explicit handoff, get free replace
 test("reload after a human decision preserves that command exactly once and can finish the interrupted CPU response",async()=>{
   let release;
   const h=boot(undefined,()=>new Promise(r=>{release=r;}));launch(h,"cpu");
+  const before=h.model();
   const opening=h.rows().find(r=>r.id==="spar-move"&&!r.disabled);
   h.click(opening.id,opening.value);assert.ok(h.save());assert.equal(h.pos().ply,1);
+  assert.equal(h.FX.length,1);assert.equal(h.FX[0].impact.ally.hp,before.ally.hp);
+  assert.equal(h.FX[0].impact.foe.change,h.FX[0].impact.foe.hp-before.foe.hp);
+  assert.ok(h.FX[0].impact.foe.change<0);
   h.hall.act("spar-move",opening.value);assert.equal(h.pos().ply,1);
   const resumed=h.reload();resumed.click("spar-view","match");resumed.click("spar-cpu");await settle();
+  const rival=resumed.FX[0];
+  assert.equal(rival.side,"foe");assert.equal(rival.impact.ally.hp,resumed.model().ally.hp);
+  assert.equal(rival.impact.ally.change,rival.impact.ally.hp-h.FX[0].impact.ally.hp);
   assert.equal(resumed.pos().ply,2);assert.equal(resumed.pos().turn,0);assert.equal(resumed.g.state.sparring.match.moves[0],opening.value);
   assert.equal(resumed.notes.length,0);release();
 });

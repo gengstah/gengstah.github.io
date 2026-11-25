@@ -124,6 +124,9 @@ test("opponents telegraph their Ember art and carry individual use through a rea
   const next=g.ordinaryForecast(guard.id),allyHp=front(g).hp,foeHp=b.enemy.hp;
   result=g.useSkill(guard.id);ok(result);
   const foeHeal=Math.min(b.enemy.maxHp-foeHp+next.damage,Math.floor(b.enemy.maxHp/4));
+  assert.equal(result.impacts.ally.foe.hp,foeHp-next.damage);
+  assert.equal(result.impacts.foe.foe.change,foeHeal);
+  assert.equal(result.impacts.foe.ally.change,-next.returnDamage);
   assert.equal(b.enemy.hp,foeHp-next.damage+foeHeal);assert.equal(front(g).hp,allyHp-next.returnDamage);
   assert.equal(b.enemy.emberArtSpent,true);assert.match(result.message,/Backdraft.+recovered/);
   b.turn=9;assert.equal(g.foeIntent().charged,true);

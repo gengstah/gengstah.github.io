@@ -82,6 +82,9 @@ test("reserve relay preserves actual injury, resumes in the same order, and fore
   assert.ok(g.duets().options.every(o=>o.returnDamage===0));
   const lead=g.team()[0],hp=lead.hp;
   const r=g.useSkill("leaf-flurry");ok(r);assert.ok(r.foeShifted&&r.skipCounterFx);
+  assert.equal(r.impacts.ally.foe.id,old);assert.ok(r.impacts.ally.foe.change<0);
+  assert.equal(r.impacts.foe.foe.id,next);assert.equal(r.impacts.foe.foe.change,0);
+  assert.equal(r.impacts.foe.foe.changedFront,true);
   assert.equal(lead.hp,hp);assert.equal(b.enemy.id,next);assert.equal(b.remaining.at(-1),old);
   assert.ok(b.reserveHp.at(-1)<oldMax && b.reserveHp.at(-1)>0);
   const fixed=load(l.save()).g;
