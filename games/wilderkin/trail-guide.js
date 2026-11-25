@@ -603,6 +603,7 @@ window.WilderPages = {
       });
       const lodge=game.wardens.find(i=>!s().wardenLessons.includes(i))??0;
       return page("What’s new in Wilderkin","FIELD DISPATCH   /   MOSSBROOK VALE",[
+        ...(window.WilderRealm?[heading("Lantern Commons",[nav("online","Join the online world","Meet couriers on the map, light waystations together or challenge a live trio.")])]:[]),
         ...(game.firstBattle?[heading("The Clover Clearing tracks",[nav("first-battle","Face Opalclasp with your starter","Pick a lead, earn duet beats and bring a third companion into the fight.")])]:[]),
         ...(window.WilderThirdBeat?[heading("Three kin, one opening",[nav("third-beat","Meet Iona at the ferry","Play a duet, then let a third kin take the lead with its own skill."),row("open-trios","Build a trio around a favorite")])]:[]),
         ...(window.WilderTrailRosterDesk?[heading("Build a traveling party",[row("yard-edit","Arrange your team",null,"Reorder six companions, choose a lead, then field the tested party against a real opponent.")])]:[]),

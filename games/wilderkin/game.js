@@ -13,7 +13,7 @@
   const dirs={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]};
   const keys={w:"up",s:"down",a:"left",d:"right",ArrowUp:"up",ArrowDown:"down",ArrowLeft:"left",ArrowRight:"right"};
   const shortcuts=[
-    ["world","Explore","E"],["expedition","Expedition","X"],["quests","Quests","Q"],["chronicle","Story","C"],
+    ["world","Explore","E"],["expedition","Expedition","X"],["quests","Quests","Q"],["chronicle","Story","C"],["online","Play online","O"],
     ["bag","Satchel","B"],["guide","Field guide","G"],["party","Party","P"],["atlas","Atlas","M"],["games","Field games","F"],
     ["notebook","Field notebook","N"],["sparring","Sparring Hall","V"],["circuit","Loaner Circuit","L"],["walker","Walking partner","T"],["hollows","Hidden hollows","H"],["station","Field station",""],["landmarks","Landmarks",""],["settings","Settings","?"]
   ];
@@ -24,10 +24,24 @@
   const motion=matchMedia("(prefers-reduced-motion: reduce)");
   const ui=window.WilderCanvas.create(document.getElementById("game-canvas"),{
     action, key:keydown, tile:clickTile,
-    shortcuts:()=>screen.name==="rehearsal-ring"?practiceMenu():screen.name==="wild-offer"?[]:screen.name==="replacement"?[{id:"nav",value:"battle",label:"Battle"}]:
+    shortcuts:()=>screen.name==="online"&&screen.value==="duel"&&realm?.active()?
+      [row("realm-duel-battle","Arena"),row("realm-duel-panel","Teams","crew"),row("realm-duel-panel","Duets","partners"),row("realm-duel-confirm","Concede")]:
+      screen.name==="rehearsal-ring"?practiceMenu():screen.name==="wild-offer"?[]:screen.name==="replacement"?[{id:"nav",value:"battle",label:"Battle"}]:
       shortcuts.filter(([id])=>id!=="bag"||!game.state.battle?.secondBell).map(([id,label,key])=>({id:"nav",value:id,label,key}))
   });
   const notify=text=>ui.toast(text);
+  let realmRefreshPending=false;
+  function refreshRealm(){
+    if(realmRefreshPending||!["online","world"].includes(screen.name))return;
+    realmRefreshPending=true;
+    window.setTimeout(()=>{
+      realmRefreshPending=false;
+      if(!resolving&&["online","world"].includes(screen.name))render(true);
+    },100);
+  }
+  const realm=window.WilderRealm?.create({game,world,row,image,go,notify,refresh:refreshRealm,
+    location:()=>player&&{region:game.state.region,x:player.x,y:player.y,facing:player.facing},
+    syncPosition:()=>restorePlayer(false),walkTo:walk,regionPage:i=>go("region",i)});
   const audioContext=()=>{
     const Audio=window.AudioContext||window.webkitAudioContext;
     return Audio?(soundCtx ||= new Audio()):null;
@@ -181,6 +195,10 @@
   }
   function addressRoom(next){
     const loc=window.location;
+    if(next.name==="online"){
+      const hash=realm.address();if(loc.hash!==hash)window.history.replaceState(null,"",hash);return;
+    }
+    if(screen.name==="online"&&loc.hash.startsWith("#online"))window.history.replaceState(null,"",loc.pathname+loc.search);
     const address=next.name==="trail-roster"?fieldCard.hash("roster",roster.current()):next.name==="field-card"?fieldCard.hash("field",fieldCard.current()):
       next.name==="practice-yard"?yard.address(next.value):next.name==="rehearsal-ring"?yard.address(lastPractice):
       next.name==="first-battle"?"#first-battle":next.name==="first-trail-partners"?"#first-trail/partners":
@@ -202,8 +220,10 @@
   }
   function go(name,value=null,mode="push") {
     if (resolving) return;
+    if(realm?.active()&&(name!=="online"||value!=="duel")){name="online";value="duel";mode="root";}
     locationRevision++;
     if(name==="scout-practice"){name="sparring";value="scout-practice";}
+    if(game.state.battle&&realm?.connected())realm.campaignEncounter();
     if(name===deferredLetter?.name&&!value){value=deferredLetter.value;deferredLetter=null;}
     if(game.state.battle?.secondBell&&["bag","item"].includes(name))return notify("Your satchel stays at the lodge during the exhibition.");
     stopWalk();
@@ -218,6 +238,7 @@
   function root(){go(game.state.battle?"battle":"world",null,"root");}
   function back() {
     if (resolving) return;
+    if(realm?.active())return go("online","duel","root");
     if(screen.name==="rehearsal-ring")return rehearsal.back(screen.value);
     const dest=history.pop();
     if (!dest || screen.name==="outcome") return root();
@@ -226,11 +247,12 @@
     addressRoom(dest);screen=dest;render();
   }
   function reset() {
+    if(realm?.connected())realm.disconnect();
     fieldCard?.reset();roster?.reset();trailPartners?.clear();practice?.leave();lastPractice=null;
     game.reset();pages.reset();fair.reset();outcome=null;restorePlayer();root();
     notify("A new ledger opens in Mossbrook Vale.");
   }
-  function render() {
+  function render(liveRefresh=false) {
     if(trailUpdatePending)return;
     let model;
     const replacement=game.replacements?.();
@@ -243,6 +265,7 @@
     else if(screen.name==="wild-offer"&&!awaitingCall()){screen={name:game.state.battle?"battle":"world",value:null};history=[];}
     switch (screen.name) {
       case "world":model=worldModel();break;
+      case "online":model=realm.model(screen.value);break;
       case "battle":model=battleModel();break;
       case "first-battle":model=firstBattleModel();break;
       case "first-trail-partners":model=trailPartners.model(screen.value);break;
@@ -294,7 +317,7 @@
     }
     if (!model) throw new Error("Unknown game screen: "+screen.name);
     score.scene(scene().biome,model.kind==="battle" || !!model.twinField || !!game.state.battle,game.state.music);
-    ui.show({kind:"page", ...model, id:model.viewId||screen.name+":"+(screen.value??""),back:["world","battle","replacement","wild-offer"].includes(screen.name)?null:{id:"back",label:"Back"}});
+    ui.show({kind:"page", ...model, id:model.viewId||screen.name+":"+(screen.value??""),back:["world","battle","replacement","wild-offer"].includes(screen.name)||realm?.active()?null:{id:"back",label:"Back"}},liveRefresh);
   }
   function partyDisplay(p,owned=true) {
     const k=spec(p.id,owned),snapshot=game.state.battle?.trailFittings;
@@ -366,13 +389,15 @@
     const mill=state.region===0?area().sites.findIndex(site=>site.label==="Brookside Mill"):-1;
     const mentor=area().sites.findIndex(site=>(site.kind||site.id)==="guard-school");
     const destination=state.destination,localHollow=game.hollows?.at(state.region);
+    const sharedOuting=realm?.mapOuting();
     const pinned=destination===null?null:{kicker:"ATLAS PIN",title:game.regions[destination].name,description:destination===state.region?"You are here. Open the pin for the region’s landmarks.":game.access(destination).reason,id:"view",value:"region|"+destination};
     return {kind:"world",title:r.name,kicker:"THE MISSING BEAT   /   "+r.district+"   /   REGION "+String(state.region+1).padStart(3,"0")+" OF 150",
-      subtitle:r.description,region:state.region,player:samplePlayer,party:game.team().map(p=>partyDisplay(p)),
-      objective:pinned||firstQuest||(opening?{title:"Open Finch’s first dispatch",description:"The Mossbrook bell has skipped a beat. Read the note Finch carried during the flood.",id:"view",value:"scene|chapter-1"}
+      subtitle:r.description,region:state.region,player:samplePlayer,party:game.team().map(p=>partyDisplay(p)),realm:realm?.banner(),
+      objective:pinned||sharedOuting||firstQuest||(opening?{title:"Open Finch’s first dispatch",description:"The Mossbrook bell has skipped a beat. Read the note Finch carried during the flood.",id:"view",value:"scene|chapter-1"}
         :{title:obj.title,description:obj.description,id:"nav",value:"objective"}),
       status:game.canSave?"Saved on this device":"Session only · browser storage unavailable",
       sections:[{title:"On the trail",columns:2,rows:[
+        ...(sharedOuting&&firstQuest?(firstQuest.routes||[{...firstQuest,label:firstQuest.title,detail:firstQuest.description}]):[]),
         ...(deferredLetter?[deferredButton()]:[]),
         ...(nextHunt?[nextHunt]:[]),
         ...(!firstQuest&&state.region===0&&!state.crests.includes(0)&&!nextHunt&&first.outcome!=="victory"&&first.outcome!=="recruited"?
@@ -649,6 +674,7 @@
     const follower=game.walkerPose(performance.now(),motion.matches);
     if(follower)follower.src=image(follower.id);
     const pos={...player,sightings:game.sightings(),follower,questActive:!!scene().warden&&!game.state.crests.includes(game.state.region)};
+    if(realm?.connected())pos.realm=realm.pose(game.state.region,motion.matches);
     if (tween && !motion.matches) {
       const ratio=Math.min(1,Math.max(0,(performance.now()-tween.time)/115));
       pos.x=tween.x+(player.x-tween.x)*ratio;pos.y=tween.y+(player.y-tween.y)*ratio;
@@ -666,6 +692,7 @@
     if (!world.walkable(game.state.region,x,y)) return false;
     const old=nearestSite();tween={x:player.x,y:player.y,time:now};player.x=x;player.y=y;
     if(game.setPosition(x,y)===false&&trailUpdatePending)return false;
+    realm?.publish();
     if (old!==nearestSite()) render();
     ui.invalidate();return true;
   }
@@ -684,6 +711,7 @@
   }
   function visit(site,next) {
     const kind=site.kind||site.id;
+    if(kind==="realm-lantern")return realm.arrive(site.id);
     if(kind==="sighting") return go("study",site.species);
     if(kind==="lantern-cup")return go("sparring","cup");
     if(kind==="guard-school")return go("guard-school");
@@ -719,6 +747,9 @@
   }
   function clickTile(x,y) {
     if (resolving || screen.name!=="world") return;
+    const shared=realm?.hit(game.state.region,x,y);
+    if(shared?.kind==="courier")return realm.openPerson(shared.id);
+    if(shared?.kind==="lantern")return realm.openEvent();
     const site=world.sightingAt(game.sightings(),x,y)||world.siteAt(game.state.region,x,y);
     if(!site && window.WilderWalkingPartner.hit(game.walkerPose(performance.now(),true),x,y))return go("walker");
     walk(site||{x,y},site);
@@ -731,6 +762,7 @@
   function keydown(e) {
     if (e.altKey || e.ctrlKey || e.metaKey || e.type==="keyup") return false;
     if (resolving || ui.busy) return true;
+    if(realm?.active()&&screen.name==="online")return realm.key(e);
     if(screen.name==="wild-offer"){
       const key=e.key.toLowerCase();
       if(!e.repeat&&key==="c"&&game.captureStatus().available)action("capture");
@@ -792,6 +824,8 @@
   function action(id,value) {
     if (resolving || ui.busy) return;
     if(screen.name==="wild-offer"&&id!=="capture"&&id!=="release-call"){render();return;}
+    if(realm?.active()&&!String(id).startsWith("realm-duel-"))return go("online","duel","root");
+    if((screen.name==="online"||screen.name==="world"&&realm?.connected()&&["realm-event","realm-home","realm-arena","realm-queue"].includes(id))&&realm.act(id,value)){render();return;}
     if(screen.name==="replacement"){
       if(id!=="replace-fainted"){render();return;}
       const chosen=game.replaceFainted(value);
@@ -920,6 +954,7 @@
   }
   function sharedScreen(hash) {
     const fields=hash.split("/");
+    if(realm?.fromHash(hash))return deliverScreen({name:"online",value:realm.active()?"duel":null});
     if(hash==="#first-battle"||hash==="#first-trail/partners"&&trailPartners)return deliverScreen({
       name:game.state.battle?"battle":hash==="#first-battle"?"first-battle":"first-trail-partners",value:null
     });
@@ -1113,9 +1148,12 @@
     stopWalk();locationRevision++;trailUpdatePending=true;
     window.setTimeout(resumeUpdatedTrail,0);
   });
-  restorePlayer();fieldCard?.restore();
+  restorePlayer(false);fieldCard?.restore();
+  realm?.restore();
+  if(!realm?.connected()){game.realmWalking?.("solo");restorePlayer();}
   const destination=sharedScreen(window.location.hash);
-  if(destination)screen=destination;
+  if(realm?.active())screen={name:"online",value:"duel"};
+  else if(destination)screen=destination;
   else if(game.state.battle)screen={name:"battle",value:null};
   else if(circuit.hasInvitation())screen={name:"circuit",value:null};
   followScout(window.location.hash);
@@ -1132,5 +1170,7 @@
     if(screen.name==="bellpost"&&(!e.key||e.key.startsWith("wilderkin.bellpost.v1.")))render();
     if(screen.name==="scout-table"&&(!e.key||e.key.startsWith("wilderkin.scout.")))render();
   });
+  window.addEventListener("pagehide",()=>{if(realm?.connected())realm.suspend();});
+  window.addEventListener("pageshow",e=>{if(e.persisted){realm?.restore(true);render();}});
   render();
 })();

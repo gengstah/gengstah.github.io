@@ -379,6 +379,83 @@
   let state = privateState || loadGame();
   let canSave = true;
   let usingLoaners=false;
+  // Two online tabs can play the same career. Their footsteps belong to the
+  // individual tabs; campaign rewards and battles still use the shared save.
+  const roomFootsteps="wilderkin.realm.footsteps.v1";
+  const soloReturn="wilderkin.trail.return-v1";
+  let onlineWalker=null,suspendedWalk=null,walkRevision,walkStamp="";
+  const landmarkKinds=["camp","warden","wild","travel","activities"];
+  function footstepRevision(){
+    // Only compute the compact session bookmark when the durable career changes.
+    // Campaign transactions themselves always compare the complete stored bytes.
+    if(walkRevision===lastStoredTrail)return walkStamp;
+    const raw=lastStoredTrail||"";let a=2166136261,b=5381;
+    for(let i=0;i<raw.length;i++){const n=raw.charCodeAt(i);a=Math.imul(a^n,16777619);b=Math.imul(b,33)^n;}
+    walkRevision=lastStoredTrail;walkStamp=raw.length+"-"+(a>>>0)+"-"+(b>>>0);
+    return walkStamp;
+  }
+  function rememberFootsteps(dirty){
+    if(!onlineWalker)return;
+    const r=state.region,p=state.positions[r]||window.WilderWorld?.regions[r]?.spawn;
+    if(!p)return;
+    onlineWalker.dirty=dirty;
+    if(!dirty)onlineWalker.tiles={};
+    else onlineWalker.tiles[r]={x:p.x,y:p.y};
+    onlineWalker.pose={id:onlineWalker.id,base:footstepRevision(),dirty,tiles:onlineWalker.tiles,
+      region:r,x:p.x,y:p.y,landmark:state.landmark,last:state.walking?.last||null};
+    try{window.sessionStorage?.setItem(roomFootsteps,JSON.stringify(onlineWalker.pose));}catch{}
+  }
+  function resumeFootsteps(p,id){
+    const world=window.WilderWorld;
+    if(!p||typeof id!=="string"||!/^[a-f0-9]{24}$/.test(id)||p.id!==id||p.base!==footstepRevision()||state.battle||
+      !state.visited.includes(p.region)||!world?.walkable(p.region,p.x,p.y))return false;
+    if(p.tiles&&typeof p.tiles==="object"&&!Array.isArray(p.tiles)){
+      for(const r of state.visited){
+        const tile=p.tiles[r];
+        if(tile&&world.walkable(r,tile.x,tile.y)){
+          state.positions[r]={x:tile.x,y:tile.y};
+          if(onlineWalker)onlineWalker.tiles[r]={...state.positions[r]};
+        }
+      }
+    }
+    state.region=p.region;state.positions[p.region]={x:p.x,y:p.y};
+    state.landmark=landmarkKinds.includes(p.landmark)&&nearSite(p.landmark)?p.landmark:null;
+    const last=p.last;
+    if(state.walking)state.walking.last=last?.region===p.region&&
+      Math.abs(last.x-p.x)+Math.abs(last.y-p.y)===1&&world.walkable(p.region,last.x,last.y)?{region:p.region,x:last.x,y:last.y}:null;
+    return true;
+  }
+  function realmWalking(mode,id){
+    if(rehearsal||usingLoaners)return false;
+    if(mode==="solo"){
+      if(onlineWalker||!trailSaveIsCurrent())return false;
+      try{
+        const raw=window.localStorage.getItem(soloReturn);
+        const saved=raw&&raw.length<8000?JSON.parse(raw):null;
+        return resumeFootsteps(saved,saved?.id);
+      }catch{return false;}
+    }
+    if(mode==="join"){
+      if(typeof id!=="string"||!/^[a-f0-9]{24}$/.test(id))return false;
+      if(onlineWalker?.id===id)return true;
+      let saved=suspendedWalk;
+      try{const raw=window.sessionStorage?.getItem(roomFootsteps);if(raw&&raw.length<8000)saved=JSON.parse(raw);}catch{}
+      onlineWalker={id,pose:null,tiles:{},dirty:false};suspendedWalk=null;
+      const restored=resumeFootsteps(saved,id);
+      rememberFootsteps(restored&&saved.dirty===true);return true;
+    }
+    if(!onlineWalker||!["leave","suspend"].includes(mode))return false;
+    const {dirty,pose}=onlineWalker;
+    onlineWalker=null;
+    if(mode==="suspend"){suspendedWalk=pose;return true;}
+    suspendedWalk=null;try{window.sessionStorage?.removeItem(roomFootsteps);}catch{}
+    // Even a write arriving between the checks can only race with a position
+    // bookmark. Returning from a realm never writes the career document.
+    if(!currentForEdit())return false;
+    if(!dirty||state.battle)return true;
+    try{window.localStorage.setItem(soloReturn,JSON.stringify(pose));}catch{}
+    return currentForEdit();
+  }
 
   const changedTrail=()=>({...error("Your trail changed in another tab. Its latest position is open."),code:"changed"});
   function decodeTrail(raw){
@@ -394,6 +471,7 @@
     if(supplied||latest==null)lastValidTrail=latest;
     const next=supplied||decodeTrail(lastValidTrail)||newGame();
     replaceTrail(next);lastStoredTrail=latest;pendingFittingEvents.length=0;
+    if(onlineWalker)rememberFootsteps(false);
     const EventType=window.Event||(typeof Event==="function"?Event:null);
     if(EventType)window.dispatchEvent?.(new EventType("wilder-trail-updated"));
     return false;
@@ -421,6 +499,7 @@
     } catch {
       canSave=false;
     }
+    if(onlineWalker)rememberFootsteps(false);
     return true;
   }
 
@@ -511,6 +590,7 @@
     state.landmark = null;
     walking?.step(state,old,{x,y});
     state.positions[state.region] = { x, y };
+    if(onlineWalker&&!usingLoaners){rememberFootsteps(true);return true;}
     return save();
   }
 
@@ -518,10 +598,12 @@
     if (state.battle) return error("Finish this encounter before traveling.");
     const gate = access(index);
     if (!gate.open) return error(gate.reason);
-    if (!state.visited.includes(index)) state.visited.push(index);
-    state.region = index;
-    state.landmark = null;
-    return commit("travel", (gate.carrier ? ownedKin(gate.carrier).name + " used " + regions[index].ability + "! " : "") + "You arrived in " + regions[index].name + ".");
+    const known=state.visited.includes(index);
+    if(!known)state.visited.push(index);
+    state.region=index;state.landmark=null;
+    const message=(gate.carrier?ownedKin(gate.carrier).name+" used "+regions[index].ability+"! ":"")+"You arrived in "+regions[index].name+".";
+    if(onlineWalker&&!usingLoaners&&known){rememberFootsteps(true);return result("travel",message);}
+    return commit("travel",message);
   }
 
   const member = id => state.party.find(p => p.id === id);
@@ -1713,6 +1795,7 @@
   function visitSite(kind) {
     if (state.battle || !["camp","warden","wild","travel","activities"].includes(kind)||!nearSite(kind)) return false;
     state.landmark=kind;
+    if(onlineWalker&&!usingLoaners){rememberFootsteps(true);return true;}
     return save();
   }
 
@@ -2040,7 +2123,7 @@
     items,conditions:campaign.conditions,visitSite,gather,craft,useItem,itemForecast,expedition,expeditionAction,license,claimLicense,
     gamePass,unlockGame,storyStep,trialAccess,wildLevel:i=>regions[i]?.wildLevel,
     species,kin,growthInfo,chooseGrowth,growthAppearance,skillPreview,regions, wardens, homes, pools, access, team, enlist, foeIntent, maxLevel:MAX_LEVEL,
-    awardGame, questAction, xpNeeded, objective, setPosition, travel, setLead,
+    awardGame, questAction, xpNeeded, objective, setPosition, realmWalking, travel, setLead,
     heal, meetWarden, startBattle, useSkill, duetPair, duets, useDuet, swap, familyTechnique,useFamilyTechnique, recruit, flee, setSound, reset
   };
   }

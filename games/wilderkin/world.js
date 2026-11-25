@@ -1411,8 +1411,13 @@
     }
     const pos=player||regions[index].spawn;
     const px=Math.round(pos.x*TILE+8),py=Math.round(pos.y*TILE+10);
-    const character=explorer(style,'player',pos.facing||pos.dir);
-    const moving=[{z:py,paint:()=>c.drawImage(character,px-Math.floor(character.width/2),py-character.height)}];
+    const facing=pos.facing||pos.dir;
+    const moving=[{z:py,paint:()=>{
+      if(pos.realm&&window.WilderRealmWorld.paintSelf(c,pos.realm,px,py,facing))return;
+      const character=explorer(style,'player',facing);
+      c.drawImage(character,px-Math.floor(character.width/2),py-character.height);
+    }}];
+    if(pos.realm)for(const layer of window.WilderRealmWorld.layers(pos.realm))moving.push({z:layer.z,paint:()=>layer.paint(c)});
     if(pos.follower)moving.push({z:pos.follower.y*TILE+8,paint:()=>paintFollower(c,pos.follower,t)});
     for(const s of pos.sightings||[])moving.push({z:s.y*TILE+9,paint:()=>paintWild(c,s,t)});
     moving.sort((a,b)=>a.z-b.z);

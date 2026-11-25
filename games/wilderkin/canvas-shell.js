@@ -179,12 +179,13 @@
     function run(hit) {
       if(hit && !hit.disabled){activeControl(hit.row,hit.activate);dirty=true;}
     }
-    function show(next) {
+    function show(next,liveRefresh=false) {
       if(!next)return;
-      if(next.id!==model.id || next.kind!==model.kind){
+      const changed=next.id!==model.id || next.kind!==model.kind;
+      if(changed){
         scroll=0;focus="";hover="";lastPage=performance.now();
       }
-      twinField?.update(next.twinField);model=next;passedLeads={};menu=false;dirty=true;
+      twinField?.update(next.twinField);model=next;passedLeads={};if(changed||!liveRefresh)menu=false;dirty=true;
       // Update controls synchronously so a screen reader can follow each transition.
       render(performance.now());
       if(next.twinField?.focus&&next.subtitle&&live.textContent!==next.subtitle)live.textContent=next.subtitle;
@@ -367,17 +368,23 @@
     function mapPanel(x,y,w,t) {
       const r=window.WilderWorld?.regions[model.region];
       if(!r)return 0;
-      const mh=Math.round((w-6)*r.rows/r.cols),h=mh+33;
+      const mh=Math.round((w-6)*r.rows/r.cols),h=mh+(model.realm?45:33);
       rect(c,x,y,w,h,C.forest);rect(c,x+3,y+3,w-6,mh,"#8cab70");
       const player=typeof model.player==="function" ? model.player(t) : model.player||r.spawn;
       window.WilderWorld.draw(ground,model.region,player,reduced.matches?0:t);
       picture(ground,x+3,y+3,w-6,mh);
       const mapHit=control({id:"$tile",label:"Explore map"},x+3,y+3,w-6,mh,"map",()=>handlers.tile?.(Math.round(player.x),Math.round(player.y)));
       mapHit.selectTile=(px,py)=>handlers.tile?.(clamp(Math.floor((px-mapHit.x)*r.cols/mapHit.w),0,r.cols-1),clamp(Math.floor((py-mapHit.y)*r.rows/mapHit.h),0,r.rows-1));
-      const caption=y+mh+11;
+      const caption=y+mh+(model.realm?16:11);
       symbol(c,"map",x+12,caption+1,13,"#d9ddab");
       label(c,width<640?"Tap a trail to walk":"Click a trail to walk",x+34,caption,12,"#e1e6ca","body",600);
-      if(w>460)label(c,"WASD / ↑↓←→   ·   E  Interact",x+w-12,caption,11,"#d8dfc5","mono",500,"right");
+      if(model.realm){
+        const bw=Math.min(154,w*.44),left=x+w-bw-3,top=y+mh+3;
+        const hit=control(model.realm,left,top,bw,39);
+        rect(c,left,top,bw,39,highlighted(hit)?"#467668":"#315b50","#82977c");
+        ellipse(c,left+14,top+19,3,3,model.realm.value==="online"?"#f8ce76":"#b1cc9c");
+        c.font=getFont(13,"body",650);label(c,fit(c,model.realm.label,bw-28),left+24,top+12,13,C.cream,"body",650);
+      }else if(w>460)label(c,"WASD / ↑↓←→   ·   E  Interact",x+w-12,caption,11,"#d8dfc5","mono",500,"right");
       return h;
     }
     function rowHeight(row,w,compact) {
@@ -639,7 +646,7 @@
       if(model.formationStrip)sy+=lineupStrip(model.formationStrip,x,sy,w);
       if(model.kind==="page" && art)sy+=artPanel(art,x,sy,w,t)+15;
       if(model.kind==="world"){
-        const routes=model.objective?.routes;
+        const routes=model.objective?.routes&&!model.objective.belowMap;
         if(desktop){
           const right=Math.min(340,Math.round(w*.285)),gap=18,left=w-right-gap,top=sy;
           if(routes)sy+=questBox(model.objective,x,sy,left)+14;
