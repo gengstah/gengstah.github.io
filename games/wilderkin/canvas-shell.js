@@ -123,6 +123,7 @@
     let model={id:"loading",kind:"page",title:"Wilderkin",sections:[]};
     let width=0,height=0,ratio=1,frame=0,lastPaint=0,dirty=true,scroll=0,limit=0;
     let hits=[],focus="",hover="",pointer=null,menu=false,menuScroll=0,menuLimit=0,menuClip=null;
+    const occurrences=new Map();
     let arenaRect=null,lastPage=0,fx=null,notice=null,header=58,footer=50,clipTop=58,clipBottom=0;
     let passedLeads={};
     let mirrorSig="",destroyed=false;
@@ -164,7 +165,11 @@
     if(fonts)Promise.all([fonts.load('600 26px Pixelify'),fonts.load('500 15px "DM Sans"')]).then(()=>{dirty=true;});
     function control(row,x,y,w,h,area="content",activate) {
       if(!row || (!row.id && !activate))return null;
-      const uid=(row.uid??[area,row.id,typeof row.value==="object" ? JSON.stringify(row.value) : row.value,row.label].join("|"));
+      const key=row.uid??[area,row.id,typeof row.value==="object" ? JSON.stringify(row.value) : row.value,row.label].join("|");
+      // A shortcut, chart marker and list row may all open the same region on one page.
+      const count=occurrences.get(key)||0;
+      occurrences.set(key,count+1);
+      const uid=count?key+"#"+count:key;
       const hit={x,y,w,h,uid,area,row,activate,disabled:Boolean(row.disabled)};
       hits.push(hit);
       return hit;
@@ -1121,7 +1126,7 @@
     }
     function render(t) {
       if(destroyed || width<2 || height<2)return;
-      c.setTransform(ratio,0,0,ratio,0,0);c.imageSmoothingEnabled=false;hits=[];
+      c.setTransform(ratio,0,0,ratio,0,0);c.imageSmoothingEnabled=false;hits=[];occurrences.clear();
       header=width<610?50:59;footer=width<720?47:49;clipTop=header;clipBottom=height-footer;
       background();
       const margin=width<500?11:width<820?19:Math.max(30,(width-1360)/2),w=width-2*margin;
