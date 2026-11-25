@@ -1420,6 +1420,7 @@
     if(pos.realm)for(const layer of window.WilderRealmWorld.layers(pos.realm))moving.push({z:layer.z,paint:()=>layer.paint(c)});
     if(pos.follower)moving.push({z:pos.follower.y*TILE+8,paint:()=>paintFollower(c,pos.follower,t)});
     for(const s of pos.sightings||[])moving.push({z:s.y*TILE+9,paint:()=>paintWild(c,s,t)});
+    for(const s of pos.trailMarkers||[])moving.push({z:s.y*TILE+10,paint:()=>window.WilderWildTrails.paint(c,s,t)});
     moving.sort((a,b)=>a.z-b.z);
     let next=0;
     for(const o of map.objects) {

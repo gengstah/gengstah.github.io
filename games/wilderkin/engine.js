@@ -4,6 +4,7 @@
   const SAVE_KEY = "wilderkin.trail.v3";
   const LEGACY_KEYS = ["wilderkin.trail.v2","wilderkin.trail.v1"];
   const MAX_LEVEL = 180;
+  const wildLevelGap = 8;
   const campaign = window.WilderCampaign;
   const story = window.WilderStory;
   const items = campaign.items;
@@ -124,7 +125,7 @@
     return {
       version: 3, region: 0, positions: {}, party: starters.map(id => makeMember(id, 5)),
       lead: starters[0], crests: [], met: [], seen: starters.slice(), battle: null, firstOuting:window.WilderOpening?"new":"closed",
-      team: starters.slice(), visited: [0], quests: {}, clears: {}, rests: 0,firstBattle:null,
+      team: starters.slice(), visited: [0], quests: {}, clears: {}, rests: 0,lastCamp:{region:0,site:0},firstBattle:null,
       sound: true, wins: 0, bag:{reed:5,sap:5,ore:2,kinweave:4,balm:3,tonic:1,sparkseed:1,broth:0},reports:[],
       surveys:{},localWins:{},licenses:[],passes:[],crafted:{},landmark:null,forageReady:true,wardenLessons:[],relayClears:[],trainedGuards:[],bellMarks:{},
       trailFittings:fittings?.empty()||{claimed:[],gear:{}},fittingNotes:{},thirdBeat:{},
@@ -262,12 +263,14 @@
     }
     if (Array.isArray(saved.relayClears)) fresh.relayClears=unique(saved.relayClears.filter(stamp=>relayStamps.includes(stamp)));
     fresh.seen = unique([...(Array.isArray(saved.seen) ? saved.seen.filter(validSpecies) : []), ...fresh.party.map(p => p.id)]);
-    const ownsAbility = ability => !ability || fresh.party.some(p => species[p.id].ability === ability);
-    const reachable = i => validRegion(i) && regions[i].requiredCrests <= fresh.crests.length && ownsAbility(regions[i].ability);
-    if (reachable(saved.region)) fresh.region = saved.region;
+    if (validRegion(saved.region)) fresh.region = saved.region;
     const visited = Array.isArray(saved.visited) ? saved.visited : Object.keys(saved.positions || {}).map(Number);
-    fresh.visited = unique([0, ...visited.filter(reachable), ...fresh.crests, fresh.region]);
+    fresh.visited = unique([0, ...visited.filter(validRegion), ...fresh.crests, fresh.region]);
     fresh.rests = count(saved.rests);
+    const camp=saved.lastCamp;
+    if (saved.version===3 && camp && fresh.visited.includes(camp.region) && Number.isSafeInteger(camp.site) && camp.site>=0) {
+      fresh.lastCamp={region:camp.region,site:camp.site};
+    }
     for (const q of activities.quests) {
       if (["active", "claimed"].includes(saved.quests?.[q.id])) fresh.quests[q.id] = saved.quests[q.id];
     }
@@ -527,28 +530,12 @@
   function access(index) {
     if (!validRegion(index)) return {open:false, reason:"Unknown trail."};
     const r = regions[index];
-    if (r.requiredCrests > state.crests.length) {
-      const previous = regions[wardens[r.requiredCrests - 1]];
-      return {open:false, reason:"Earn the " + previous.crest + " at " + previous.lodge + "."};
-    }
-    if (!state.visited.includes(index) && index>0 && !surveyedPassage(index-1)) {
-      return {open:false,hintRegion:index-1,reason:surveyInstruction(index-1)};
-    }
-    if (r.ability && !state.visited.includes(index)) {
-      if (!state.licenses.includes(r.ability)) {
-        const school=license(r.ability);
-        return {open:false,hintRegion:school.region,reason:"Earn the "+r.ability+" license at "+regions[school.region].name+"."};
-      }
+    if (state.visited.includes(index)) return {open:true,reason:"Previously visited"};
+    if (r.ability && state.licenses.includes(r.ability)) {
       const carrier = state.party.find(p => species[p.id].ability === r.ability);
-      if (carrier) return {open:true, carrier:carrier.id, reason:ownedKin(carrier.id).name + " can use " + r.ability + "."};
-      const nearby = [r.routeStart, ...state.visited, ...regions.map((_, i) => i)].find(i =>
-        regions[i] && regions[i].requiredCrests <= state.crests.length && !regions[i].ability &&
-        pools[i].some(id => species[id].ability === r.ability));
-      const friend = nearby == null ? null : pools[nearby].find(id => species[id].ability === r.ability);
-      const hint = friend ? " Track " + species[friend].name + " in " + regions[nearby].name + "." : "";
-      return {open:false, hintRegion:nearby, reason:"Requires " + r.ability + "." + hint};
+      if (carrier) return {open:true,carrier:carrier.id,reason:ownedKin(carrier.id).name+" can use "+r.ability+" to find 1 Bellstone."};
     }
-    return {open:true, reason:state.visited.includes(index) ? "Previously visited" : "Open trail"};
+    return {open:true,reason:"Open trail"};
   }
 
   function objective() {
@@ -567,16 +554,12 @@
     }
     const firstUncharted=regions.findIndex((r,i)=>r.requiredCrests===state.crests.length && !surveyedPassage(i));
     if (firstUncharted>=0) {
-      const a=access(firstUncharted);
-      if (!a.open) return {title:"Open the trail to "+regions[firstUncharted].name,description:a.reason,target:a.hintRegion};
       const job=expedition(firstUncharted);
       return {title:job.title,description:regions[firstUncharted].name+" · Field leg "+(job.completed+1)+" of "+job.total+". "+job.description,target:firstUncharted};
     }
     if (!story.chapterDone(state,state.crests.length)) return {title:"Hear the next dispatch",description:"Read chapter "+(state.crests.length+1)+" of the campaign before facing the Warden.",target:next};
     const r = regions[next];
     if (state.region !== next) {
-      const gate = access(next);
-      if (!gate.open) return {title:"Find a " + r.ability + " companion", description:gate.reason, target:gate.hintRegion};
       return {title:"Travel to " + r.name, description:"Warden " + r.warden + " awaits at " + r.lodge + ".", target:next};
     }
     if (!state.met.includes(next)) return {title:"Meet Warden " + r.warden, description:"Find Warden " + r.warden + " at " + r.lodge + ".", target:next};
@@ -594,14 +577,21 @@
     return save();
   }
 
-  function travel(index) {
+  function travel(index,arrival) {
     if (state.battle) return error("Finish this encounter before traveling.");
     const gate = access(index);
     if (!gate.open) return error(gate.reason);
     const known=state.visited.includes(index);
     if(!known)state.visited.push(index);
+    const world=window.WilderWorld,spawn=world?.regions[index]?.spawn;
+    if(arrival&&world?.walkable(index,arrival.x,arrival.y))state.positions[index]={x:arrival.x,y:arrival.y};
+    else if(!state.positions[index]&&spawn)state.positions[index]={x:spawn.x,y:spawn.y};
     state.region=index;state.landmark=null;
-    const message=(gate.carrier?ownedKin(gate.carrier).name+" used "+regions[index].ability+"! ":"")+"You arrived in "+regions[index].name+".";
+    let message="You arrived in "+regions[index].name+".";
+    if(gate.carrier){
+      state.bag.ore++;
+      message+=" "+ownedKin(gate.carrier).name+" used "+regions[index].ability+" and found 1 Bellstone.";
+    }
     if(onlineWalker&&!usingLoaners&&known){rememberFootsteps(true);return result("travel",message);}
     return commit("travel",message);
   }
@@ -687,6 +677,26 @@
     return commit("lead", ownedKin(id).name + " is leading your party.");
   }
 
+  function campsIn(region) {
+    return window.WilderWorld?.regions[region]?.sites.filter(site=>(site.kind||site.id)==="camp")||[];
+  }
+
+  function wakeAtCamp(enemy) {
+    const origin=state.region;
+    let {region,site}=state.lastCamp;
+    let camp=campsIn(region)[site];
+    if (!camp && window.WilderWorld) {
+      region=0;site=0;camp=campsIn(region)[site];
+      state.lastCamp={region,site};
+    }
+    delete state.positions[origin];
+    state.region=region;
+    state.landmark="camp";
+    if (camp) state.positions[region]={x:camp.x,y:camp.y};
+    if (state.walking) state.walking.last=null;
+    return {foe:enemy.id,level:enemy.level,region:origin,campRegion:region,campName:camp?.label||"the trail camp"};
+  }
+
   function heal() {
     if (state.battle) return error("Return to camp after this encounter.");
     state.party.forEach(p => { p.hp = p.maxHp; });
@@ -697,6 +707,14 @@
       }
       message += " Your veteran party completed its campaign retraining.";
       state.refit=0;
+    }
+    if (state.landmark==="camp") {
+      const camps=campsIn(state.region),point=state.positions[state.region]||window.WilderWorld?.regions[state.region]?.spawn;
+      const nearest=point?camps.findIndex(site=>Math.abs(site.x-point.x)+Math.abs(site.y-point.y)<=1):-1;
+      if (nearest>=0) {
+        state.lastCamp={region:state.region,site:nearest};
+        message+=" You’ll wake at "+camps[nearest].label+" if a wild encounter knocks out your party.";
+      }
     }
     state.rests++;
     return commit("healed", message);
@@ -1029,9 +1047,15 @@
         const fieldHp=Object.fromEntries(team().map(p=>[p.id,p.hp]));
         const receipt=firstBattleFinish("defeat",firstMessage+" "+reply);
         state.battle = null;
+        state.party.forEach(p => { p.hp = p.maxHp; });
+        if (battle.kind==="wild" && !usingLoaners) {
+          const rescue=wakeAtCamp(enemy);
+          const message="The Lv. "+enemy.level+" "+enemySpecies.name+" in "+regions[rescue.region].name+" knocked out your whole party. "+
+            "You woke at "+rescue.campName+" in "+regions[rescue.campRegion].name+". Your companions recovered to full health.";
+          return {...commit("defeat",message,receipt),fieldHp,rescue};
+        }
         delete state.positions[state.region];
         state.landmark=null;
-        state.party.forEach(p => { p.hp = p.maxHp; });
         return {...commit("defeat","Your party ran out of strength. You returned to the trailhead, where your companions recovered to full health.",receipt),fieldHp};
       }
       const next=ready[0];
@@ -1384,7 +1408,8 @@
     let hit=0,healing=art ? quarterHeal(active) : 0,reason="";
     const fittingEvents=[];
     if(skill.kind==="feint"){
-      hit=Math.min(enemy.hp-1,throughEmberCover(Math.ceil(enemy.maxHp/4)));
+      const strength=enemy.level>active.level+wildLevelGap?Math.min(active.maxHp,enemy.maxHp):enemy.maxHp;
+      hit=Math.min(enemy.hp-1,throughEmberCover(Math.ceil(strength/4)));
       if(!hit)reason="This Wilderkin is ready to befriend.";
     }else if(skill.kind==="heal"){
       healing=Math.min(active.maxHp-active.hp,Math.ceil(active.maxHp/3));
@@ -1633,10 +1658,18 @@
     return state.battle?.wildCall?.answered ? "Offer a Kinweave or let the waiting Wilderkin go." : "";
   }
 
-  function openingForecast(quarry,lead) {
+  function bondOffer(id,wildLevel,peaceful) {
+    const best=Math.max(...team().map(p=>p.level));
+    const young=peaceful && wildLevel>best+wildLevelGap;
+    const level=young?best+3:wildLevel,name=species[id].name;
+    const preview=young?"A young "+name+" (Lv. "+level+") can join. The Lv. "+wildLevel+" adult stays here.":
+      name+" can join at Lv. "+level+".";
+    return {level,young,preview};
+  }
+
+  function openingForecast(quarry,lead,level) {
     if (!lead) return {strike:null,warning:null};
-    const where=homes[quarry].includes(state.region)?state.region:homes[quarry][0];
-    const level=regions[where].wildLevel,foe=makeMember(quarry,level);
+    const foe=makeMember(quarry,level);
     const item=state.battle?state.battle.trailFittings?.gear[lead.id]:state.trailFittings?.gear[lead.id];
     const ready=state.battle&&!fittingReady(lead.id,item)?null:item;
     const warningSkill=species[quarry].skills.find(s=>s.kind==="attack");
@@ -1667,7 +1700,10 @@
       }
     }
     const leader=ready.find(p=>p.id===(b?.activeId || state.lead)) || ready[0];
-    return {...card,...openingForecast(id,leader),waiting:!!answered,options,...(answered?{answered:{...answered}}:{})};
+    const where=homes[id].includes(state.region)?state.region:homes[id][0];
+    const level=b?b.enemy.level:regions[where].wildLevel;
+    const offer=bondOffer(id,level,!b || b.enemy.hp*2>b.enemy.maxHp);
+    return {...card,...openingForecast(id,leader,level),offer,waiting:!!answered,options,...(answered?{answered:{...answered}}:{})};
   }
 
   function answerWildCall(skill,partner) {
@@ -1701,7 +1737,8 @@
     else if (!b.wildCall?.answered && b.enemy.hp*2>b.enemy.maxHp) {
       reason="Bring "+species[b.enemy.id].name+" to half health or lower"+(b.wildCall?", or answer its call.":" to befriend it.");
     } else if (!state.bag.kinweave) reason="Your Kinweaves are gone. Craft another with two reeds and one sun sap.";
-    return {available:!reason,reason};
+    if(reason)return {available:false,reason};
+    return {available:true,reason:"",offer:bondOffer(b.enemy.id,b.enemy.level,b.enemy.hp*2>b.enemy.maxHp)};
   }
 
   function recruit() {
@@ -1710,17 +1747,18 @@
     const {enemy}=state.battle;
     const receipt=firstBattleFinish("recruited","The Kinweave opened. "+species[enemy.id].name+" joined your party.");
     state.battle = null;
-    return befriend(enemy.id,enemy.level,receipt);
+    return befriend(enemy.id,gate.offer,receipt);
   }
 
-  function befriend(id,level,receipt=null) {
+  function befriend(id,offer,receipt=null) {
     state.bag.kinweave--;
     state.forageReady=true;
-    state.party.push(makeMember(id,level));
+    state.party.push(makeMember(id,offer.level));
     if(!state.seen.includes(id)) state.seen.push(id);
     const joinsTeam=state.team.length<6;
     if(joinsTeam) state.team.push(id);
-    return commit("recruited","The Kinweave opens. "+species[id].name+(joinsTeam?" joined your traveling party!":" joined your reserve!"),receipt);
+    const newcomer=(offer.young?"A young ":"")+species[id].name+" (Lv. "+offer.level+")";
+    return commit("recruited","The Kinweave opens. "+newcomer+(joinsTeam?" joined your traveling party!":" joined your reserve!"),receipt);
   }
 
   function observe(id,action) {
@@ -1733,9 +1771,13 @@
     if(res.ok&&!save())return changedTrail();
     return res;
   }
-  function inviteField(id) {
+  function fieldInvitation(id) {
     const ready=field.canInvite(state,id);
-    return ready.ok?befriend(id,regions[state.region].wildLevel):ready;
+    return ready.ok?{...ready,offer:bondOffer(id,regions[state.region].wildLevel,true)}:ready;
+  }
+  function inviteField(id) {
+    const ready=fieldInvitation(id);
+    return ready.ok?befriend(id,ready.offer):ready;
   }
   function cycleAnimationSpeed() {
     state.animationSpeed=state.animationSpeed%3+1;
@@ -1914,7 +1956,7 @@
     if(missing)return error(missing.label+".");
     state.reports.push(i);
     for(const p of team())if(p.level<regions[i].wildLevel)giveXp(p,xpNeeded(p.level));
-    return commit("report","Report filed. The station recognizes your survey for onward travel and the Warden trial. The remaining commission is open.");
+    return commit("report","Report filed. The station recognizes your survey for the Warden trial. The remaining commission is open.");
   }
 
   function finishLeg(awardSupplies=true) {
@@ -1968,7 +2010,7 @@
     const missing=l.requirements.find(r=>!r.done);
     if (missing) return error(missing.label+".");
     state.licenses.push(ability);
-    return commit("licensed",ability+" license earned! Your registered companions can now open these crossings.");
+    return commit("licensed",ability+" license earned! Your companions can find Bellstone on first visits to "+ability+" crossings.");
   }
 
   function gamePass(id) {
@@ -2117,7 +2159,7 @@
     withLoaners,saveCircuit,saveSparring,recordRelay,loaner:(id,level)=>validSpecies(id)&&integer(level,1,MAX_LEVEL)?makeMember(id,level):null,
     caravan:window.WilderCaravans?.create({state:()=>state,commit,hpAt,regions,species,items,fittings,isCurrent:currentForEdit,blocked:()=>usingLoaners}),
     sightings:(i=state.region)=>field?.sightings(i)||[],study:id=>field.study(state,id),
-    notebook:()=>field.notebook(state),canInvite:id=>field.canInvite(state,id),observe,inviteField,cycleAnimationSpeed,cycleMusic,
+    notebook:()=>field.notebook(state),canInvite:fieldInvitation,observe,inviteField,cycleAnimationSpeed,cycleMusic,
     get state() { return state; },
     get canSave() { return canSave; },
     items,conditions:campaign.conditions,visitSite,gather,craft,useItem,itemForecast,expedition,expeditionAction,license,claimLicense,

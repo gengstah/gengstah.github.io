@@ -50,11 +50,7 @@
       const where=game.regions[place.region].name;
       const tracks=window.WilderWorld?.regions[place.region]?.sites.find(k=>(k.kind||k.id)==="wild")?.label||
         Object.values(pupils).find(k=>k.region===place.region)?.tracks||"the local tracks";
-      if(s.region!==place.region){
-        const gate=game.access(place.region);
-        return gate.open?[action("travel","Travel to "+where,"Follow the trail to "+tracks+".")]:
-          [action("crest","Follow the Leaf Crest trail",gate.reason)];
-      }
+      if(s.region!==place.region)return [action("travel","Travel to "+where,"Wild Lv. "+game.wildLevel(place.region)+" · Follow the trail to "+tracks+".")];
       const rest=action(s.landmark==="camp"?"rest":"camp",s.landmark==="camp"?"Rest your party":"Walk to camp to rest","Restore the traveling party to full health before going out.");
       const strike=game.species[id].skills.find(m=>m.kind==="attack").name;
       const rules=lesson.learned?(lesson.id==="shell"?"Use Roll Brace, then switch to a teammate. Read the protected HP forecast before choosing.":
@@ -126,12 +122,6 @@
           break;
         case "lead":finish(game.setLead(id));break;
         case "resume":go("battle",null,"root");break;
-        case "crest":
-          if(game.state.region!==0)travel(0);
-          if(!game.expedition(0).done)go("expedition");
-          else if(!window.WilderStory.chapterDone(game.state,0))go("scene","chapter-1");
-          else locate("warden","warden");
-          break;
       }
       return true;
     }

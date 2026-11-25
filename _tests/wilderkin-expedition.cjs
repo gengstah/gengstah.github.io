@@ -34,9 +34,9 @@ const baseParty = () => [["sprigkit",32],["cindlet",28],["dewfin",30]].map(([id,
 
 test("atlas pins and playback preferences survive a reload without changing trail access",()=>{
   const loaded=load(),g=loaded.game;
-  assert.ok(!g.access(149).open);
+  assert.ok(g.access(149).open);
   ok(g.pinRegion(149,"track"));ok(g.pinRegion(2,"save"));ok(g.pinRegion(149,"save"));
-  assert.ok(!g.access(149).open);assert.deepEqual(copy(g.state.pins),[149,2]);
+  assert.ok(g.access(149).open);assert.deepEqual(copy(g.state.pins),[149,2]);
   ok(g.cycleMusic());ok(g.cycleAnimationSpeed());
   const old=load(loaded.save()).game;
   assert.equal(old.state.destination,149);assert.equal(old.state.music,2);assert.equal(old.state.animationSpeed,2);
@@ -44,6 +44,28 @@ test("atlas pins and playback preferences survive a reload without changing trai
   assert.equal(old.pinRegion(150,"save").ok,false);
   const restored=load(JSON.stringify({...g.state,pins:[false,-3,2,2,900],destination:149,music:100,animationSpeed:0})).game.state;
   assert.deepEqual(copy(restored.pins),[2]);assert.equal(restored.destination,null);assert.equal(restored.animationSpeed,1);
+});
+
+test("a fresh team can roam all 150 regions and resume a distant encounter before earning any crest",()=>{
+  const loaded=load(),g=loaded.game;
+  assert.ok(g.regions.every((_,i)=>g.access(i).open));
+  const destination=g.regions.length-1,memberLevels=g.team().map(p=>p.level);
+  ok(g.travel(destination));
+  assert.deepEqual(copy(g.state.visited),[0,destination]);
+  assert.equal(g.trialAccess().open,false);
+  const site=loaded.world.regions[destination].sites.find(s=>s.id==="wild");
+  g.setPosition(site.x,site.y);assert.ok(g.visitSite("wild"));
+  ok(g.startBattle("wild",g.pools[destination][0]));
+  assert.equal(g.state.battle.enemy.level,g.wildLevel(destination));
+  assert.ok(g.state.battle.enemy.level>Math.max(...memberLevels)+50);
+  assert.ok(!g.travel(0).ok);
+  const restored=load(loaded.save()).game;
+  assert.equal(restored.state.region,destination);
+  assert.deepEqual(copy(restored.state.battle),copy(g.state.battle));
+  assert.deepEqual(copy(restored.state.positions[destination]),{x:site.x,y:site.y});
+  ok(restored.flee());ok(restored.travel(0));
+  assert.deepEqual(copy(restored.state.crests),[]);
+  assert.deepEqual(copy(restored.team().map(p=>p.level)),copy(memberLevels));
 });
 
 test("legacy in-flight battles and permanent old achievements migrate into a separate save",()=>{
@@ -135,7 +157,7 @@ function playCampaign(itinerary) {
   assert.equal(new Set(g.pools.flat()).size,500);assert.equal(g.wardens.length,30);
   assert.equal(new Set(g.wardens.map(i=>g.regions[i].warden)).size,30);
   assert.ok(fair.games.length>=20 && fair.quests.length>=30);assert.equal(dex.effectiveness("Arc",["Vane","Tide"]),2.25);
-  assert.ok(!g.travel(149).ok && !g.startBattle("wild","unknown").ok && !g.awardGame(fair.games[0].id).ok);
+  assert.ok(!g.travel(150).ok && !g.startBattle("wild","unknown").ok && !g.awardGame(fair.games[0].id).ok);
   assert.ok(!g.startBattle("warden").ok && !g.unlockGame(fair.games[0].id).ok);
   const distanceCache=new Map();
   function walkTo(goal) {
@@ -200,22 +222,30 @@ function playCampaign(itinerary) {
   const crossed=new Set();
   for(const [i,r] of g.regions.entries()) {
     if(i>0) assert.ok(r.wildLevel>g.regions[i-1].wildLevel);
+    const oreBeforeTravel=s().bag.ore;
     if(r.ability) {
       assert.ok(s().licenses.includes(r.ability));const gate=g.access(i);
       assert.equal(g.species[gate.carrier].ability,r.ability);
       if(!crossed.has(r.ability)) {
         const alternate=JSON.parse(loaded.save());
         alternate.licenses=alternate.licenses.filter(a=>a!==r.ability);
-        assert.ok(!load(JSON.stringify(alternate)).game.travel(i).ok,r.name+" needs licensed training");
+        const publicTrail=load(JSON.stringify(alternate)).game;
+        assert.equal(publicTrail.access(i).carrier,undefined);
+        ok(publicTrail.travel(i));assert.equal(publicTrail.state.bag.ore,oreBeforeTravel);
         alternate.licenses.push(r.ability);
         alternate.party=alternate.party.filter(p=>g.species[p.id].ability!==r.ability);
         const branch=load(JSON.stringify(alternate)).game;
-        assert.ok(!branch.travel(i).ok,r.name+" still needs a registered carrier");
+        assert.equal(branch.access(i).carrier,undefined);
+        ok(branch.travel(i));assert.equal(branch.state.bag.ore,oreBeforeTravel);
       }
       crossed.add(r.ability);
     }
     ok(g.travel(i));meter.visits++;assert.equal(s().region,i);
-    if(!s().visited.includes(i+1) && i+1<150) assert.ok(!g.travel(i+1).ok);
+    assert.equal(s().bag.ore,oreBeforeTravel+(r.ability?1:0));
+    if(r.ability){
+      ok(g.travel(i));
+      assert.equal(s().bag.ore,oreBeforeTravel+1,"a licensed crossing pays once");
+    }
     rest();gather();
     for(const [slot,id] of g.pools[i].entries()) {
       if(party(id)) continue;

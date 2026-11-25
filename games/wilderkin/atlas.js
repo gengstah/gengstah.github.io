@@ -1,5 +1,5 @@
-// The original trail opens onto nine districts. In each expedition route the
-// trailhead is accessible before its traversal ability is needed further in.
+// The Warden circuit crosses nine districts. Some destinations offer a
+// field-ability crossing in addition to the ordinary trail.
 (() => {
   "use strict";
 
@@ -13,7 +13,7 @@
   };
   const regions = [
     { name:"Mossbrook Vale", description:"A sleepy woodland village on the banks of the Mossbrook.", warden:"Fern", lodge:"Mossbrook Lodge", crest:"Leaf Crest", dialogue:"See those flowers on Mossbell’s shell? They only open when it feels at home. Let’s see how well you and your companions know each other.", farewell:"Carry this Leaf Crest over the bridge to Cinderfall Ridge.", basicMove:"Pebble Toss", theme:0, wildLevel:4, wardenLevel:6 },
-    { name:"Cinderfall Ridge", description:"Lanterns light the trails through a ridge of copper and ember.", warden:"Flint", lodge:"Emberwatch Hall", crest:"Ember Crest", dialogue:"I first met Coalmoth beside a lantern that had long since gone cold. We’ve kept the ridge lights burning ever since. Care for a friendly trial?", farewell:"This Ember Crest opens the trail to Moonwell Reach.", basicMove:"Wing Tap", theme:1, wildLevel:6, wardenLevel:8 },
+    { name:"Cinderfall Ridge", description:"Lanterns light the trails through a ridge of copper and ember.", warden:"Flint", lodge:"Emberwatch Hall", crest:"Ember Crest", dialogue:"I first met Coalmoth beside a lantern that had long since gone cold. We’ve kept the ridge lights burning ever since. Care for a friendly trial?", farewell:"When you see Lune at Moonwell Reach, show her that Ember Crest. She’ll know you came through my lanterns.", basicMove:"Wing Tap", theme:1, wildLevel:6, wardenLevel:8 },
     { name:"Moonwell Reach", description:"A moonlit river winds between silver trees and an ancient shrine.", warden:"Lune", lodge:"Moonwell Shrine", crest:"Moon Crest", dialogue:"When the water is still, Glimmeray can hear footsteps on the far shore. Yours have come a long way. Shall we take the trial?", farewell:"The old trail ends here. Take the Moon Crest downriver to Reedline Landing, where the ferrymakers keep the next map.", basicMove:"Fin Slap", theme:2, wildLevel:8, wardenLevel:10 }
   ];
   const routes = regions.map((r,i) => {
@@ -21,8 +21,7 @@
     return {start:i,end:i,ability:null,ordinal:i,district:r.district};
   });
 
-  // Each row follows a particular Warden's stretch of trail, from its
-  // ungated settlement to its trial grounds. The lines are in travel order.
+  // Each row lists the locations in one Warden's stretch of trail.
   const districts = [
     ["The Sundrill Delta", "fen", 0, "Tidecut", [
       ["Marl","Reedglass Boathouse","Heron","Raftwake","The channel markers move with every spring flood. Read the ripples before you choose your next move.","Even the deep water has a rhythm. You found it.",

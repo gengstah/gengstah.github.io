@@ -37,7 +37,8 @@ test("first region visits are durable and revisiting unlocked regions preserves 
   const ledger=JSON.parse(seed.disk.getItem(trail));ledger.crests=[0];ledger.surveys={0:99};seed.disk.setItem(trail,JSON.stringify(ledger));
   const a=open(seed.disk);assert.ok(a.g.access(1).open);a.g.realmWalking("join",idA);const before=a.disk.writes();
   assert.ok(a.g.travel(1).ok);assert.equal(a.disk.writes(),before+1);assert.ok(JSON.parse(a.disk.getItem(trail)).visited.includes(1));
-  const b=open(a.disk);b.g.realmWalking("join",idB);const opened=a.disk.getItem(trail);
+  const b=open(a.disk),spawn=point(b.g);assert.ok(b.g.setPosition(spawn.x,spawn.y));assert.equal(a.disk.writes(),before+1);
+  b.g.realmWalking("join",idB);const opened=a.disk.getItem(trail);
   a.g.setPosition(3,7);a.g.visitSite("camp");b.g.setPosition(15,10);b.g.visitSite("wild");
   assert.ok(a.g.travel(0).ok);a.g.setPosition(21,7);a.g.visitSite("wild");
   assert.equal(a.disk.getItem(trail),opened);assert.equal(b.g.state.region,1);

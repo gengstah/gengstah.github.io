@@ -9,7 +9,7 @@ function boot(saved){
   const key="wilderkin.trail.v3",storage=new Map(saved?[[key,saved]]:[]),calls=[];
   const ctx=vm.createContext({window:{localStorage:{getItem:id=>storage.get(id)||null,setItem:(id,v)=>storage.set(id,v)}}});
   scripts.forEach(s=>s.runInContext(ctx));
-  const {WilderGame:g,WilderStory:story,WilderGuardLessons}=ctx.window;
+  const {WilderGame:g,WilderGuardLessons}=ctx.window;
   const go=(name,value)=>calls.push(["go",name,value]);
   const ui=WilderGuardLessons.create({game:g,image:id=>"kin/"+id,
     row:(id,label,value,detail,extra)=>({id,label,value,detail,...extra}),notify:s=>calls.push(["notice",s]),render(){},go,
@@ -22,25 +22,13 @@ function boot(saved){
     assert.ok(offered,id+" "+key+" not offered: "+rows(id,id).map(r=>r.value));
     assert.equal(ui.act(offered.id,offered.value),true);
   }
-  return {g,ui,step,rows,calls,story,dex:ctx.window.WilderKinDex,reload:()=>boot(storage.get(key))};
+  return {g,ui,step,rows,calls,reload:()=>boot(storage.get(key))};
 }
 function catchActive(g){
   while(g.state.battle.enemy.hp*2>g.state.battle.enemy.maxHp)ok(g.useSkill("trail-feint"));
   ok(g.recruit());
 }
 function heal(g){assert.ok(g.visitSite("camp"));ok(g.heal());}
-function fightOut(run){
-  const {g,dex}=run;
-  for(let i=0;i<100&&g.state.battle;i++){
-    const b=g.state.battle,kin=g.kin(b.activeId,{owned:true}),target=g.species[b.enemy.id];
-    const value=m=>m.power*dex.effectiveness(m.type,target.types)*(m.kind==="guard"?1.12:1);
-    const attack=kin.skills.filter(m=>m.power).sort((a,b)=>value(b)-value(a))[0];
-    const duet=g.duets().options.filter(m=>m.available&&m.damage>value(attack)).sort((a,b)=>b.damage-a.damage)[0];
-    ok(duet?g.useDuet(duet.partnerId):g.useSkill(attack.id));
-  }
-  assert.equal(g.state.battle,null);
-}
-
 test("fresh Neri link walks to native Opalclasp, captures it, and teaches the owned level-4 crab during its third real reply",()=>{
   let run=boot(),{g}=run;
   const card=run.ui.model().sections[0];
@@ -65,19 +53,9 @@ test("fresh Neri link walks to native Opalclasp, captures it, and teaches the ow
   assert.match(learned.find(r=>r.value==="opalclasp|practice").detail,/Tuning Fork/);
 });
 
-test("a first campaign earns the Leaf Crest, visits Cinderfall, recruits Cragroll and actually protects a teammate",()=>{
-  const run=boot(),{g,story}=run;
-  run.step("cragroll","crest");assert.equal(run.calls.at(-1)[1],"expedition");assert.equal(g.state.region,0);
-  while(!g.expedition().done){
-    heal(g);assert.ok(g.visitSite(g.expedition().targetSite));
-    const route=g.expedition().choices.filter(c=>c.available).sort((a,b)=>a.foes-b.foes)[0];
-    ok(g.expeditionAction(route.id));fightOut(run);
-  }
-  run.step("cragroll","crest");assert.deepEqual(run.calls.at(-1),["go","scene","chapter-1"]);
-  while(!story.chapterDone(g.state,0))ok(g.storyStep("chapter-1",story.scene(g.state,"chapter-1").choices[0]?.id));
-  run.step("cragroll","crest");assert.equal(run.calls.at(-1)[1],"warden");
-  heal(g);assert.ok(g.visitSite("warden"));ok(g.meetWarden());ok(g.startBattle("warden"));fightOut(run);
-  assert.deepEqual(Array.from(g.state.crests),[0]);
+test("Neri sends a new party directly to Cinderfall to recruit Cragroll and protect a teammate before earning any crest",()=>{
+  const run=boot(),{g}=run;
+  assert.equal(g.state.crests.length,0);
   run.step("cragroll","travel");assert.equal(g.state.region,1);
   run.step("cragroll","walk");run.step("cragroll","catch");catchActive(g);
   run.step("cragroll","lead");run.step("cragroll","practice");

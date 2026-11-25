@@ -24,13 +24,42 @@ function boot(hash,save=null,prepare){
   const ctx=vm.createContext({window:w,document:{getElementById:canvas,createElement:canvas,hidden:false},performance:{now:()=>time},
     matchMedia:()=>({matches:true}),requestAnimationFrame:cb=>frames.push(cb)});
   for(const [file,script] of scripts){if(file==="game.js")prepare?.(w.WilderGame);script.runInContext(ctx);}
-  return {g:w.WilderGame,model:()=>model,save:()=>save,externalSave:raw=>{save=raw;},key:key=>input.key({key}),hash:value=>{w.location.hash=value;listeners.hashchange();},
-    click(id,value){const rows=[...(model.objective?.routes||[model.objective]).filter(Boolean),...model.sections.flatMap(s=>s.rows||[])];const found=rows.find(r=>r.id===id&&(value===undefined||value===r.value));
+  return {g:w.WilderGame,model:()=>model,save:()=>save,externalSave:raw=>{save=raw;},key:key=>input.key({key}),tile:(x,y)=>input.tile(x,y),hash:value=>{w.location.hash=value;listeners.hashchange();},
+    click(id,value){const rows=[model.atlas,...(model.objective?.routes||[model.objective]),...model.sections.flatMap(s=>s.rows||[])].filter(Boolean);const found=rows.find(r=>r.id===id&&(value===undefined||value===r.value));
       assert.ok(found&&!found.disabled,id+" / "+value+" on "+model.title);input.action(found.id,found.value);},
     walk(){for(let i=0;frames.length&&i<300;i++){time+=130;frames.shift()(time);}assert.equal(frames.length,0);}
   };
 }
 const ok=result=>assert.ok(result.ok,result.message);
+test("walking a quarry sign crosses to the reciprocal sign, and touching its wild kin starts a native-level battle",()=>{
+  const run=boot(""),{g}=run;
+  const quarry=g.regions.findIndex(r=>r.name==="Fossil Steps");
+  const sign=run.model().player().trailMarkers.find(s=>s.to===quarry);
+  run.tile(sign.x,sign.y);run.walk();assert.equal(run.model().id,"region:"+quarry);
+  run.click("travel",quarry);
+  const markers=run.model().player().trailMarkers,back=markers.find(s=>s.to===0),wild=markers.find(s=>s.kind==="roamer");
+  assert.deepEqual(clone(g.state.positions[quarry]),{x:back.x,y:back.y});
+  assert.deepEqual(clone(boot("",run.save()).g.state.positions[quarry]),{x:back.x,y:back.y});
+  run.tile(wild.x,wild.y);run.walk();
+  assert.equal(g.state.battle.enemy.id,wild.species);assert.equal(g.state.battle.enemy.level,20);assert.equal(g.state.crests.length,0);
+});
+test("the opening atlas offers distinct wild levels and a return trip without a crest",()=>{
+  const app=boot(""),g=app.g;
+  assert.equal(app.model().atlas.label,"World atlas");
+  app.click("nav","atlas");
+  const trails=app.model().sections.find(s=>s.title==="Travel from Mossbrook Vale").rows;
+  const nearby=trails.find(r=>r.label==="Cinderfall Ridge"),far=trails.find(r=>r.label==="Rattlegrass Station");
+  assert.match(nearby.detail,/Wild Lv\. 6 · strongest ready Lv\. 5/);assert.equal(nearby.badge,"Near party level");
+  assert.equal(far.badge,"Overwhelming");assert.match(far.detail,/Wild Lv\. 26 · strongest ready Lv\. 5/);
+  app.click("view",far.value);
+  assert.match(app.model().subtitle,/Overwhelming · Wild Lv\. 26/);
+  const index=Number(far.value.split("|")[1]);app.click("travel",index);
+  assert.equal(g.state.region,index);assert.equal(g.state.crests.length,0);
+  assert.match(app.model().subtitle,/Overwhelming · Wild Lv\. 26/);
+  app.click("nav","wild-calls");assert.match(app.model().subtitle,/Overwhelming · Wild Lv\. 26/);
+  app.key("m");assert.ok(app.model().sections.some(s=>s.title==="Travel from Rattlegrass Station"));
+  app.click("travel",0);assert.equal(g.state.region,0);
+});
 test("the ordinary map offers a battle or a nest, and a saved walk leads to a real encounter and a second owned-team hunt",async()=>{
   const start=boot("");
   assert.deepEqual(Array.from(start.model().objective.routes,r=>r.value),["first-battle","first-outing"]);

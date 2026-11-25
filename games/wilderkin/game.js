@@ -2,6 +2,8 @@
 (() => {
   "use strict";
   const game=window.WilderGame, world=window.WilderWorld, dex=window.WilderKinDex;
+  const wildTrails=window.WilderWildTrails?.create(game,world);
+  const trailMarkers=()=>wildTrails?.markers(game.state.region,motion.matches?0:performance.now())||[];
   const scene=()=>game.regions[game.state.region], area=()=>world.regions[game.state.region];
   const spec=(id,owned=true)=>game.kin(id,{owned});
   const image=(id,owned=true)=>{
@@ -157,14 +159,14 @@
         foe:"pincoil",foes:nell.ids,foeGear:nell.gear,returnToFinder:backToCard,rentalHash:rentalLibrary.encode(card)});
     }});
   const replay=window.WilderSparringReview.create({...rentalControls,read:()=>hall.reviewRecord()});
-  const pages=window.WilderPages.create({game,world,dex,row,member,image,go,back,render,notify,locate,root,openFinder,trailPartners,
+  const pages=window.WilderPages.create({game,world,dex,row,member,image,go,back,render,notify,locate,root,openFinder,trailPartners,trailMarkers,
     fight,playTone,resolveBattle,fieldRecruited,travel,reset,atSite:nearestSite});
   function playTone(kind="click",melody=null) {
     if (!game.state.sound) return;
     try {
       if (!audioContext()) return;
       if (soundCtx.state==="suspended") soundCtx.resume().catch(()=>{});
-      const notes={click:[523],battle:[349,466,587],strike:[220,165],care:[440,554,659],reward:[392,494,587,784],step:[330]};
+      const notes={click:[523],battle:[349,466,587],strike:[220,165],care:[440,554,659],reward:[392,494,587,784],defeat:[330,262,196],step:[330]};
       const spacing=melody ? .24 : .075, duration=melody ? .46 : .13;
       (melody||notes[kind]||notes.click).forEach((f,i)=>{
         const osc=soundCtx.createOscillator(),gain=soundCtx.createGain(),start=soundCtx.currentTime+i*spacing;
@@ -390,9 +392,11 @@
     const mentor=area().sites.findIndex(site=>(site.kind||site.id)==="guard-school");
     const destination=state.destination,localHollow=game.hollows?.at(state.region);
     const sharedOuting=realm?.mapOuting();
-    const pinned=destination===null?null:{kicker:"ATLAS PIN",title:game.regions[destination].name,description:destination===state.region?"You are here. Open the pin for the region’s landmarks.":game.access(destination).reason,id:"view",value:"region|"+destination};
+    const risk=pages.trailRisk(state.region);
+    const pinned=destination===null?null:{kicker:"ATLAS PIN",title:game.regions[destination].name,description:destination===state.region?"You are here. Open the pin for the region’s landmarks.":pages.trailRisk(destination).levels,id:"view",value:"region|"+destination};
     return {kind:"world",title:r.name,kicker:"THE MISSING BEAT   /   "+r.district+"   /   REGION "+String(state.region+1).padStart(3,"0")+" OF 150",
-      subtitle:r.description,region:state.region,player:samplePlayer,party:game.team().map(p=>partyDisplay(p)),realm:realm?.banner(),
+      subtitle:risk.danger?risk.label+" · "+risk.levels+". Red diamonds mark wild battles.":r.description,region:state.region,player:samplePlayer,party:game.team().map(p=>partyDisplay(p)),realm:realm?.banner(),
+      atlas:row("nav","World atlas","atlas","Travel to any region and compare wild levels."),
       objective:pinned||sharedOuting||firstQuest||(opening?{title:"Open Finch’s first dispatch",description:"The Mossbrook bell has skipped a beat. Read the note Finch carried during the flood.",id:"view",value:"scene|chapter-1"}
         :{title:obj.title,description:obj.description,id:"nav",value:"objective"}),
       status:game.canSave?"Saved on this device":"Session only · browser storage unavailable",
@@ -403,7 +407,7 @@
         ...(!firstQuest&&state.region===0&&!state.crests.includes(0)&&!nextHunt&&first.outcome!=="victory"&&first.outcome!=="recruited"?
           [row("nav","Battle Opalclasp","first-battle","Pick a starter to lead at Clover Clearing.",{image:image("opalclasp",false)})]:[]),
         row("interact",near ? near.label : "Local landmarks",null,near?"Interact here":"Walk to a place",{key:"E"}),
-        row("nav","Wild calls","wild-calls","Read the local tracks and choose who leads."),
+        row("nav","Wild calls","wild-calls",risk.levels,{tone:risk.danger?"danger":undefined}),
         ...(yard?[row("nav","Practice at the Chalkyard","practice-yard","Try a new lineup against a local opponent.")]:[]),
         ...(kitBench&&(!state.trailFittings?.claimed?.includes("camp")||state.crests.includes(0)&&!state.trailFittings?.claimed?.includes("crest"))?
           [row("walk-kind","Visit Pella’s field bench","camp|kit-bench","Collect new fittings for your own kin at camp.")]:[]),
@@ -470,7 +474,7 @@
     if (wild && !member(enemy.id)) {
       const ready=game.captureStatus(),f=game.ordinaryForecast?.("trail-feint");
       actions.unshift(row("skill","Hold back","trail-feint",f?(f.reason||exchangeLine(f)+" · leaves at least 1 HP"+fittingSuffix(f)):"Leave at least 1 HP",{disabled:f?!f.available:false}),
-        row("capture","Cast Kinweave",null,ready.reason||"1 Kinweave · "+game.state.bag.kinweave+" packed",{disabled:!ready.available}));
+        row("capture","Cast Kinweave",null,ready.reason||ready.offer.preview+" 1 Kinweave · "+game.state.bag.kinweave+" packed",{disabled:!ready.available}));
     }
     const title=b.secondBell?"Second Bell · Warden "+scene().warden:wild?"Wild encounter":b.kind==="expedition"?"Expedition patrol":"Warden "+scene().warden+"’s trial";
     const health=partyDisplay(b.enemy,false),conditions=game.conditions[b.condition],cardNote=fieldCard?.guide();
@@ -525,6 +529,7 @@
         o.reason||(partner?"Hand off · 1 beat · no reply":"Answer the call · no damage or reply"),{disabled:!o.available,tone:"primary"});
     });
     let text=call.scene+" "+call.answer;
+    if(call.offer.young)text+=" "+call.offer.preview;
     if(!rows.some(r=>!r.disabled)){
       const reserve=call.options.find(o=>o.actor!==lead&&o.available&&game.switchForecast(o.actor)?.hpAfter>0);
       if(reserve)rows.push(row("nav","Switch to "+spec(reserve.actor).name,"switch",reserve.name+" can answer. Preview the incoming hit."));
@@ -537,7 +542,7 @@
     return {kind:"battle",title:name+" waits for you",kicker:scene().name+"   /   WILD CALL",theme:scene().theme,
       ally:partyDisplay(member(b.activeId)),foe:partyDisplay(b.enemy,false),log:[firstCoach?.feedback()?.text||call.response],
       sections:[{title:"Answer the invitation",rows:[
-        row("capture","Offer a Kinweave",null,ready.reason||"Befriend "+name+" · 1 of "+game.state.bag.kinweave+" Kinweaves",{disabled:!ready.available,tone:"primary",key:"C"}),
+        row("capture","Offer a Kinweave",null,ready.reason||ready.offer.preview+" Use 1 of "+game.state.bag.kinweave+" Kinweaves.",{disabled:!ready.available,tone:"primary",key:"C"}),
         row("release-call","Let "+name+" go",null,"Return to the trail and keep your Kinweave.",{key:"L"})]}]};
   }
   function recruitRows(id) {
@@ -651,11 +656,11 @@
       const crest=game.state.crests.length>oldCrests;
       const titles={victory:"Battle won",defeat:"Back at camp",recruited:spec(oldEnemy,false).name+" joined you",escaped:b.wildCall?.answered?"Back on the trail":"Safe retreat"};
       const exhibition={victory:"Exhibition won",defeat:"Exhibition lost",escaped:"Exhibition withdrawn"};
-      outcome={title:secondBell?(exhibition[res.kind]||"Exhibition complete"):crest?scene().crest+" earned":titles[res.kind]||"Encounter complete",message:res.message,secondBell,crest,expedition:kind==="expedition",
+      outcome={title:res.rescue?"Your party blacked out":secondBell?(exhibition[res.kind]||"Exhibition complete"):crest?scene().crest+" earned":titles[res.kind]||"Encounter complete",message:res.message,secondBell,crest,expedition:kind==="expedition",
         recruited:res.kind==="recruited"?oldEnemy:null,guardPupil:res.kind==="recruited"&&["opalclasp","cragroll"].includes(oldEnemy)?oldEnemy:null,
         firstBattle:res.firstBattle,firstExchange,fieldCard:cardTurn?fieldCard.resultSection():null,thirdBeat:b.trioPlayed&&window.WilderThirdBeat?.receipt(game,b.trioPlayed,row),fittingEvents:res.fittingEvents,src:crest?world.crestArt(game.state.region,true):res.kind==="recruited"?image(oldEnemy):null,
         caption:crest?scene().lodge:spec(oldEnemy,false).name};
-      playTone(res.kind==="escaped"?"click":"reward");restorePlayer();
+      playTone(res.kind==="escaped"?"click":res.kind==="defeat"?"defeat":"reward");restorePlayer();
       screen={name:"outcome",value:null};history=[];render();
     } finally {resolving=false;if(trailUpdatePending)resumeUpdatedTrail();}
   }
@@ -673,7 +678,7 @@
   function samplePlayer() {
     const follower=game.walkerPose(performance.now(),motion.matches);
     if(follower)follower.src=image(follower.id);
-    const pos={...player,sightings:game.sightings(),follower,questActive:!!scene().warden&&!game.state.crests.includes(game.state.region)};
+    const pos={...player,sightings:game.sightings(),trailMarkers:trailMarkers(),follower,questActive:!!scene().warden&&!game.state.crests.includes(game.state.region)};
     if(realm?.connected())pos.realm=realm.pose(game.state.region,motion.matches);
     if (tween && !motion.matches) {
       const ratio=Math.min(1,Math.max(0,(performance.now()-tween.time)/115));
@@ -683,7 +688,7 @@
   }
   function nearestSite() {
     if (!player) return null;
-    return [...area().sites,...game.sightings()].map(site=>({site,d:Math.abs(site.x-player.x)+Math.abs(site.y-player.y)})).filter(s=>s.d<=1).sort((a,b)=>a.d-b.d)[0]?.site;
+    return [...area().sites,...game.sightings(),...trailMarkers()].map(site=>({site,d:Math.abs(site.x-player.x)+Math.abs(site.y-player.y)})).filter(s=>s.d<=1).sort((a,b)=>a.d-b.d)[0]?.site;
   }
   function move(dir,now) {
     if (!dir || game.state.battle || screen.name!=="world") return false;
@@ -693,6 +698,11 @@
     const old=nearestSite();tween={x:player.x,y:player.y,time:now};player.x=x;player.y=y;
     if(game.setPosition(x,y)===false&&trailUpdatePending)return false;
     realm?.publish();
+    // A plotted walk to a landmark stays on task. Free walking meets the marked wild kin on contact.
+    if(!arrival){
+      const encounter=trailMarkers().find(site=>site.kind==="roamer"&&site.x===x&&site.y===y);
+      if(encounter){visit(encounter);return true;}
+    }
     if (old!==nearestSite()) render();
     ui.invalidate();return true;
   }
@@ -711,6 +721,12 @@
   }
   function visit(site,next) {
     const kind=site.kind||site.id;
+    if(kind==="road"){
+      go("region",site.to);
+      if(screen.name==="region")screen.roadFrom=game.state.region;
+      return;
+    }
+    if(kind==="roamer")return fight("wild",site.species);
     if(kind==="realm-lantern")return realm.arrive(site.id);
     if(kind==="sighting") return go("study",site.species);
     if(kind==="lantern-cup")return go("sparring","cup");
@@ -750,12 +766,16 @@
     const shared=realm?.hit(game.state.region,x,y);
     if(shared?.kind==="courier")return realm.openPerson(shared.id);
     if(shared?.kind==="lantern")return realm.openEvent();
-    const site=world.sightingAt(game.sightings(),x,y)||world.siteAt(game.state.region,x,y);
+    const markers=trailMarkers();
+    const site=markers.find(s=>s.x===x&&s.y===y)||world.sightingAt(game.sightings(),x,y)||world.siteAt(game.state.region,x,y)||
+      markers.find(s=>s.x===x&&s.y-1===y);
     if(!site && window.WilderWalkingPartner.hit(game.walkerPose(performance.now(),true),x,y))return go("walker");
     walk(site||{x,y},site);
   }
   function travel(i,after) {
-    const res=game.travel(i);
+    const onFoot=screen.name==="region"&&Number(screen.value)===i&&screen.roadFrom===game.state.region;
+    const sign=onFoot?wildTrails.layout(i).signs.find(s=>s.to===game.state.region):null;
+    const res=game.travel(i,sign);
     if (!res.ok) return notify(res.message);
     restorePlayer();playTone("battle");if(after)go(after.name,after.value,"root");else root();notify(res.message);
   }
@@ -868,6 +888,11 @@
       case "back":return back();
       case "interact":{const site=nearestSite();return site?visit(site):go("landmarks");}
       case "walk-site":return locate(Number(value));
+      case "walk-marker":{
+        const marker=trailMarkers().find(s=>s.id===value);
+        if(marker)walk(marker,marker);
+        return;
+      }
       case "open-kin":return go("kin",value);
       case "bell-preview":
         if(screen.name==="outcome"&&outcome?.recruited===value)bell.act(id,value);

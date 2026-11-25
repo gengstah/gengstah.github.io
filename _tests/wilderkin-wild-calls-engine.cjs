@@ -27,7 +27,7 @@ test("tracks point to a usable partner in the clearing, in reserve or on the ear
   const distant=hint("sedgejell");
   assert.equal(g.regions[distant.region].name,"Rattlegrass Station");
   assert.equal(distant.id,"volttine");assert.equal(distant.skill,"Spark Thread");
-  assert.equal(g.access(distant.region).open,false);
+  assert.equal(g.access(distant.region).open,true);
 
   g.state.party.push(g.loaner("opalclasp",5));
   const reserve=hint("cragroll");
@@ -159,6 +159,25 @@ test("traditional captures remain guaranteed across the twelve starter and Mossb
     assert.equal(g.wildCall(),null);assert.equal(g.captureStatus().available,false);
     assert.equal(g.foeIntent().skill.name,"Pebble Toss");
   }
+});
+
+test("Hold back forecasts real chip against an overlevel adult and a party that reaches half HP recruits it at wild level",()=>{
+  const {g}=boot(),region=g.regions.findIndex(r=>r.wildLevel===14);
+  ok(g.travel(region));const id=g.pools[region][0];ok(g.startBattle("wild",id));
+  const b=g.state.battle;
+  for(let step=0;step<12&&!g.captureStatus().available;step++){
+    if(g.replacements()){
+      ok(g.replaceFainted(g.replacements().options[0].id));continue;
+    }
+    const before=b.enemy.hp,forecast=g.ordinaryForecast("trail-feint");
+    assert.ok(forecast.available);
+    assert.ok(forecast.damage<Math.ceil(b.enemy.maxHp/4));
+    ok(g.useSkill("trail-feint"));assert.equal(before-b.enemy.hp,forecast.damage);
+    assert.ok(g.state.battle,"a party can earn this capture by weathering the replies");
+  }
+  assert.ok(b.enemy.hp*2<=b.enemy.maxHp);
+  const ready=g.captureStatus();assert.ok(ready.available);assert.equal(ready.offer.young,false);
+  assert.equal(ready.offer.level,14);ok(g.recruit());assert.equal(g.state.party.at(-1).level,14);
 });
 
 test("a newly caught kin can answer using a secondary affinity and a fainted traveler cannot volunteer",()=>{

@@ -328,13 +328,19 @@
       });
       return h;
     }
+    // On short touch layouts the opening choices fill the screen before the map footer.
+    function atlasAboveMap() {
+      return model.atlas && width<650 && height<660 && model.objective?.routes && !model.objective.belowMap;
+    }
     function questBox(q,x,y,w) {
       if(!q)return 0;
       if(q.routes){
-        label(c,q.title,x,y,22,C.ink,"title",650);
+        const withAtlas=atlasAboveMap(),headingH=withAtlas?49:29,titleSize=withAtlas&&w<325?18:22;
+        c.font=getFont(titleSize,"title",650);
+        label(c,withAtlas?fit(c,q.title,w-106):q.title,x,y+(withAtlas?11:0),titleSize,C.ink,"title",650);
         const stacked=w<325,gap=8,cell=stacked?w:(w-gap)/2;
         q.routes.forEach((r,i)=>{
-          const left=x+(stacked?0:i*(cell+gap)),top=y+29+(stacked?i*81:0);
+          const left=x+(stacked?0:i*(cell+gap)),top=y+headingH+(stacked?i*81:0);
           const hit=control(r,left,top,cell,73),primary=r.tone==="primary",hot=highlighted(hit);
           rect(c,left,top,cell,73,primary?(hot?"#446e53":C.forest):(hot?"#e5edcf":"#f6ecd0"),primary?C.forest:"#bca66f");
           if(hot)rect(c,left,top,cell,3,C.gold);
@@ -345,7 +351,13 @@
           c.font=getFont(12,"body",500);
           label(c,fit(c,r.detail,cell-18),left+10,top+51,12,primary?"#d6e5ce":C.secondary);
         });
-        return stacked?183:102;
+        if(withAtlas){
+          const bw=98,left=x+w-bw,hit=control(model.atlas,left,y,bw,44);
+          rect(c,left,y,bw,44,highlighted(hit)?"#e2e9cb":"#eee9cc","#9d9e76");
+          symbol(c,"map",left+6,y+14,15,C.forest);
+          label(c,model.atlas.label,left+27,y+14,13,C.forest,"body",700);
+        }
+        return headingH+(stacked?154:73);
       }
       const compact=w<400,sz=q.illustrations?(compact?56:74):(compact?33:43),tx=x+sz+26,tw=Math.max(70,w-sz-47);
       c.font=getFont(22,"title",650);const titles=wrap(c,q.title,tw);
@@ -368,22 +380,34 @@
     function mapPanel(x,y,w,t) {
       const r=window.WilderWorld?.regions[model.region];
       if(!r)return 0;
-      const mh=Math.round((w-6)*r.rows/r.cols),h=mh+(model.realm?45:33);
+      const atlas=model.atlas&&!atlasAboveMap()?model.atlas:null;
+      const mh=Math.round((w-6)*r.rows/r.cols),h=mh+(atlas||model.realm?50:33);
       rect(c,x,y,w,h,C.forest);rect(c,x+3,y+3,w-6,mh,"#8cab70");
       const player=typeof model.player==="function" ? model.player(t) : model.player||r.spawn;
       window.WilderWorld.draw(ground,model.region,player,reduced.matches?0:t);
       picture(ground,x+3,y+3,w-6,mh);
       const mapHit=control({id:"$tile",label:"Explore map"},x+3,y+3,w-6,mh,"map",()=>handlers.tile?.(Math.round(player.x),Math.round(player.y)));
       mapHit.selectTile=(px,py)=>handlers.tile?.(clamp(Math.floor((px-mapHit.x)*r.cols/mapHit.w),0,r.cols-1),clamp(Math.floor((py-mapHit.y)*r.rows/mapHit.h),0,r.rows-1));
-      const caption=y+mh+(model.realm?16:11);
-      symbol(c,"map",x+12,caption+1,13,"#d9ddab");
-      label(c,width<640?"Tap a trail to walk":"Click a trail to walk",x+34,caption,12,"#e1e6ca","body",600);
+      const caption=y+mh+(atlas||model.realm?19:11);
+      const atlasW=atlas?Math.min(152,(w-12)*.49):0;
+      if(atlas){
+        const left=x+3,top=y+mh+3,hit=control(atlas,left,top,atlasW,44);
+        rect(c,left,top,atlasW,44,highlighted(hit)?"#f3e9bb":"#e0d9ac","#a3ab80");
+        symbol(c,"map",left+11,top+14,16,C.forest);
+        label(c,atlas.label,left+34,top+13,15,C.forest,"body",700);
+      }
+      const rightW=model.realm?Math.min(154,w*.44):0;
+      if(w-atlasW-rightW>154){
+        const tx=x+atlasW+12;
+        if(!atlas)symbol(c,"map",tx,caption+1,13,"#d9ddab");
+        label(c,width<640?"Tap a trail to walk":"Click a trail to walk",tx+(atlas?3:22),caption,12,"#e1e6ca","body",600);
+      }
       if(model.realm){
-        const bw=Math.min(154,w*.44),left=x+w-bw-3,top=y+mh+3;
-        const hit=control(model.realm,left,top,bw,39);
-        rect(c,left,top,bw,39,highlighted(hit)?"#467668":"#315b50","#82977c");
-        ellipse(c,left+14,top+19,3,3,model.realm.value==="online"?"#f8ce76":"#b1cc9c");
-        c.font=getFont(13,"body",650);label(c,fit(c,model.realm.label,bw-28),left+24,top+12,13,C.cream,"body",650);
+        const left=x+w-rightW-3,top=y+mh+3;
+        const hit=control(model.realm,left,top,rightW,44);
+        rect(c,left,top,rightW,44,highlighted(hit)?"#467668":"#315b50","#82977c");
+        ellipse(c,left+14,top+22,3,3,model.realm.value==="online"?"#f8ce76":"#b1cc9c");
+        c.font=getFont(13,"body",650);label(c,fit(c,model.realm.label,rightW-28),left+24,top+15,13,C.cream,"body",650);
       }else if(w>460)label(c,"WASD / ↑↓←→   ·   E  Interact",x+w-12,caption,11,"#d8dfc5","mono",500,"right");
       return h;
     }

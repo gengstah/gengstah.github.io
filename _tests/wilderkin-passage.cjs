@@ -43,7 +43,7 @@ test("local studies, a local friend, field legs and the trailpost are independen
   const flow=load(checkpoint),g=flow.g;
   assert.equal(g.passageReport(0),null);assert.equal(g.passageReport(2),null);
   assert.equal(g.passageReport(150),null);
-  assert.ok(!g.access(4).open);assert.equal(g.trialAccess(8).target,3);
+  assert.ok(g.access(4).open);assert.equal(g.trialAccess(8).target,3);
   flow.visit("travel");
   assert.deepEqual(copy(g.passageReport().requirements.map(r=>r.done)),[false,false,false]);
   assert.ok(!g.filePassage().ok);
@@ -81,9 +81,9 @@ test("local studies, a local friend, field legs and the trailpost are independen
   }
   const paid=flow.save();assert.ok(!g.filePassage().ok);assert.deepEqual(flow.save(),paid);
   const restored=load(paid);assert.ok(restored.g.passageReport().filed);ok(restored.g.travel(4));
-  assert.ok(!restored.g.filePassage().ok);assert.ok(!restored.g.access(5).open);
+  assert.ok(!restored.g.filePassage().ok);assert.ok(restored.g.access(5).open);
 });
-test("filed wildlife reports satisfy Warden survey gates while licenses and written chapters still gate progression",()=>{
+test("filed wildlife reports and chapters earn Warden admission while exploration stays open",()=>{
   const s=deltaCheckpoint();s.region=8;s.visited=[0,1,2,3,4,5,6,7,8];s.reports=[3,4,5,6,7];s.surveys[8]=11;
   const flow=load(s),g=flow.g;
   assert.ok(!g.trialAccess(8).open);assert.match(g.trialAccess(8).reason,/chapter 4/);
@@ -91,7 +91,8 @@ test("filed wildlife reports satisfy Warden survey gates while licenses and writ
   while(!flow.story.chapterDone(g.state,3))ok(g.storyStep(draft,flow.story.scene(g.state,draft).choices[0]?.id));
   assert.ok(g.trialAccess(8).open);
   const next=load({...s,region:4,visited:[0,1,2,3,4],reports:[3,4]});
-  assert.ok(!next.g.access(5).open);assert.match(next.g.access(5).reason,/Raftwake/);
+  assert.ok(next.g.access(5).open);assert.equal(next.g.access(5).carrier,undefined);
+  ok(next.g.travel(5));assert.ok(!next.g.state.licenses.includes("Raftwake"));
 });
 test("Trailpot broth consumes its recipe once, heals each injured conscious traveler up to one third and leaves reserves alone",()=>{
   const s=copy(load().g.state);
