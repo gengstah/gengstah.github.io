@@ -63,7 +63,7 @@
   const openTrios=trios?options=>trios.open(options):null;
   const fieldCard=practice&&window.WilderFieldCard.create({...rentalControls,image,locate,travel,fight,review:openTrail,trioUI});
   const firstCoach=window.WilderFirstBattleCoach?.create({game,row,image});
-  const trailPartners=practice&&window.WilderFirstTrailPartners?.create({game,practice,row,image,go,notify,locate,openTrail,openField:plan=>fieldCard.open(plan)});
+  const trailPartners=practice&&window.WilderFirstTrailPartners?.create({game,practice,row,image,go,notify,locate,openTrail,rehearse:startPractice,openField:plan=>fieldCard.open(plan)});
   const roster=practice&&window.WilderTrailRosterDesk.create({...rentalControls,image,locate,onDraft:openMatchups,onField:s=>fieldCard.open(s)});
   const matchups=practice&&window.WilderTrailMatchups.create({...rentalControls,image,practice,play:startPractice,openTrail,openTrios,openDuets:options=>duetPlans.open(options)});
   const yard=practice&&window.WilderPracticeYard.create({...rentalControls,image,practice,start:startPractice,openMatchups,openTrios,openDuets:options=>duetPlans.open(options)});
@@ -101,17 +101,35 @@
     return "#field-fittings";
   }
   const rentalLibrary=window.WilderRentalCards?.create({game});
-  const twin=window.WilderTwinbell?.create({...rentalControls,library:rentalLibrary,active:view=>screen.name==="twinbell"&&screen.value===view});
-  const series=window.WilderSwitchyardSeries?.create({game});
-  const switchyard=series&&window.WilderSwitchyard.create({...rentalControls,series,
-    importFour:()=>twin.crew(),openRing:(view="ring")=>go("switchyard-ring",view)});
-  const cupRing=series&&window.WilderTwinRing.create({...rentalControls,read:series.read,commit:series.commit,
-    active:view=>screen.name==="switchyard-ring"&&screen.value===view,
-    onSetup:()=>go("switchyard",switchyard.entry()),venue:{name:"Switchyard Cup",route:"switchyard-ring",background:"ui/switchyard.png",
-      kicker:()=>{const d=series.desk();return "SWITCHYARD  /  GAME "+(d.phase==="battle"?d.gameNumber:d.games.at(-1)?.number||1)+"  /  "+d.score.join("–");},
-      deskLabel:"Cup scoreboard",resultLabel:"View the series score",rules:false}});
-  const signals=series&&window.WilderSignalBox.create({...rentalControls,series,library:rentalLibrary,
-    active:view=>screen.name==="signal-box"&&screen.value===view});
+  let twin,series,switchyard,cupRing,signals,doublesLoading,doublesRequest=0;
+  const doublesScreens=new Set(["twinbell","switchyard","switchyard-ring","signal-box"]);
+  function setupDoubles(){
+    twin=window.WilderTwinbell?.create({...rentalControls,library:rentalLibrary,active:view=>screen.name==="twinbell"&&screen.value===view});
+    series=window.WilderSwitchyardSeries?.create({game});
+    switchyard=series&&window.WilderSwitchyard.create({...rentalControls,series,
+      importFour:()=>twin.crew(),openRing:(view="ring")=>go("switchyard-ring",view)});
+    cupRing=series&&window.WilderTwinRing.create({...rentalControls,read:series.read,commit:series.commit,
+      active:view=>screen.name==="switchyard-ring"&&screen.value===view,
+      onSetup:()=>go("switchyard",switchyard.entry()),venue:{name:"Switchyard Cup",route:"switchyard-ring",background:"ui/switchyard.png",
+        kicker:()=>{const d=series.desk();return "SWITCHYARD  /  GAME "+(d.phase==="battle"?d.gameNumber:d.games.at(-1)?.number||1)+"  /  "+d.score.join("–");},
+        deskLabel:"Cup scoreboard",resultLabel:"View the series score",rules:false}});
+    signals=series&&window.WilderSignalBox.create({...rentalControls,series,library:rentalLibrary,
+      active:view=>screen.name==="signal-box"&&screen.value===view});
+  }
+  if(window.WilderTwinbell)setupDoubles();
+  function openDoubles(open){
+    if(twin)return open();
+    const revision=locationRevision,request=++doublesRequest;
+    const current=()=>revision===locationRevision&&request===doublesRequest;
+    notify("Opening the doubles grounds…");
+    doublesLoading??=window.WilderLaunch.loadDoubles().then(()=>{
+      setupDoubles();
+      if(!twin||!switchyard)throw Error("Doubles unavailable");
+    }).finally(()=>{doublesLoading=null;});
+    doublesLoading.then(()=>{if(current())open();},()=>{
+      if(current())notify("The doubles grounds could not load. Check your connection and open them again.");
+    });
+  }
   let rentalOrigin=null;
   const openRentals=rentalLibrary?(context,card)=>{
     rentalOrigin=context?(screen.name==="scout-table"?scouts.addressFor(screen.value):"#scout-practice"):null;
@@ -153,7 +171,7 @@
       const value=post.loadScouted(table);go("bellpost",value);return !value.startsWith("error");
     }});
   const rentals=window.WilderRentalCounter?.create({...rentalControls,library:rentalLibrary,borrowSolo:card=>hall.borrowRental(card),
-    playDoubles:twin?(card,opponent)=>twin.receive(card,opponent):null,
+    playDoubles:twin||window.WilderLaunch?.loadDoubles?(card,opponent)=>openDoubles(()=>twin.receive(card,opponent)):null,
     challengeSolo:card=>hall.challengeRental(card),borrowTable:card=>scouts.borrowRental(card),share:shareRental,pasteRental,
     tryPair:(card,backToCard)=>{
       const nell=window.WilderScoutPractice.coachRoster("weir");
@@ -161,7 +179,7 @@
         foe:"pincoil",foes:nell.ids,foeGear:nell.gear,returnToFinder:backToCard,rentalHash:rentalLibrary.encode(card)});
     }});
   const replay=window.WilderSparringReview.create({...rentalControls,read:()=>hall.reviewRecord()});
-  const pages=window.WilderPages.create({game,world,dex,row,member,image,go,back,render,notify,locate,root,openFinder,trailPartners,trailMarkers,
+  const pages=window.WilderPages.create({game,world,dex,row,member,image,go,back,render,notify,locate,root,openFinder,trailPartners,trailMarkers,largeText:()=>ui.largeText,
     fight,playTone,resolveBattle,fieldRecruited,travel,reset,atSite:nearestSite});
   function playTone(kind="click",melody=null) {
     if (!game.state.sound) return;
@@ -199,6 +217,9 @@
   }
   function addressRoom(next){
     const loc=window.location;
+    if(next.name==="world"&&realm?.connected()){
+      const hash=realm.mapAddress();if(loc.hash!==hash)window.history.replaceState(null,"",hash);return;
+    }
     if(next.name==="online"){
       const hash=realm.address();if(loc.hash!==hash)window.history.replaceState(null,"",hash);return;
     }
@@ -222,8 +243,46 @@
       else window.history.replaceState(null,"",loc.pathname+loc.search);
     }
   }
+  // The browser stores a small key. Transient game screens and parties stay in this tab.
+  const browserHistory=window.history?.pushState?window.history:null;
+  const visitId=Date.now().toString(36)+Math.random().toString(36).slice(2);
+  const visits=new Map();
+  let currentVisit=0,nextVisit=0,chapter=0,lastHashPop=null;
+  function rememberVisit(parent=visits.get(currentVisit)?.parent??null){
+    if(!browserHistory)return;
+    visits.set(currentVisit,{screen,history:history.slice(),parent,chapter});
+    browserHistory.replaceState({wilderkin:visitId,currentVisit},"");
+  }
+  function pushVisit(){
+    if(!browserHistory)return;
+    rememberVisit();
+    const parent=currentVisit;
+    currentVisit=++nextVisit;
+    browserHistory.pushState({wilderkin:visitId,currentVisit},"");
+    visits.set(currentVisit,{parent});
+  }
+  function revisit(event){
+    const state=event.state;
+    if(!browserHistory||state?.wilderkin!==visitId)return;
+    const saved=visits.get(state.currentVisit);
+    if(!saved)return;
+    currentVisit=state.currentVisit;
+    lastHashPop=window.location.href;
+    if(resolving||trailUpdatePending){rememberVisit(null);return;}
+    stopWalk();locationRevision++;
+    const sameChapter=saved.chapter===chapter,wasBattle=saved.screen.name==="battle";
+    if(!sameChapter||realm?.active()||wasBattle&&!game.state.battle||game.state.battle&&!wasBattle&&
+        !["duets","trios","party","bag","item","kin","settings"].includes(saved.screen.name)){
+      go(realm?.active()?"online":game.state.battle?"battle":"world",realm?.active()?"duel":null,"root");
+      return;
+    }
+    if(screen.name==="rehearsal-ring"&&saved.screen.name!==screen.name)practice.leave();
+    history=saved.history.slice();addressRoom(saved.screen);screen=saved.screen;render();rememberVisit();
+  }
   function go(name,value=null,mode="push") {
     if (resolving) return;
+    if(doublesScreens.has(name)&&!twin)return openDoubles(()=>go(name,value,mode));
+    if(name==="switchyard"&&value==null)value=switchyard.entry();
     if(realm?.active()&&(name!=="online"||value!=="duel")){name="online";value="duel";mode="root";}
     locationRevision++;
     if(name==="scout-practice"){name="sparring";value="scout-practice";}
@@ -235,37 +294,44 @@
     if(screen.name==="rehearsal-ring"&&name!=="rehearsal-ring"){
       practice.leave();mode="root";
     }
-    if (mode==="root") history=[];
-    else if (mode==="push" && (name!==screen.name || value!==screen.value)) history.push(screen);
-    const next={name,value};addressRoom(next);screen=next;render();
+    if (mode==="root"){history=[];chapter++;}
+    else if (mode==="push" && (name!==screen.name || value!==screen.value)){pushVisit();history.push(screen);}
+    const next={name,value};addressRoom(next);screen=next;render();rememberVisit();
   }
   function root(){go(game.state.battle?"battle":"world",null,"root");}
   function back() {
     if (resolving) return;
     if(realm?.active())return go("online","duel","root");
     if(screen.name==="rehearsal-ring")return rehearsal.back(screen.value);
+    const parent=visits.get(visits.get(currentVisit)?.parent),prior=history.at(-1);
+    if(browserHistory&&prior&&parent?.chapter===chapter&&parent.screen.name===prior.name&&parent.screen.value===prior.value){
+      browserHistory.back();return;
+    }
     const dest=history.pop();
     if (!dest || screen.name==="outcome") return root();
     if ((dest.name==="battle" && !game.state.battle) || (dest.name==="world" && game.state.battle)) return root();
     locationRevision++;
-    addressRoom(dest);screen=dest;render();
+    addressRoom(dest);screen=dest;render();rememberVisit(null);
   }
   function reset() {
     if(realm?.connected())realm.disconnect();
+    const res=game.reset();
+    if(!res.ok){notify(res.message);return;}
     fieldCard?.reset();roster?.reset();trailPartners?.clear();practice?.leave();lastPractice=null;
-    game.reset();pages.reset();fair.reset();outcome=null;restorePlayer();root();
+    pages.reset();fair.reset();outcome=null;restorePlayer();root();
     notify("A new ledger opens in Mossbrook Vale.");
   }
   function render(liveRefresh=false) {
     if(trailUpdatePending)return;
     let model;
     const replacement=game.replacements?.();
-    if(replacement&&screen.name!=="replacement"){
+    const saving=!game.canSave&&["settings","repair-save","backup-confirm"].includes(screen.name);
+    if(replacement&&screen.name!=="replacement"&&!saving){
       screen={name:"replacement",value:null};history=[];
     }else if(!replacement&&screen.name==="replacement"){
       screen={name:game.state.battle?"battle":"world",value:null};
     }
-    if(awaitingCall()&&screen.name!=="wild-offer"){screen={name:"wild-offer",value:null};history=[];}
+    if(awaitingCall()&&screen.name!=="wild-offer"&&!saving){screen={name:"wild-offer",value:null};history=[];}
     else if(screen.name==="wild-offer"&&!awaitingCall()){screen={name:game.state.battle?"battle":"world",value:null};history=[];}
     switch (screen.name) {
       case "world":model=worldModel();break;
@@ -320,6 +386,14 @@
       default:model=pages.model(screen.name,screen.value);break;
     }
     if (!model) throw new Error("Unknown game screen: "+screen.name);
+    if(!game.canSave){
+      model.saveWarning=game.saveRecovery?"Save recovery":"Session only";
+      model.status=game.saveRecovery?"Save recovery · open Trail settings":"Session only · download a backup in Trail settings";
+    }
+    if(["world","expedition","outcome"].includes(screen.name)){
+      const training=pages.mentorshipReturn?.();
+      if(training)model.sections.unshift({title:"Camp mentorship",rows:[training]});
+    }
     score.scene(scene().biome,model.kind==="battle" || !!model.twinField || !!game.state.battle,game.state.music);
     ui.show({kind:"page", ...model, id:model.viewId||screen.name+":"+(screen.value??""),back:["world","battle","replacement","wild-offer"].includes(screen.name)||realm?.active()?null:{id:"back",label:"Back"}},liveRefresh);
   }
@@ -407,8 +481,9 @@
       exits:crossings,atlas:row("nav","World atlas","atlas","Check routes, crossings and wild levels."),
       objective:pinned||sharedOuting||firstQuest||(opening?{title:"Open Finch’s first dispatch",description:"The Mossbrook bell has skipped a beat. Read the note Finch carried during the flood.",id:"view",value:"scene|chapter-1"}
         :{title:obj.title,description:obj.description,id:"nav",value:"objective"}),
-      status:game.canSave?"Saved on this device":"Session only · browser storage unavailable",
+      status:game.saveRecovery?"Save recovery · open Settings":game.canSave?"Saved on this device":"Session only · back up in Settings",
       sections:[{title:"On the trail",columns:2,rows:[
+        ...(sharedOuting?realm.mapInvites():[]),
         ...(sharedOuting&&firstQuest?(firstQuest.routes||[{...firstQuest,label:firstQuest.title,detail:firstQuest.description}]):[]),
         ...(deferredLetter?[deferredButton()]:[]),
         ...(nextHunt?[nextHunt]:[]),
@@ -416,17 +491,19 @@
           [row("nav","Battle Opalclasp","first-battle","Pick a starter to lead at Clover Clearing.",{image:image("opalclasp",false)})]:[]),
         row("interact",near ? near.label : "Local landmarks",null,nearExit?(nearExit.blocked?"Read the closure notice":"Enter this region"):near?"Interact here":"Walk to a place",{key:"E"}),
         row("nav","Wild calls","wild-calls",risk.levels,{tone:risk.danger?"danger":undefined}),
+      ]},{title:"Team training",columns:2,rows:[
         ...(yard?[row("nav","Practice at the Chalkyard","practice-yard","Try a new lineup against a local opponent.")]:[]),
         ...(kitBench&&(!state.trailFittings?.claimed?.includes("camp")||state.crests.includes(0)&&!state.trailFittings?.claimed?.includes("crest"))?
           [row("walk-kind","Visit Pella’s field bench","camp|kit-bench","Collect new fittings for your own kin at camp.")]:[]),
+        ...(state.region===0&&trios?[row("walk-kind","Visit Three-Bell Landing","third-beat|third-beat","Meet Iona Rill by the river.")]:[]),
+        ...(mentor>=0?[row("walk-site","Meet Neri Pike",mentor,"Learn a field guard with a local kin.")]:[]),
+        ...(r.warden?[row("nav","Second Bell exhibition","second-bell","Battle for a return seal at "+r.lodge+". The official trial awards the "+r.crest+".")]:[]),
+        row("nav","Sparring Hall","sparring","Build a trio and battle",{key:"V"}),
+        ...(mill>=0?[row("walk-site","Reedbank Relay",mill,"Walk to Brookside Mill for a practice handoff.")]:[]),
+      ]},{title:"Regional adventures",columns:2,rows:[
         row("nav","Expedition","expedition","Regional commission",{key:"X"}),
         row("nav","The Missing Beat","chronicle","Finch’s journal",{key:"C"}),
         row("nav","Wildlife nearby","notebook","Follow a Wilderkin’s behavior",{key:"N"}),
-        ...(state.region===0&&trios?[row("walk-kind","Visit Three-Bell Landing","third-beat|third-beat","Meet Iona Rill by the river.")]:[]),
-        ...(mentor>=0?[row("walk-site","Meet Neri Pike",mentor,"Learn a field guard with a local kin.")]:[]),
-        ...(r.warden?[row("nav","Second Bell exhibition","second-bell","Scout Warden "+r.warden+"’s exhibition team at "+r.lodge+".")]:[]),
-        row("nav","Sparring Hall","sparring","Build a trio and battle",{key:"V"}),
-        ...(mill>=0?[row("walk-site","Reedbank Relay",mill,"Walk to Brookside Mill for a practice handoff.")]:[]),
         ...(localHollow?[row("view",localHollow.title,"hollow|"+localHollow.id,"Side trail at the trailpost")]:[]),
         row("nav","Field station","station","Requests and local games"),
       ]}]};
@@ -505,12 +582,16 @@
     const feedback=firstCoach?.feedback();
     const guided=lessonTurn||huntTurn;
     const alternate=rows=>guided?rows.filter(r=>!guided.rows.some(o=>o.id===r.id&&o.value===r.value)):rows;
+    const capture=actions.find(r=>r.id==="capture"&&!r.disabled);
+    const finisher=skills.find(r=>!r.disabled&&game.ordinaryForecast?.(r.value)?.finishes);
+    const decisionPair=capture&&finisher?[capture,finisher]:null;
     const remainingSkills=alternate(skills),habitat=call&&wildCommands(call);
     if(habitat&&guided)habitat.rows=alternate(habitat.rows);
     return {kind:"battle",title,kicker:scene().name+"   /   TURN "+b.turn,theme:scene().theme,ally:partyDisplay(p),foe:health,
       subtitle: b.remaining?.length ? (b.remaining.length+1)+" opponents remain" : scene().name,
       log:(feedback?[feedback.text]:b.log.slice(b.turn>1?-2:-1)).concat(warnings),
-      sections:[...[guided,cardNote].filter(Boolean),...(handoff?.tone==="primary"&&!lessonTurn?[{rows:[handoff]}]:[]),
+      decisions:decisionPair||guided?.rows,
+      sections:[...(decisionPair&&!lessonTurn&&!huntTurn?.rows.some(r=>r.id==="capture")?[{title:"Recruit or finish",rows:decisionPair}]:[]),...[guided,cardNote].filter(Boolean),...(handoff?.tone==="primary"&&!lessonTurn?[{rows:[handoff]}]:[]),
         ...(!lessonTurn&&habitat?[habitat]:[]),
         ...(remainingSkills.length?[{title:guided?"Other skills":"Choose a skill",columns:2,rows:remainingSkills}]:[]),
         {title:"Field commands",columns:3,rows:alternate(actions)},...(lessonTurn&&habitat?[habitat]:[]),
@@ -686,7 +767,7 @@
         ui.show({...replacementModel(pick),id:"replacement:"});
         await ui.animate({kind:"defeat",side:"ally",type:spec(pick.fallen).type,name:spec(pick.fallen).name});
       }
-      if (now) {screen={name:"battle",value:null};history=[];render();return;}
+      if (now) {screen={name:"battle",value:null};history=[];render();rememberVisit(null);return;}
       const crest=game.state.crests.length>oldCrests;
       const titles={victory:"Battle won",defeat:"Back at camp",recruited:spec(oldEnemy,false).name+" joined you",escaped:b.wildCall?.answered?"Back on the trail":"Safe retreat"};
       const exhibition={victory:"Exhibition won",defeat:"Exhibition lost",escaped:"Exhibition withdrawn"};
@@ -695,7 +776,7 @@
         firstBattle:res.firstBattle,firstExchange,fieldCard:cardTurn?fieldCard.resultSection():null,thirdBeat:b.trioPlayed&&window.WilderThirdBeat?.receipt(game,b.trioPlayed,row),fittingEvents:res.fittingEvents,src:crest?world.crestArt(game.state.region,true):res.kind==="recruited"?image(oldEnemy):null,
         caption:crest?scene().lodge:spec(oldEnemy,false).name};
       playTone(res.kind==="escaped"?"click":res.kind==="defeat"?"defeat":"reward");restorePlayer();
-      screen={name:"outcome",value:null};history=[];render();
+      screen={name:"outcome",value:null};history=[];chapter++;render();rememberVisit(null);
     } finally {resolving=false;if(trailUpdatePending)resumeUpdatedTrail();}
   }
   function useSkill(id) {
@@ -770,7 +851,7 @@
     if(kind==="guard-school")return go("guard-school");
     if(kind==="third-beat")return go("third-beat");
     if(kind==="twinbell")return go("twinbell");
-    if(kind==="switchyard")return go("switchyard",switchyard.entry());
+    if(kind==="switchyard")return go("switchyard");
     if(game.visitSite(kind)===false&&trailUpdatePending)return;
     if(kind==="wild"&&next?.name==="first-battle"&&next.value==="arrive"&&game.firstBattle.read().canStart)return fight("first-battle");
     if(next&&typeof next==="object")return go(next.name,next.value);
@@ -889,9 +970,10 @@
   }
   function action(id,value) {
     if (resolving || ui.busy) return;
+    if(!game.canSave&&id==="nav"&&value==="settings")return go("settings");
     if(screen.name==="wild-offer"&&id!=="capture"&&id!=="release-call"){render();return;}
     if(realm?.active()&&!String(id).startsWith("realm-duel-"))return go("online","duel","root");
-    if((screen.name==="online"||screen.name==="world"&&realm?.connected()&&["realm-event","realm-home","realm-arena","realm-queue"].includes(id))&&realm.act(id,value)){render();return;}
+    if((screen.name==="online"||screen.name==="world"&&realm?.connected()&&["realm-event","realm-home","realm-arena","realm-queue","realm-copy","realm-practice"].includes(id))&&realm.act(id,value)){render();return;}
     if(screen.name==="replacement"){
       if(id!=="replace-fainted"){render();return;}
       const chosen=game.replaceFainted(value);
@@ -901,6 +983,7 @@
       return;
     }
     switch (id) {
+      case "text-mode":ui.toggleText();render();return;
       case "first-battle-lead":{
         if(screen.name!=="first-battle")return;
         const picked=game.firstBattle.choose(value);
@@ -1024,8 +1107,16 @@
     return dest;
   }
   function sharedScreen(hash) {
+    if(!twin&&window.WilderLaunch?.loadDoubles&&/^#(?:twinbell(?:-ring)?|switchyard(?:-ring)?|signal-box)$/.test(hash)){
+      openDoubles(()=>{
+        if(window.location.hash!==hash)return;
+        const dest=sharedScreen(hash);
+        if(dest)go(dest.name,dest.value);
+      });
+      return null;
+    }
     const fields=hash.split("/");
-    if(realm?.fromHash(hash))return deliverScreen({name:"online",value:realm.active()?"duel":null});
+    if(realm?.fromHash(hash))return deliverScreen({name:hash===realm.mapAddress()&&realm.connected()&&!realm.active()?"world":"online",value:realm.active()?"duel":null});
     if(hash==="#first-battle"||hash==="#first-trail/partners"&&trailPartners)return deliverScreen({
       name:game.state.battle?"battle":hash==="#first-battle"?"first-battle":"first-trail-partners",value:null
     });
@@ -1213,11 +1304,15 @@
     else if(place==="field-card")go(fieldCard.tag(fieldCard.current())?"field-card":"practice-yard",null,"root");
     else if(["kit-bench","kit-notes","formations","formation","formation-replace"].includes(place))go(place.startsWith("formation")?"formations":place,null,"root");
     else go("world",null,"root");
-    notify("Loaded your newer trail from another tab.");
+    notify(game.saveRecovery?"The stored save is unreadable. Open Trail settings for recovery.":"Loaded your newer trail from another tab.");
   }
   window.addEventListener("wilder-trail-updated",()=>{
     stopWalk();locationRevision++;trailUpdatePending=true;
     window.setTimeout(resumeUpdatedTrail,0);
+  });
+  window.addEventListener("wilder-save-status",()=>{
+    if(!resolving&&["world","settings"].includes(screen.name))render(true);
+    if(!game.canSave)notify("Autosave paused. Download a campaign backup in Trail settings before closing this tab.");
   });
   restorePlayer(false);fieldCard?.restore();
   realm?.restore();
@@ -1229,7 +1324,11 @@
   else if(circuit.hasInvitation())screen={name:"circuit",value:null};
   followScout(window.location.hash);
   followHallFilm(window.location.hash);
-  window.addEventListener("hashchange",()=>{
+  rememberVisit();
+  window.addEventListener("popstate",revisit);
+  window.addEventListener("hashchange",event=>{
+    if(event?.newURL&&event.newURL===lastHashPop){lastHashPop=null;return;}
+    lastHashPop=null;
     locationRevision++;
     if(followScout(window.location.hash)||followHallFilm(window.location.hash))return;
     const dest=sharedScreen(window.location.hash);if(dest)go(dest.name,dest.value);
@@ -1244,4 +1343,5 @@
   window.addEventListener("pagehide",()=>{if(realm?.connected())realm.suspend();});
   window.addEventListener("pageshow",e=>{if(e.persisted){realm?.restore(true);render();}});
   render();
+  window.WilderLaunch?.ready();
 })();

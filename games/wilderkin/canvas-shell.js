@@ -116,10 +116,12 @@
     const live=document.createElement("div");
     mirror.className=live.className="wilder-assist";
     mirror.setAttribute("aria-label","Game controls");live.setAttribute("role","status");live.setAttribute("aria-live","polite");
-    canvas.after(mirror,live);
+    const leave=document.createElement("a");
+    leave.href="../../";leave.className="wilder-leave";leave.textContent="Leave Wilderkin";
+    canvas.after(mirror,live,leave);
     canvas.tabIndex=0;
     canvas.setAttribute("role","application");
-    canvas.setAttribute("aria-label","Wilderkin adventure. Press Tab to select, Enter to act, or F1 to open the trail menu.");
+    canvas.setAttribute("aria-label","Wilderkin adventure. Press Tab to select, Enter to act, or F1 for the trail menu. Shift Escape focuses Leave Wilderkin.");
     let model={id:"loading",kind:"page",title:"Wilderkin",sections:[]};
     let width=0,height=0,ratio=1,frame=0,lastPaint=0,dirty=true,scroll=0,limit=0;
     let hits=[],focus="",hover="",pointer=null,menu=false,menuScroll=0,menuLimit=0,menuClip=null;
@@ -128,8 +130,19 @@
     let passedLeads={};
     let impactLog=null;
     const healthLabels={};
-    let mirrorSig="",destroyed=false;
-    const surface = {get busy(){return Boolean(fx);},show,animate,toast,invalidate:()=>{dirty=true;},destroy};
+    let mirrorSig="",destroyed=false,largeText=false;
+    try{largeText=window.localStorage?.getItem("wilderkin.largeText")==="on";}catch{}
+    function applyTextMode(){
+      mirror.className=largeText?"wilder-assist wilder-reading":"wilder-assist";
+      mirrorSig="";
+    }
+    applyTextMode();
+    function toggleText(){
+      largeText=!largeText;
+      try{window.localStorage?.setItem("wilderkin.largeText",largeText?"on":"off");}catch{}
+      applyTextMode();dirty=true;
+    }
+    const surface = {get largeText(){return largeText;},toggleText,get busy(){return Boolean(fx);},show,animate,toast,invalidate:()=>{dirty=true;},destroy};
     const twinField=window.WilderTwinField?.create({c,rect,ellipse,label,getFont,fit,source,picture,rightFacing,control,highlighted});
     function source(src){
       if(!src)return null;
@@ -241,12 +254,18 @@
         symbol(c,"back",bx+9,20,14,C.cream);bx+=44;
       }
       picture("ui/wilderkin.png",bx,9,37,header-21);
-      label(c,"Wilderkin",bx+41,Math.max(8,(header-31)/2),29,"#fff1c9","title",700);
+      if(!model.saveWarning||width>=540)label(c,"Wilderkin",bx+41,Math.max(8,(header-31)/2),29,"#fff1c9","title",700);
       const menuW=width<410?73:104,mx=width-margin-menuW;
       const hit=control({id:"$menu",label:menu?"Close menu":"Trail menu"},mx,9,menuW,header-19,"header",toggleMenu);
       rect(c,mx,10,menuW,header-21,highlighted(hit)?"#52684a":"#324e3c","#6a8064");
       symbol(c,"menu",mx+10,(header-12)/2,12,C.cream);label(c,width<410?"Menu":"Trail menu",mx+29,(header-16)/2,13,C.cream,"body",700);
-      if(width>770 && model.status){
+      if(model.saveWarning){
+        const warnWidth=width<540?Math.max(60,mx-bx-48):132;
+        const warnX=width<540?bx+40:mx-warnWidth-10;
+        const hit=control({id:"nav",value:"settings",label:model.saveWarning+" · Trail settings"},warnX,8,warnWidth,header-17,"header");
+        rect(c,warnX,8,warnWidth,header-17,highlighted(hit)?"#ffe4a5":"#ecd191","#c0984f");
+        label(c,model.saveWarning,warnX+warnWidth/2,(header-16)/2,13,"#43351a","body",700,"center");
+      }else if(width>770 && model.status){
         c.font=getFont(12,"mono",600);
         const status=fit(c,model.status,Math.min(width*.38,430));
         label(c,status,mx-18,(header-16)/2,12,"#c7d4b8","mono",600,"right");
@@ -258,7 +277,8 @@
     }
     function dock() {
       const items=shortcutList(),mobile=width<720;
-      const shown=items.slice(0,mobile?4:Math.min(8,Math.max(4,Math.floor(width/130))));
+      const mobileNav=mobile&&items.some(s=>s.value==="party")?["world","party","quests","atlas"].map(value=>items.find(s=>s.id==="nav"&&s.value===value)).filter(Boolean):items;
+      const shown=mobileNav.slice(0,mobile?4:Math.min(8,Math.max(4,Math.floor(width/130))));
       const y=height-footer;
       rect(c,0,y,width,footer,C.forest);rect(c,0,y,width,1,"#76916e");
       if(!shown.length)return;
@@ -724,6 +744,29 @@
         if(w>maxWidth){x+=(w-maxWidth)/2;w=maxWidth;}
       }
       const desktop=w>=860;
+      if(model.kind==="battle"&&width<680&&height<=700){
+        // Give the current decision a stable spot even when the exchange log grows.
+        const decisions=[],seen=new Set();
+        for(const r of [...(model.decisions||[]),...parts.flatMap(s=>s.rows||[])]){
+          const key=r.id+"|"+String(r.value??"");
+          if(r.id&&!r.disabled&&!seen.has(key)){decisions.push(r);seen.add(key);}
+          if(decisions.length===2)break;
+        }
+        const turn=model.kicker?.split("/").at(-1)?.trim()||model.title;
+        label(c,turn,x,y,13,C.moss,"mono",700);
+        let sy=y+23;
+        for(const r of decisions){
+          const h=47,hit=control(r,x,sy,w,h);
+          rect(c,x,sy,w,h,highlighted(hit)?C.moss:C.forest,C.forest);
+          c.font=getFont(15,"body",700);label(c,fit(c,r.label,w-16),x+8,sy+3,15,C.cream,"body",700);
+          c.font=getFont(12,"body",500);label(c,fit(c,r.detail||model.title,w-16),x+8,sy+25,12,"#dfe8cd","body",500);
+          sy+=h+5;
+        }
+        if(model.lineups)sy+=matchTeams(model.lineups,x,sy,w)+4;
+        sy+=battle(x,sy,w,t)+10;
+        for(const part of parts)sy+=section(part,x,sy,w,t);
+        return sy;
+      }
       const parts=model.sections||[];
       if(twinField&&model.twinField){
         const top=y+titleBlock(x,y,w)+10;
@@ -1234,23 +1277,40 @@
         for(const cell of [...(s.rows||[]),...(s.grid?.cells||[])])if(!cell.id)narration.push(cell.label,cell.detail);
       }
       const text=narration.filter(Boolean).join(". ");
-      const sig=text+"|"+[...unique].map(([key,h])=>key+(h.disabled?"_off":"")+(h.row.aria||"")+(h.row.detail||"")+(h.row.badge||"")).join(";");
+      const sig=model.id+"|"+text+"|"+[...unique].map(([key,h])=>key+(h.disabled?"_off":"")+(h.row.aria||"")+(h.row.detail||"")+(h.row.badge||"")).join(";");
       if(sig===mirrorSig)return;
       mirrorSig=sig;
-      const reading=document.createElement("p");reading.textContent=text;
-      const fragment=document.createDocumentFragment();fragment.append(reading);
+      const hadFocus=mirror.contains?.(document.activeElement);
+      const lastUid=hadFocus?document.activeElement.dataset.uid:null;
+      const fragment=document.createDocumentFragment();
+      const reading=document.createElement("p");
+      reading.textContent=text;
+      if(largeText){
+        const title=document.createElement("h1");title.textContent=model.title||"Wilderkin";fragment.append(title);
+        const summary=document.createElement("p");
+        summary.textContent=[model.saveWarning?model.status:"",model.subtitle, ...[passedLeads.ally||model.ally,passedLeads.foe||model.foe].filter(Boolean)
+          .map(k=>k.name+" · "+k.hp+"/"+k.maxHp+" HP")].filter(Boolean).join(" · ");
+        fragment.append(summary);
+      }else fragment.append(reading);
+      let firstButton=null,previousButton=null;
       for(const hit of unique.values()){
         const b=document.createElement("button");
-        b.type="button";b.tabIndex=-1;b.disabled=hit.disabled;
+        b.type="button";b.disabled=hit.disabled;
         b.textContent=[hit.row.aria||hit.row.label,hit.row.badge,hit.row.detail].filter(Boolean).join(". ");
-        b.dataset.action=hit.row.id;if(hit.row.value!==undefined)b.dataset.value=String(hit.row.value);
+        b.dataset.uid=hit.uid;b.dataset.action=hit.row.id;if(hit.row.value!==undefined)b.dataset.value=String(hit.row.value);
+        if(!b.disabled){firstButton??=b;if(lastUid===hit.uid)previousButton=b;}
         b.addEventListener("focus",()=>{
           const current=hits.find(h=>h.uid===hit.uid);
-          if(current && !current.disabled){focus=current.uid;ensureVisible(current);}
+          if(current && !current.disabled){focus=current.uid;if(!largeText)ensureVisible(current);else dirty=true;}
         });
-        b.addEventListener("click",()=>run(hit));fragment.append(b);
+        b.addEventListener("click",()=>run(hits.find(h=>h.uid===hit.uid)));fragment.append(b);
+      }
+      if(largeText){
+        const notes=document.createElement("details"),heading=document.createElement("summary");
+        heading.textContent="Read field notes and battle log";notes.append(heading,reading);fragment.append(notes);
       }
       mirror.replaceChildren(fragment);
+      if(hadFocus)(previousButton||firstButton||canvas).focus({preventScroll:true});
     }
     function render(t) {
       if(destroyed || width<2 || height<2)return;
@@ -1335,26 +1395,28 @@
       dirty=true;render(performance.now());
     }
     function moveFocus(dir) {
-      const options=hits.filter(h=>!h.disabled && !h.pointerOnly && h.area!=="map" && (menu?h.area.startsWith("menu"):!h.area.startsWith("menu")));
+      const options=Array.from(mirror.querySelectorAll("button:enabled"));
       if(!options.length)return;
-      const index=options.findIndex(h=>h.uid===focus);
+      const index=options.indexOf(document.activeElement);
       const next=index<0?(dir>0?0:options.length-1):(index+dir+options.length)%options.length;
-      focus=options[next].uid;ensureVisible(options[next]);
-      live.textContent=options[next].row.aria||options[next].row.label;
+      options[next].focus();
     }
     function onKey(e) {
       if(e.defaultPrevented||e.isComposing||e.ctrlKey||e.metaKey||e.altKey || e.target?.matches?.("input,textarea,select,[contenteditable=true]"))return;
-      if(fx){e.preventDefault();return;}
-      const key=e.key.toLowerCase();
+      const key=e.key.toLowerCase(),target=e.target;
+      if(target && target!==canvas && target!==document.body && target!==document.documentElement && !mirror.contains?.(target))return;
+      if(key==="tab")return;
+      if(key==="escape"&&e.shiftKey){e.preventDefault();leave.focus();return;}
+      if(fx){return;}
+      if(mirror.contains?.(target)&&(key==="enter"||key===" "))return;
       if(menu){
         if(key==="escape"||key==="f1"){e.preventDefault();toggleMenu();return;}
-        if(key==="tab"||key.startsWith("arrow")){e.preventDefault();moveFocus((key==="tab"&&e.shiftKey)||key==="arrowup"||key==="arrowleft"?-1:1);return;}
+        if(key.startsWith("arrow")){e.preventDefault();moveFocus(key==="arrowup"||key==="arrowleft"?-1:1);return;}
         if(key==="enter"||key===" "){e.preventDefault();run(hits.find(h=>h.uid===focus));return;}
         const short=shortcutList().find(s=>s.key?.toLowerCase()===key);
         if(short){e.preventDefault();menu=false;activeControl(short);dirty=true;}
         return;
       }
-      if(key==="tab"){e.preventDefault();moveFocus(e.shiftKey?-1:1);return;}
       if((key==="enter"||key===" ") && focus){e.preventDefault();run(hits.find(h=>h.uid===focus));return;}
       if(handlers.key?.(e)){e.preventDefault();dirty=true;return;}
       if(key==="escape"&&model.back){e.preventDefault();activeControl(model.back);return;}
@@ -1397,7 +1459,7 @@
     canvas.addEventListener("pointercancel",()=>{pointer=null;},opts);
     canvas.addEventListener("pointerleave",()=>{hover="";dirty=true;},opts);
     function destroy(){
-      destroyed=true;events.abort();observer.disconnect();cancelAnimationFrame(frame);mirror.remove();live.remove();
+      destroyed=true;events.abort();observer.disconnect();cancelAnimationFrame(frame);mirror.remove();live.remove();leave.remove();
     }
     frame=requestAnimationFrame(tick);
     return surface;

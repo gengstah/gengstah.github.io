@@ -160,6 +160,31 @@ test("a live map avatar cannot keep an unresponsive duel seat open forever",asyn
   assert.equal(a.d.read().online,false);
   h.time(45500);assert.equal(a.d.read().result,"no-contest");
 });
+async function waitConnected(h,seconds){
+  for(let i=0;i<seconds;i+=10){h.time(10000);await h.flush();}
+}
+test("a connected idle turn allows one nudge then a mutually delivered no-result exit, even when its first receipt is lost",async()=>{
+  const h=world();await h.duel();const actor=h.acting(),waiter=h.a===actor?h.b:h.a;
+  await waitConnected(h,50);
+  const controls=()=>allRows(waiter.d.model());
+  assert.ok(controls().some(r=>r.id==="realm-duel-nudge"));assert.ok(!controls().some(r=>r.id==="realm-duel-idle-end"));
+  waiter.d.act("realm-duel-nudge");waiter.d.act("realm-duel-nudge");await h.flush();
+  assert.match(actor.d.model().subtitle,/opponent is ready/);
+  assert.equal(h.log.filter(f=>f.msg.op==="nudge").length,1);
+  await waitConnected(h,40);assert.ok(controls().some(r=>r.id==="realm-duel-idle-end"));
+  waiter.d.act("realm-duel-idle-end");h.deliver(h.queue.shift());
+  assert.equal(actor.d.read().result,"no-contest");
+  h.queue.length=0;actor.d.dismiss();assert.equal(waiter.d.read().result,null);
+  h.time(16000);await h.flush();assert.equal(waiter.d.read().result,"no-contest");
+});
+test("an idle request arriving after the actor has moved cannot end the new turn",async()=>{
+  const h=world();await h.duel();const actor=h.acting(),waiter=h.a===actor?h.b:h.a;
+  await waitConnected(h,90);waiter.d.act("realm-duel-idle-end");const old=h.queue.shift();
+  const move=actor.sim.options(actor.d.read().record.pos).find(m=>m.available&&m.kind==="attack");
+  assert.ok(actor.d.move(move.id).ok);assert.equal(h.deliver(old),false);await h.flush();
+  assert.ok([waiter,actor].every(c=>c.d.read().phase==="active"&&c.d.read().record.moves.length===1));
+  assert.ok(!allRows(waiter.d.model()).some(r=>r.id==="realm-duel-idle-end"));
+});
 test("arena keycaps select the same live actions as buttons and held keys never spend two turns",async()=>{
   const h=world();await h.duel();const c=h.acting(),d=c.d;
   assert.ok(d.key({key:"D"}));assert.equal(d.model().title,"Team moves");

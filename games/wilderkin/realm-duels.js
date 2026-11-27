@@ -2,6 +2,7 @@
 (() => {
   "use strict";
   const storageKey="wilderkin.realm-duel.v1",inviteMs=45000,graceMs=45000,saveMs=90000,retryMs=4500;
+  const nudgeMs=45000,idleExitMs=90000;
   const token=/^[0-9a-f]{24}$/,sealPattern=/^[0-9a-f]{64}$/,tapePattern=/^[A-Z2]{0,64}$/;
   const peerId=id=>typeof id==="string"&&/^[A-Za-z0-9_-]{1,128}$/.test(id);
   const isToken=id=>typeof id==="string"&&token.test(id);
@@ -96,6 +97,7 @@
     function transmit(){
       if(!s)return;
       s.lastSent=now();
+      if(s.idleClosing)sendTo(s.peer,s.id,"idle-end",{guest:s.guest,tape:s.tape});
       if(s.pos&&!s.abandoned)sendTo(s.peer,s.id,"turn",frame());
       else if(s.phase==="outgoing"&&s.seal)sendTo(s.peer,s.id,"offer",{seal:s.seal});
       else if(s.phase==="incoming"&&s.guest)sendTo(s.peer,s.id,"join",{guest:s.guest,team:s.local.slice()});
@@ -104,7 +106,19 @@
       const sides=s.seat?[s.remote,s.local]:[s.local,s.remote];
       const first=(parseInt(s.secret.slice(-2),16)^parseInt(s.guest.slice(-2),16))&1;
       s.pos=sim.start(sides[0],sides[1],first,undefined,3);
-      s.phase="active";s.acked=false;s.expiresAt=0;panel="";film=null;
+      s.phase="active";s.acked=false;s.expiresAt=0;panel="";film=null;resetIdle();
+    }
+    function resetIdle(){
+      s.turnSince=now();s.idleStage=0;s.nudged=false;s.idleClosing=false;
+    }
+    function idleStage(){
+      if(s.phase!=="active"||s.away!==null)return 0;
+      const elapsed=now()-s.turnSince;
+      return elapsed>=idleExitMs?2:elapsed>=nudgeMs?1:0;
+    }
+    function endIdle(){
+      s.phase="done";s.abandoned=true;s.idleClosing=false;panel="";film=null;
+      changed("The friendly duel ended without a result after an idle turn.");
     }
     function resume(id){
       if(!peerId(id))return read();
@@ -174,6 +188,7 @@
         moves.push(move.id);
       }
       s.pos=p;s.moves.push(...moves);s.tape=tape;
+      if(moves.length)resetIdle();
       return true;
     }
     function sync(msg){
@@ -182,6 +197,7 @@
       const old=s.tape,flags=s.yields,away=s.away,remote=1-s.seat;
       if(!old.startsWith(msg.tape)&&!applyTape(msg.tape,remote))return false;
       if(msg.yielded)s.yields|=1<<remote;
+      if(away!==null)resetIdle();
       s.away=null;s.lastPeer=now();s.confirmed=true;s.acked=msg.tape===s.tape&&!(s.yields&(1<<s.seat));
       if(winner()!==null)s.phase="done";
       if(old!==s.tape||flags!==s.yields||away!==null){
@@ -247,9 +263,26 @@
         return true;
       }
       if(!s.pos||msg.guest!==s.guest)return false;
+      if(op==="nudge"||op==="idle-end"||op==="idle-agreed"){
+        if(msg.tape!==s.tape)return false;
+        if(op==="idle-agreed"){
+          if(!s.idleClosing)return false;
+          endIdle();return true;
+        }
+        if(s.pos.turn!==s.seat)return false;
+        if(s.abandoned&&op==="idle-end"){sendTo(peer,id,"idle-agreed",{guest:s.guest,tape:s.tape});return true;}
+        if(!idleStage())return false;
+        if(op==="nudge"){
+          if(!s.nudged){s.nudged=true;changed("Your opponent is ready when you are.");}
+        }else{
+          const body={guest:s.guest,tape:s.tape};
+          endIdle();later(peer,id,"idle-agreed",body);sendTo(peer,id,"idle-agreed",body);
+        }
+        return true;
+      }
       if(op==="turn")return sync(msg);
       if(op==="ack"&&msg.tape===s.tape&&msg.yields===s.yields){
-        s.acked=true;s.confirmed=true;s.lastPeer=now();if(s.away!==null){s.away=null;changed("Your opponent is back.");}return true;
+        s.acked=true;s.confirmed=true;s.lastPeer=now();if(s.away!==null){s.away=null;resetIdle();changed("Your opponent is back.");}return true;
       }
       return false;
     }
@@ -298,6 +331,8 @@
       if(s.phase==="active"&&s.away===null&&now()-s.lastPeer>=30000){
         s.away=now();s.acked=false;changed("Waiting to reconnect to the other duel seat.");
       }
+      const stage=idleStage();
+      if(stage!==s.idleStage){s.idleStage=stage;onChange(read());}
       if(!s.abandoned&&(!s.acked||s.phase==="active")&&now()-s.lastSent>=(s.acked?15000:retryMs))transmit();
       if(s.phase==="active"&&now()-savedAt>=15000)save();
     }
@@ -309,6 +344,14 @@
       m.kicker=(m.kicker||"TRAIL DUEL").replace("BELLPOST","TRAIL DUEL");
       if(s.yields===3&&film===null){m.title="Match drawn";m.subtitle="Both travelers conceded.";}
       if(s.away!==null&&s.phase==="active")m.subtitle="Opponent disconnected. Waiting up to 45 seconds for them to return.";
+      if(idleStage()&&film===null&&!panel){
+        if(s.pos.turn===s.seat&&s.nudged)m.subtitle="Your opponent is ready when you are. Choose a move to continue.";
+        if(s.pos.turn!==s.seat){
+          m.sections.push({title:"Waiting for a move",text:"Both seats are connected. Your opponent is choosing a move.",rows:[
+            row("realm-duel-nudge",s.nudged?"Nudge sent":"Nudge your opponent",null,"Send one reminder this turn.",{disabled:s.nudged}),
+            ...(idleStage()===2?[row("realm-duel-idle-end",s.idleClosing?"Waiting for the other seat":"End without a result",null,"Close this idle friendly duel for both players.",{disabled:s.idleClosing})]:[])]});
+        }
+      }
       for(const section of m.sections||[])for(const b of section.rows||[]){
         if(b.id?.startsWith("post-"))b.id=b.id.replace("post-","realm-duel-");
         if(s.away!==null&&b.id==="realm-duel-move")b.disabled=true;
@@ -322,6 +365,10 @@
     function act(id,value){
       if(typeof id!=="string"||!id.startsWith("realm-duel-"))return false;
       switch(id.slice(11)){
+        case "nudge":
+          if(s&&idleStage()&&s.pos.turn!==s.seat&&!s.nudged){s.nudged=true;sendTo(s.peer,s.id,"nudge",{guest:s.guest,tape:s.tape});changed("Nudge sent.");}break;
+        case "idle-end":
+          if(s&&idleStage()===2&&s.pos.turn!==s.seat&&!s.idleClosing){s.idleClosing=true;changed("Waiting for the other seat to close the duel.");transmit();}break;
         case "move":move(value);break;
         case "panel":if(!["partners","crew"].includes(value))return false;panel=value;film=null;onChange(read());break;
         case "film":case "film-step":if(!Number.isInteger(value))return false;film=value;panel="";onChange(read());break;

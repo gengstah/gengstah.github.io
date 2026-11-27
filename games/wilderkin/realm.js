@@ -9,7 +9,7 @@
   const shortStatus={connecting:"Connecting",online:"Online",local:"Local tabs · retrying internet",offline:"Reconnecting",closed:"Offline"};
   function create({game,world,row,image,go,notify,refresh,location,syncPosition,walkTo,regionPage}){
     let conn=null,clock=null,status="closed",room=publicRoom,requested=publicRoom,availability="quiet";
-    let roster=[],search="",playersPage=0,lastPhase="idle",matchAt=0,closing=false,restoring=false;
+    let roster=[],search="",playersPage=0,lastPhase="idle",matchAt=0,closing=false,restoring=false,challengePreference="quiet";
     let storage=null,localStorage=null;
     try{storage=window.sessionStorage;localStorage=window.localStorage;}catch{}
     const state=()=>game.state,transport=window.WilderRealmTransport;
@@ -51,7 +51,7 @@
     }
     function remember(){
       try{
-        if(conn)storage?.setItem(sessionKey,JSON.stringify({room,id:conn.id,availability,roster:draft()}));
+        if(conn)storage?.setItem(sessionKey,JSON.stringify({room,id:conn.id,availability,challengePreference,roster:draft()}));
         else storage?.removeItem(sessionKey);
       }catch{}
     }
@@ -67,7 +67,7 @@
       if(d.phase!==old){
         if(d.phase==="incoming")notify(personName(d.peer)+" invited you to a friendly duel.");
         if(d.phase==="active"){
-          if(availability==="queue")availability="open";
+          if(availability==="queue")availability=challengePreference;
           remember();go("online","duel","root");
         }
         if(d.phase==="done"&&old==="active")go("online","duel","root");
@@ -103,6 +103,7 @@
       if(conn&&room===to)return go("online");
       if(conn)disconnect();
       room=requested=to;playersPage=0;status="connecting";availability=session&&["open","queue"].includes(session.availability)?session.availability:"quiet";
+      challengePreference=availability==="open"||availability==="queue"&&session?.challengePreference==="open"?"open":"quiet";
       if(Array.isArray(session?.roster)&&session.roster.length===3&&new Set(session.roster).size===3)roster=session.roster;
       try{
         const active=transport.connect({room:"wilderkin-v1-"+room,id:session?.id,
@@ -147,6 +148,10 @@
       if(sameTab){connect(saved.room,saved);if(duel.read().phase==="active")go("online","duel","root");}
     }
     const button=(id,label,value=null,detail="",extra={})=>row("realm-"+id,label,value,detail,extra);
+    const inviteButton=()=>button("copy","Invite a friend",null,"Copy the link to "+roomName(room)+".");
+    const practiceButton=()=>button("practice","Practice at the Chalkyard",null,"Try a battle while waiting for a friend.");
+    const emptyRoom=()=>!people().length;
+    const mapInvites=()=>emptyRoom()?[practiceButton()]:[inviteButton()];
     function banner(){
       if(!conn)return {label:"Play online",detail:"See other couriers, tend lanterns and duel.",id:"nav",value:"online"};
       const d=duel.read(),count=people().filter(p=>p.region===state().region).length;
@@ -159,10 +164,12 @@
       const event=field.event();if(!event)return null;
       const d=duel.read();
       const find=d.phase==="idle"&&availability!=="queue";
+      const noPeers=emptyRoom()&&d.phase==="idle"&&availability!=="queue";
       const title=d.phase==="incoming"?"Duel invitation":d.phase==="done"?"Duel result":find?"Find a duel":"Duel gathering";
       return {title:roomName(room),belowMap:true,routes:[
         button("event","Waylight relay",null,event.lit+" / 3 lanterns burning",{badge:"PUBLIC EVENT",image:"ui/lantern-commons.png",tone:"primary"}),
-        button(find?"queue":d.phase==="done"?"arena":"home",title,null,d.phase==="incoming"?"Review the challenge":find?"Queue with your trio":"Visit the gathering",{badge:"FRIENDLY PVP",image:arenaImage(draft()[0])})]};
+        noPeers?{...inviteButton(),badge:"ONLY YOU HERE",image:arenaImage(draft()[0])}:
+          button(find?"queue":d.phase==="done"?"arena":"home",title,null,d.phase==="incoming"?"Review the challenge":find?"Queue with your trio":"Visit the gathering",{badge:"FRIENDLY PVP",image:arenaImage(draft()[0])})]};
     }
     function invitation(){
       const d=duel.read();
@@ -183,8 +190,25 @@
           ...(p.region===state().region?[button("follow","Walk to their tile",id)]:[button("region","Locate on the atlas",p.region)]),
           button("emote","Wave","wave","Send a wave to this region."),button("home","Back to the commons")]}]};
     }
+    function proposed(ids,slot,id){
+      if(!Number.isInteger(slot)||slot<0||slot>=3||!state().party.some(p=>p.id===id)||game.species[id]?.bonus)return null;
+      const next=ids.slice(),other=ids.indexOf(id);
+      if(other>=0)next[other]=ids[slot];next[slot]=id;return next;
+    }
+    function openingDuets(ids){
+      return ids.slice(1).map(mate=>window.WilderDuets.score(game.species[ids[0]].type,game.species[mate].type).name);
+    }
     function teamPage(view){
-      const ids=draft(),slot=Number(view.split(":")[1]),page=Math.max(0,Number(view.split(":")[2])||0);
+      const ids=draft(),[,rawSlot,detail]=view.split(":"),slot=Number(rawSlot),page=Math.max(0,Number(detail)||0);
+      if(view.startsWith("preview:")){
+        const next=proposed(ids,slot,detail);if(!next)return teamPage("team");
+        const before=openingDuets(ids),after=openingDuets(next),id=next[slot],skill=game.species[id].skills.find(s=>!s.trained&&s.kind==="attack");
+        return {title:"Try "+name(id)+" in your trio",kicker:"TRIO PREVIEW",subtitle:next.map(name).join(" · "),sections:[
+          {title:"Arena move",text:name(id)+" can use "+skill.name+" ("+skill.type+")."},
+          {title:"Opening duets",text:[...after.filter(d=>!before.includes(d)).map(d=>"Gain "+d+"."),
+            ...before.filter(d=>!after.includes(d)).map(d=>"Lose "+d+".")].join(" ")||"Keep "+after.join(" and ")+"."},
+          {rows:[button("confirm-pick","Use this lineup",slot+"|"+id,null,{tone:"primary"}),button("slot","Compare another companion",slot),button("team","Keep current trio")]}]};
+      }
       const replace=view.startsWith("pick:");
       if(!replace)return {title:"Your duel trio",kicker:"FRIENDLY PVP   /   LEVEL 20",subtitle:"Your first kin leads. Everyone starts at full health with their species’ arena skills.",
         sections:[{rows:ids.map((id,i)=>button("slot",name(id),i,game.species[id].types.join(" / "),{image:arenaImage(id),badge:i===0?"LEAD":"RESERVE "+i}))},
@@ -228,23 +252,24 @@
       return {title:roomName(room),kicker:(shortStatus[status]||"Connecting").toUpperCase()+"   /   "+(me?.name||"COURIER"),
         subtitle:regionName(r)+" · "+local+" other "+(local===1?"courier":"couriers")+" here · "+list.length+" across the realm.",
         sections:[...[invitation()].filter(Boolean),{rows:[
-          button("map","Explore together",null,"See moving couriers and lanterns on the map.",{tone:"primary"}),
+          button("map","Explore together",null,"See moving couriers and lanterns on the map.",{tone:"primary"}),inviteButton(),
           ...(e?[button("event",e.title,null,e.lit+" / "+e.total+" lanterns lit"+(e.earned?" · pin earned":""))]:[])]},
           {title:"Friendly duels",rows:[
-            ...(d.phase==="idle"?[button("queue",availability==="queue"?"Leave the duel queue":"Find a duel",null,
-              availability==="queue"?"Searching this realm for another willing player.":"Match with another player looking to battle."),
-              button("toggle",availability==="quiet"?"Open to challenges":"Mute challenges",null,availability==="quiet"?"Allow invitations while you explore.":"Explore quietly.")]:[]),
+            ...(d.phase==="idle"?[...(list.length||availability==="queue"?[button("queue",availability==="queue"?"Leave the duel queue":"Find a duel",null,
+              availability==="queue"?"Waiting for a willing courier in this realm.":"Match with a courier looking to battle.")]:[practiceButton()]),
+              ...(availability==="queue"?[]:[button("toggle",availability==="quiet"?"Open to challenges":"Mute challenges",null,availability==="quiet"?"Allow invitations while you explore.":"Explore quietly.")])]:[]),
             ...(["idle","incoming"].includes(d.phase)&&!d.locking?[button("team","Choose your trio",null,draft().map(name).join(" / "))]:[])]},
           {title:"Players in the realm",text:list.length?(lastPage?"Page "+(playersPage+1)+" of "+(lastPage+1):""):
             status==="online"?"No other couriers in view yet. A friend can join with the realm link.":status==="local"?"Searching for the internet relay. Tabs in this browser can still meet here.":
             "Looking for other couriers…",
             rows:[...travelers,...(playersPage?[button("players","Previous couriers",playersPage-1)]:[]),...(playersPage<lastPage?[button("players","More couriers",playersPage+1)]:[])]},
-          {title:"Gathering",rows:[button("copy","Copy realm link"),...["wave","rally","thanks"].map((v,i)=>button("emote",["Wave","Rally here","Thank the group"][i],v)),
+          {title:"Gathering",rows:[...["wave","rally","thanks"].map((v,i)=>button("emote",["Wave","Rally here","Thank the group"][i],v)),
             button("cloak","Choose your courier cloak"),button("worlds","Change public world"),button("leave","Leave online mode")]}]};
     }
     function model(view){
       if(view==="worlds")return {title:"Public worlds",kicker:"LANTERN COMMONS",subtitle:"Each world has its own couriers, lantern events and duel queue. Choose the same world to meet friends.",
-        sections:[{columns:2,rows:worlds.map((id,i)=>button("world","World "+(i+1),id,roomName(id),{badge:conn&&id===room?"YOU ARE HERE":""}))}]};
+        sections:[{columns:2,rows:worlds.map((id,i)=>button("world","World "+(i+1),id,conn&&id===room?
+          roomName(id)+" · "+(people().length+1)+" here including you":roomName(id)+" · Population unknown",{badge:conn&&id===room?"YOU ARE HERE":""}))}]};
       if(!conn||requested!==room)return home();
       if(view==="duel"&&["active","done"].includes(duel.read().phase))return duel.model();
       if(view==="event")return eventPage();
@@ -252,7 +277,7 @@
         sections:[{rows:field.looks().map(l=>button("wear",l.name,l.id,l.current?"Your current cloak":"Wear this cloak",{image:portrait(l),badge:l.current?"EQUIPPED":""}))},
           {rows:[button("home","Back to the commons")]}]};
       if(view?.startsWith("person:"))return profile(view.slice(7));
-      if(view==="team"||view?.startsWith("pick:"))return teamPage(view);
+      if(view==="team"||view?.startsWith("pick:")||view?.startsWith("preview:"))return teamPage(view);
       return home();
     }
     function open(view=null){go("online",view);}
@@ -286,6 +311,7 @@
       if(!conn)return true;
       switch(id){
         case "realm-home":requested=room;open();break;
+        case "realm-practice":go("practice-yard");break;
         case "realm-arena":open("duel");break;
         case "realm-event":open("event");break;
         case "realm-lantern":lantern(v);break;
@@ -300,17 +326,18 @@
         case "realm-slot":search="";open("pick:"+v+":0");break;
         case "realm-pickpage":open("pick:"+v);break;
         case "realm-search":{const q=window.prompt?.("Search your companions by name or affinity",search);if(q!=null)search=q.trim().slice(0,45).toLowerCase();open("pick:"+v+":0");break;}
-        case "realm-pick":{
-          const [s,id]=String(v).split("|"),slot=Number(s),ids=draft();
-          if(!Number.isInteger(slot)||slot<0||slot>2||!state().party.some(p=>p.id===id))break;
-          const other=ids.indexOf(id);if(other>=0)ids[other]=ids[slot];ids[slot]=id;roster=ids;remember();open("team");break;
+        case "realm-pick":case "realm-confirm-pick":{
+          const [s,kin]=String(v).split("|"),slot=Number(s);
+          const next=proposed(draft(),slot,kin);if(!next)break;
+          if(id==="realm-pick"){open("preview:"+slot+":"+kin);break;}
+          roster=next;remember();open("team");break;
         }
-        case "realm-toggle":availability=availability==="quiet"?"open":"quiet";remember();publish(true);refresh();break;
-        case "realm-queue":availability=availability==="queue"?"open":"queue";matchAt=0;remember();publish(true);heartbeat();open();break;
+        case "realm-toggle":if(availability!=="queue"){challengePreference=availability=availability==="quiet"?"open":"quiet";remember();publish(true);refresh();}break;
+        case "realm-queue":availability=availability==="queue"?challengePreference:"queue";matchAt=0;remember();publish(true);heartbeat();open();break;
         case "realm-challenge":showResult(duel.invite(v,draft()));open();break;
         case "realm-accept":showResult(duel.accept(draft()));break;
         case "realm-decline":case "realm-cancel":
-          if(availability==="queue"){availability="open";remember();publish(true);}
+          if(availability==="queue"){availability=challengePreference;remember();publish(true);}
           showResult(id==="realm-decline"?duel.decline():duel.cancel());break;
         case "realm-copy":void copy();break;
         case "realm-leave":disconnect();requested=publicRoom;go("world",null,"root");notify("You left the realm.");break;
@@ -319,14 +346,14 @@
       return true;
     }
     function fromHash(hash){
-      const m=/^#online(?:\/(friends-[a-f0-9]{12}|commons-[2-8]))?$/.exec(hash);
+      const m=/^#online(?:\/(friends-[a-f0-9]{12}|commons-[2-8]))?(?:\/map)?$/.exec(hash);
       if(!m)return false;
       requested=duel.read().phase==="active"?room:m[1]||publicRoom;
       return true;
     }
     return {model,act,restore,fromHash,key:e=>duel.key(e),pose:(region,reduced)=>conn&&field.pose(region,reduced),hit:(r,x,y)=>conn&&field.hit(r,x,y),
       publish,banner,mapOuting,campaignEncounter,arrive:id=>{publish();lantern(id);open("event");},openPerson:id=>open("person:"+id),openEvent:()=>open("event"),
-      address:()=>address(requested),disconnect,suspend:()=>disconnect(false),active:()=>duel.read().phase==="active",connected:()=>!!conn};
+      address:()=>address(requested),mapAddress:()=>address(room)+"/map",mapInvites,disconnect,suspend:()=>disconnect(false),active:()=>duel.read().phase==="active",connected:()=>!!conn};
   }
   window.WilderRealm={create};
 })();
