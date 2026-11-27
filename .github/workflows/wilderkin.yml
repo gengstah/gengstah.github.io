@@ -69,6 +69,7 @@ jobs:
           python-version: '3.12'
       - run: python -m pip install -r _tests/wilderkin-browser/requirements.txt
       - run: python _tests/wilderkin-browser/smoke.py --browser ${{ matrix.browser }} --site-root _site
+      - run: python _tests/wilderkin-browser/launch.py --browser ${{ matrix.browser }} --site-root _site
 
   live:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'

@@ -8,7 +8,7 @@
   <title>Wilderkin — The Missing Beat</title>
   <link rel="icon" type="image/png" href="ui/wilderkin.png">
   <link rel="stylesheet" href="canvas.css?v=76241a4c32">
-  <script id="play" data-doubles="play-doubles.js?v=548d318180" src="play.js?v=82cec6cf7e" defer></script>
+  <script id="play" data-doubles="play-doubles.js?v=548d318180" src="play.js?v=9eec22f429" defer></script>
 </head>
 <body>
   <section id="launch" aria-labelledby="launch-title">
@@ -26,6 +26,9 @@
       const status = document.getElementById("launch-status");
       const retry = document.getElementById("launch-retry");
       const main = document.querySelector("main");
+      const canvas = document.getElementById("game-canvas");
+      let downloadFailed = false;
+      document.getElementById("play").addEventListener("error", () => { downloadFailed = true; });
       const offerRetry = message => {
         status.textContent = message;
         retry.hidden = false;
@@ -46,16 +49,23 @@
         ready() {
           clearTimeout(timer);
           main.removeAttribute("inert");
+          const moveFocus = panel.contains(document.activeElement);
           panel.hidden = true;
-          if (document.activeElement === retry) document.getElementById("game-canvas").focus();
+          if (moveFocus) canvas.focus();
         }
       };
       document.addEventListener("DOMContentLoaded", () => {
         if (panel.hidden) return;
         clearTimeout(timer);
-        offerRetry(navigator.onLine === false
-          ? "Your trail could not open while offline. Reconnect and try again."
-          : "Your trail could not open. Check your connection and try again in a browser with Canvas 2D support.");
+        let message = "The game could not finish opening your trail. Try again.";
+        if (navigator.onLine === false) message = "Your trail could not open while offline. Reconnect and try again.";
+        else if (downloadFailed) message = "The game files could not download. Check your connection and try again.";
+        else {
+          try {
+            if (!canvas.getContext("2d")) message = "Wilderkin needs Canvas 2D. Enable it or open the game in another browser.";
+          } catch { message = "Wilderkin needs a browser with Canvas 2D support."; }
+        }
+        offerRetry(message);
       });
     })();
   </script>

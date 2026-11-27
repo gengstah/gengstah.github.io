@@ -64,8 +64,8 @@
       try{
         if(!s||!["active","done"].includes(s.phase)||!s.pos)storage.removeItem(storageKey);
         else{
-          const {peer,id,seat,secret,seal,guest,local,remote,tape,yields,abandoned,away}=s;
-          storage.setItem(storageKey,JSON.stringify({at:savedAt,self,peer,id,seat,secret,seal,guest,local,remote,tape,yields,abandoned,away}));
+          const {peer,id,seat,secret,seal,guest,local,remote,tape,yields,abandoned,away,idleClosing}=s;
+          storage.setItem(storageKey,JSON.stringify({at:savedAt,self,peer,id,seat,secret,seal,guest,local,remote,tape,yields,abandoned,away,idleClosing}));
         }
       }catch{ /* A live duel still works without tab storage. */ }
     }
@@ -139,7 +139,7 @@
         if(applyTape(raw.tape,null)){
           s.yields=raw.yields;s.abandoned=raw.abandoned||(raw.away!=null&&now()-raw.away>=graceMs);
           s.phase=winner()!==null||s.abandoned?"done":"active";
-          if(s.phase==="active")s.away=raw.away??now();
+          if(s.phase==="active"){s.away=raw.away??now();s.idleClosing=raw.idleClosing===true&&s.seat!==s.pos.turn;}
           changed(s.phase==="done"?"Your last duel result.":"Rejoining your duel.");transmit();return read();
         }
       }
@@ -199,7 +199,7 @@
       if(msg.yielded)s.yields|=1<<remote;
       if(away!==null)resetIdle();
       s.away=null;s.lastPeer=now();s.confirmed=true;s.acked=msg.tape===s.tape&&!(s.yields&(1<<s.seat));
-      if(winner()!==null)s.phase="done";
+      if(winner()!==null){s.phase="done";s.idleClosing=false;}
       if(old!==s.tape||flags!==s.yields||away!==null){
         panel="";film=null;changed(s.phase==="done"?"Duel complete.":"");
       }
@@ -298,6 +298,7 @@
     }
     function concede(){
       if(s?.phase!=="active")return fail("There is no live duel to concede.");
+      if(s.idleClosing)return fail("Waiting for the other seat to confirm the idle finish.");
       s.yields|=1<<s.seat;s.phase="done";s.acked=false;panel="";film=null;
       changed("You conceded the duel.");transmit();return {ok:true,result:result(),message:lastNotice};
     }
@@ -357,7 +358,7 @@
         if(s.away!==null&&b.id==="realm-duel-move")b.disabled=true;
       }
       if(film===null&&!panel)m.sections.push({rows:[s.phase==="done"?row("realm-duel-dismiss","Return to the realm"):
-        row("realm-duel-confirm","Concede duel")]});
+        row("realm-duel-confirm","Concede duel",null,"",{disabled:s.idleClosing})]});
       if(panel==="concede")return {title:"Concede this duel?",kicker:"TRAIL DUEL",subtitle:"Your opponent will win the exhibition.",sections:[{rows:[
         row("realm-duel-battle","Keep battling"),row("realm-duel-concede","Concede duel",null,"",{tone:"danger"})]}]};
       return m;
@@ -373,7 +374,7 @@
         case "panel":if(!["partners","crew"].includes(value))return false;panel=value;film=null;onChange(read());break;
         case "film":case "film-step":if(!Number.isInteger(value))return false;film=value;panel="";onChange(read());break;
         case "battle":film=null;panel="";onChange(read());break;
-        case "confirm":panel="concede";film=null;onChange(read());break;
+        case "confirm":if(!s?.idleClosing){panel="concede";film=null;onChange(read());}break;
         case "concede":if(panel==="concede")concede();break;
         case "dismiss":dismiss();break;
         default:return false;

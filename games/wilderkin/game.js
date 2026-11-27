@@ -118,7 +118,7 @@
   }
   if(window.WilderTwinbell)setupDoubles();
   function openDoubles(open){
-    if(twin)return open();
+    if(twin&&switchyard)return open();
     const revision=locationRevision,request=++doublesRequest;
     const current=()=>revision===locationRevision&&request===doublesRequest;
     notify("Opening the doubles grounds…");
@@ -281,7 +281,7 @@
   }
   function go(name,value=null,mode="push") {
     if (resolving) return;
-    if(doublesScreens.has(name)&&!twin)return openDoubles(()=>go(name,value,mode));
+    if(doublesScreens.has(name)&&(!twin||!switchyard))return openDoubles(()=>go(name,value,mode));
     if(name==="switchyard"&&value==null)value=switchyard.entry();
     if(realm?.active()&&(name!=="online"||value!=="duel")){name="online";value="duel";mode="root";}
     locationRevision++;
@@ -483,7 +483,7 @@
         :{title:obj.title,description:obj.description,id:"nav",value:"objective"}),
       status:game.saveRecovery?"Save recovery · open Settings":game.canSave?"Saved on this device":"Session only · back up in Settings",
       sections:[{title:"On the trail",columns:2,rows:[
-        ...(sharedOuting?realm.mapInvites():[]),
+        ...(realm?.connected()?realm.mapInvites(pinned?null:sharedOuting):[]),
         ...(sharedOuting&&firstQuest?(firstQuest.routes||[{...firstQuest,label:firstQuest.title,detail:firstQuest.description}]):[]),
         ...(deferredLetter?[deferredButton()]:[]),
         ...(nextHunt?[nextHunt]:[]),

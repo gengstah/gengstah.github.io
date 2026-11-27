@@ -173,18 +173,14 @@ class Journey:
         print("Turned in Saff's quest, crossed the unlocked border both ways and retained progress on reload.", flush=True)
 
     def navigation(self):
-        heading = "document.querySelector('.wilder-assist h1')?.textContent"
-        map_name = self.read(heading)
         self.key("p")
-        self.until(f"{heading} && {heading} !== arguments[0]", map_name)
-        party = self.read(heading)
-        assert "party" in party.lower(), party
+        self.control("open-trios")
         self.driver.back()
-        self.until(f"{heading} === arguments[0]", map_name)
+        self.control("walk-marker")
         self.driver.forward()
-        self.until(f"{heading} === arguments[0]", party)
+        self.control("open-trios")
         self.driver.back()
-        self.until(f"{heading} === arguments[0]", map_name)
+        self.control("walk-marker")
         ActionChains(self.driver).key_down(Keys.SHIFT).send_keys(Keys.ESCAPE).key_up(Keys.SHIFT).perform()
         self.until("document.activeElement?.textContent === 'Leave Wilderkin'")
 
@@ -252,11 +248,20 @@ def run(args, url):
     site = urlsplit(url).netloc
     with launch(args.browser) as driver:
         driver.script.add_error_handler(lambda entry: errors.append(str(entry)))
+
         def check_response(event):
             reply = event.response
             if urlsplit(reply["url"]).netloc == site and reply["status"] >= 400:
                 errors.append(f"{reply['status']} {reply['url']}")
+
+        def check_fetch(event):
+            url = event.request["url"]
+            # Browsers cancel in-flight image loads when the journey reloads.
+            if urlsplit(url).netloc == site and "abort" not in str(event.error_text).lower():
+                errors.append(f"{event.error_text} {url}")
+
         driver.network.add_event_handler("response_completed", check_response)
+        driver.network.add_event_handler("fetch_error", check_fetch)
         try:
             driver.get(url)
             journey = Journey(driver)

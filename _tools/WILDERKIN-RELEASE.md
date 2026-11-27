@@ -13,7 +13,7 @@
 ## Make a release
 
 1. Use a topic branch. Install the build tool with `npm ci --no-bin-links --prefix _tools`. After changing runtime sources, run `node _tools/wilderkin-build.mjs` and include its generated output. Run `node _tools/wilderkin-build.mjs --check` and `node --test _tests/wilderkin*.cjs`.
-2. Install the browser runner with `python -m pip install -r _tests/wilderkin-browser/requirements.txt`. Run `python _tests/wilderkin-browser/smoke.py --browser chrome` and repeat with `--browser firefox`. For Jekyll output add `--site-root _site`.
+2. Install the browser runner with `python -m pip install -r _tests/wilderkin-browser/requirements.txt`. Run `python _tests/wilderkin-browser/smoke.py --browser chrome` and repeat with `--browser firefox`. For Jekyll output add `--site-root _site`. Run `python _tests/wilderkin-browser/launch.py --browser chrome --site-root _site --measure` to test interrupted downloads and measure three cold launches on the throttled phone profile.
 3. Open a pull request targeting master. Wait for the Wilderkin workflow to build the site and pass both browser jobs, then merge. This repository publishes GitHub Pages from master.
 4. After Pages publishes that commit, run `python _tools/wilderkin-release.py --url https://gengstah.github.io/games/wilderkin/` from its checkout. Use the same URL with the browser runner. Record the verified commit, gameplay results and any device limitations.
 5. If the release breaks play, revert the game release commit on a topic branch. Run the same checks against the revert, including a reload with a campaign saved by the affected release. Merge and verify the public bytes again. Keep the player's backup available throughout recovery.

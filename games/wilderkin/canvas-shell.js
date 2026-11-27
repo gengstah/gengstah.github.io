@@ -130,7 +130,7 @@
     let passedLeads={};
     let impactLog=null;
     const healthLabels={};
-    let mirrorSig="",destroyed=false,largeText=false;
+    let mirrorSig="",destroyed=false,largeText=false,focusTurn=false;
     try{largeText=window.localStorage?.getItem("wilderkin.largeText")==="on";}catch{}
     function applyTextMode(){
       mirror.className=largeText?"wilder-assist wilder-reading":"wilder-assist";
@@ -177,7 +177,7 @@
     }
     const observer=new ResizeObserver(resize);observer.observe(canvas);resize();
     const fonts=document.fonts;
-    if(fonts)Promise.all([fonts.load('600 26px Pixelify'),fonts.load('500 15px "DM Sans"')]).then(()=>{dirty=true;});
+    if(fonts)Promise.allSettled([fonts.load('600 26px Pixelify'),fonts.load('500 15px "DM Sans"')]).then(()=>{dirty=true;});
     function control(row,x,y,w,h,area="content",activate) {
       if(!row || (!row.id && !activate))return null;
       const key=row.uid??[area,row.id,typeof row.value==="object" ? JSON.stringify(row.value) : row.value,row.label].join("|");
@@ -202,7 +202,8 @@
     function show(next,liveRefresh=false) {
       if(!next)return;
       const changed=next.id!==model.id || next.kind!==model.kind || (next.kind==="world"&&next.region!==model.region);
-      if(changed){
+      focusTurn=next.kind==="battle"&&width<680&&height<=700&&next.kicker!==model.kicker;
+      if(changed||focusTurn){
         scroll=0;focus="";hover="";lastPage=performance.now();
       }
       for(const side of ["ally","foe"]){
@@ -1310,7 +1311,8 @@
         heading.textContent="Read field notes and battle log";notes.append(heading,reading);fragment.append(notes);
       }
       mirror.replaceChildren(fragment);
-      if(hadFocus)(previousButton||firstButton||canvas).focus({preventScroll:true});
+      if(hadFocus)((focusTurn?firstButton:previousButton)||firstButton||canvas).focus({preventScroll:true});
+      focusTurn=false;
     }
     function render(t) {
       if(destroyed || width<2 || height<2)return;

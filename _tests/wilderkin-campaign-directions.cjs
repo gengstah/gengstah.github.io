@@ -14,7 +14,7 @@ function boot(){
   const world={regions:game.regions.map(()=>({sites:["wild","camp","travel","activities","warden"].map(kind=>({kind,label:"Local "+kind}))})),wardenArt:()=>""};
   let current={};
   const go=(name,value)=>{current={name,value};};
-  const travel=(region,next)=>{assert.ok(game.travel(region).ok);go(next.name,next.value);};
+  const travel=(region,next)=>{assert.ok(game.travel(region).ok);go(next?.name||"world",next?.value);};
   const locate=(kind,next)=>{game.visitSite(kind);typeof next==="string"?go(next):go(next.name,next.value);};
   const pages=window.WilderPages.create({game,world,dex:window.WilderKinDex,go,locate,travel,
     row:(id,label,value,detail,extra)=>({id,label,value,detail,...extra}),member:id=>game.state.party.find(p=>p.id===id),
@@ -78,4 +78,20 @@ test("a reserve’s Bellstone route replenishes an exhausted patch through field
   press(rows().find(r=>r.id==="caravan-return"));assert.equal(at().name,"mentor");assert.equal(s.landmark,"camp");
   const train=rows().find(r=>r.id==="caravan-train");assert.equal(train.value,"mossbell");press(train);
   assert.equal(s.party.find(p=>p.id==="mossbell").level,lesson.target);assert.equal(pages.mentorshipReturn(),null);
+});
+
+test("a licensed first crossing pays its real Bellstone and the lesson returns to the original region and camp",()=>{
+  const {game,rows,press,at}=boot(),s=game.state;
+  const home=game.regions.findIndex(r=>r.wildLevel>=90);
+  assert.ok(game.travel(home).ok);game.visitSite("camp");
+  s.party[0].level=90;s.party.push(game.loaner("mossbell",5));s.forageReady=false;
+  s.bag.ore=game.caravan.training("mossbell").cost.ore-1;
+  const carrier=Object.values(game.species).find(k=>k.ability&&game.regions.some((r,i)=>r.ability===k.ability&&!s.visited.includes(i)&&game.access(i).open));
+  if(!s.party.some(p=>p.id===carrier.id))s.party.push(game.loaner(carrier.id,10));
+  s.licenses.push(carrier.ability);
+  press(rows("mentor","mossbell").find(r=>r.id==="caravan-find"));
+  const before=s.bag.ore,cross=rows().find(r=>r.id==="caravan-cross");
+  press(cross);assert.equal(s.region,cross.value);assert.equal(s.bag.ore,before+1);
+  press(rows().find(r=>r.id==="caravan-return"));assert.equal(s.region,home);
+  assert.equal(s.landmark,"camp");assert.equal(at().name,"mentor");assert.equal(rows().find(r=>r.id==="caravan-train").value,"mossbell");
 });

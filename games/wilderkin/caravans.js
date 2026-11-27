@@ -444,7 +444,10 @@
           if(!supplyTrip||value!==supplyTrip.id)return true;
           const region=supplyTrip.region;
           walkingTo=value;
-          if(game.state.region!==region){travel(region,{name:"mentor",value});return true;}
+          if(game.state.region!==region){
+            travel(region);
+            if(game.state.region!==region)return true;
+          }
           if(game.state.landmark!=="camp")locate("camp","mentor");
           else go("mentor",value,"replace");
           return true;

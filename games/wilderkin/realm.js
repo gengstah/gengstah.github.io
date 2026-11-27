@@ -151,7 +151,10 @@
     const inviteButton=()=>button("copy","Invite a friend",null,"Copy the link to "+roomName(room)+".");
     const practiceButton=()=>button("practice","Practice at the Chalkyard",null,"Try a battle while waiting for a friend.");
     const emptyRoom=()=>!people().length;
-    const mapInvites=()=>emptyRoom()?[practiceButton()]:[inviteButton()];
+    function mapInvites(visibleOuting){
+      const choices=[inviteButton(),...(emptyRoom()?[practiceButton()]:[])];
+      return choices.filter(choice=>!visibleOuting?.routes.some(r=>r.id===choice.id));
+    }
     function banner(){
       if(!conn)return {label:"Play online",detail:"See other couriers, tend lanterns and duel.",id:"nav",value:"online"};
       const d=duel.read(),count=people().filter(p=>p.region===state().region).length;
