@@ -11,7 +11,7 @@
   const favorites={sprigkit:"gustlance",cindlet:"leafshuttle",dewfin:"charquill",opalclasp:"mossbell"};
   const same=(a,b)=>a.length===b.length&&a.every((id,i)=>id===b[i]);
 
-  function create({game,practice,row,image,go,notify,locate,openTrail,openField}){
+  function create({game,practice,row,image,go,notify,locate,openTrail,openField,rehearse}){
     const s=()=>game.state,member=id=>s().party.find(p=>p.id===id),name=id=>game.kin(id,{owned:true})?.name||"Companion";
     const btn=(key,label,value=null,detail="",extra={})=>row("trailmate-"+key,label,value,detail,extra);
     const show=(page=null)=>go(route,page);
@@ -65,6 +65,18 @@
       const b=s().battle,h=hunt();
       if(!b||!h||h.phase!=="active"||b.kind!=="wild"||b.firstBattle||b.wildCall?.answered||b.pendingFallen||b.enemy.id!==h.foe||
           b.activeId!==h.lead||s().region!==h.region||!same(s().team,h.team))return null;
+      if(h.intent==="befriend"&&!member(h.foe)&&s().bag.kinweave){
+        const capture=game.captureStatus(),safe=game.ordinaryForecast("trail-feint");
+        const foeName=name(h.foe);
+        const strike=game.kin(h.lead,{owned:true}).skills.map(k=>game.ordinaryForecast(k.id))
+          .filter(f=>f?.available&&f.finishes).sort((a,b)=>b.damage-a.damage)[0];
+        if(capture.available)return {title:"Befriend "+foeName,rows:[
+          row("capture","Cast Kinweave",null,capture.offer.preview+" · 1 Kinweave",{tone:"primary"}),
+          ...(strike?[row("skill","Finish with "+strike.skill.name,strike.skill.id,"Knocks out "+foeName+" before its reply.")]:[])
+        ]};
+        if(safe?.available)return {title:"Befriend "+foeName,rows:[row("skill","Hold back","trail-feint",
+          safe.damage+" damage · leaves "+Math.max(1,b.enemy.hp-safe.damage)+" HP · take "+safe.returnDamage,{tone:"primary"})]};
+      }
       if(b.turn===1){
         const f=game.ordinaryForecast(h.skill);
         if(f?.available)return {title:"Your hunt opening",rows:[row("skill",name(h.lead)+" · "+f.skill.name,h.skill,
@@ -180,7 +192,8 @@
       const last=Math.max(0,Math.ceil(ids.length/4)-1),at=Math.min(last,Math.max(0,Number(page)||0));
       const rows=ids.slice(at*4,(at+1)*4).map(id=>{
         const temp=assign(role,id),r=temp&&report(temp.team,temp.lead,temp.partner);
-        const note=r?(role==="lead"?"Track "+r.foeName+". "+summary(r):r.pair?.name+" · "+pairNote(r)):
+        const signature=game.kin(id,{owned:true}).skills.find(k=>k.kind==="attack")?.name;
+        const note=r?(role==="lead"?"Track "+r.foeName+". "+summary(r):(signature?signature+". ":"")+(r.pair?.name||"No duet")+" · "+pairNote(r)):
           "Choose a traveling seat to bring this reserve along.";
         return btn(role==="lead"?"lead":"partner",name(id),id,note,{image:image(id,true),badge:id===(role==="lead"?lead:partner)?"Selected":team.includes(id)?"Traveler":"Reserve"});
       });
@@ -210,11 +223,13 @@
         btn("rest","Walk to the campfire",null,"Rest your companions before setting out.",{tone:"primary"});
       return {title:"Your next hunt",kicker:"MOSSBROOK   /   TRAIL PARTNERS",formationStrip:{label:"Hunt leader · Duet partner",slots},
         subtitle:r?trails[r.foe]:"Choose a companion to follow the tracks.",
-        sections:[{rows:[first]},...(r&&ready?[{title:"Opening against "+r.foeName,rows:[
+        sections:[{title:r&&ready?"Choose your hunt goal":undefined,rows:[
+          ...(r&&ready&&!member(r.foe)?[btn("befriend","Befriend "+r.foeName,r.foe,s().bag.kinweave?"Weaken it safely, then offer one Kinweave.":"Craft a Kinweave in your satchel first.",{tone:"primary",disabled:!s().bag.kinweave})]:[]),
+          r&&ready?{...first,detail:"Defeat the quarry for experience. "+first.detail}:first]},...(r&&ready?[{title:"Opening against "+r.foeName,rows:[
           {label:r.move.name,detail:summary(r)+" "+name(lead)+(r.move.hpAfter>0?" ends at "+r.move.hpAfter+"/"+member(lead).maxHp+" HP.":" would faint."),image:image(lead,true)},
           ...(r.guard?[{label:r.guard.name,detail:"Guard instead · "+r.guard.damage+" damage · "+r.guard.reply+" HP in reply.",image:image(lead,true)}]:[]),
           ...(r.pair?[{label:r.pair.name,detail:pairNote(r),image:image(partner,true)}]:[])]}]:[]),
-          {title:"Choose your team",rows:[btn("leads","Change hunt leader",null,"See another companion’s move and quarry."),btn("partners","Choose a duet partner",null,"Compare a traveling ally or a specialist from reserve.")]},goals()]};
+          {title:"Choose your team",rows:[...(r&&rehearse?[btn("rehearse","Try this team at the Chalkyard",r.foe,"Practice this matchup with copies of your companions.")]:[]),btn("leads","Change hunt leader",null,"See another companion’s move and quarry."),btn("partners","Choose a duet partner",null,"Compare a traveling ally or a specialist from reserve.")]},goals()]};
     }
     function act(id,value){
       if(typeof id!=="string"||!id.startsWith("trailmate-"))return false;
@@ -234,11 +249,16 @@
         case "trailmate-mossbell":{const site=game.sightings().find(k=>k.species==="mossbell");if(site)locate(site.id);break;}
         case "trailmate-fern":locate("warden","warden");break;
         case "trailmate-rest":locate("camp","camp");break;
-        case "trailmate-follow":{
+        case "trailmate-rehearse":{
           const r=report(team,lead,partner);
-          if(!r||r.foe!==value||!member(lead).hp){notify("Review the hunt with your current companions.");show();break;}
+          if(r?.foe===value)rehearse?.(setup(team,lead,r.foe));
+          break;
+        }
+        case "trailmate-befriend":case "trailmate-follow":{
+          const r=report(team,lead,partner);
+          if(!r||r.foe!==value||!member(lead).hp||id==="trailmate-befriend"&&(!s().bag.kinweave||member(r.foe))){notify("Review the hunt with your current companions.");show();break;}
           const plan=setup(team,lead,r.foe);
-          remember({...plan,partner,skill:r.move.id,source:signature(receipt()),phase:"planned"});
+          remember({...plan,partner,intent:id==="trailmate-befriend"?"befriend":"defeat",skill:r.move.id,source:signature(receipt()),phase:"planned"});
           if(!same(team,s().team)){openTrail(plan);break;}
           if(s().lead!==lead){const res=game.setLead(lead);if(!res.ok){remember(null);notify(res.message);break;}}
           openField(plan);break;

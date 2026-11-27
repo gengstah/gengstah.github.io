@@ -437,7 +437,8 @@ test("corrupt external writes preserve the last known career, deletion adopts a 
     assert.equal(result.code,"changed");assert.equal(map.get(key),text);assert.equal(a.saves(),writes);
     assert.equal(g.state,ref);assert.deepEqual(copy(g.state),valid);
   }
-  ok(g.setSound(false));assert.equal(JSON.parse(map.get(key)).lead,"cindlet");
+  ok(g.setSound(false));assert.equal(map.get(key),"not json");assert.equal(g.saveRecovery,"recovered");
+  ok(g.resumeSaving());assert.equal(g.damagedSave(),"not json");assert.equal(JSON.parse(map.get(key)).lead,"cindlet");
   const b=boot(null,map).g;ok(b.setLead("dewfin"));const foreign=map.get(key);
   assert.equal(g.reset().code,"changed");assert.equal(map.get(key),foreign);assert.equal(g.state.lead,"dewfin");
   assert.equal(g.state,ref);ok(g.reset());assert.equal(g.state,ref);assert.deepEqual(copy(g.state),copy(boot().g.state));

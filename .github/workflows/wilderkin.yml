@@ -1,0 +1,95 @@
+name: Wilderkin
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'games/wilderkin/**'
+      - '_tests/wilderkin*'
+      - '_tests/wilderkin-browser/**'
+      - '_tools/**'
+      - '.github/workflows/wilderkin.yml'
+      - '_config.yml'
+      - 'Gemfile'
+  push:
+    branches: [master]
+    paths:
+      - 'games/wilderkin/**'
+      - '_tests/wilderkin*'
+      - '_tests/wilderkin-browser/**'
+      - '_tools/**'
+      - '.github/workflows/wilderkin.yml'
+      - '_config.yml'
+      - 'Gemfile'
+
+concurrency:
+  group: wilderkin-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  gameplay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci --prefix _tools
+      - run: node _tools/wilderkin-build.mjs --check
+      - run: node --test _tests/wilderkin*.cjs
+      - uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./
+          destination: ./_site
+      - run: python _tools/wilderkin-release.py --site-root _site
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wilderkin-game
+          path: _site/games/wilderkin/
+          retention-days: 2
+  browser:
+    needs: gameplay
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chrome, firefox]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: wilderkin-game
+          path: _site/games/wilderkin
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r _tests/wilderkin-browser/requirements.txt
+      - run: python _tests/wilderkin-browser/smoke.py --browser ${{ matrix.browser }} --site-root _site
+      - run: python _tests/wilderkin-browser/launch.py --browser ${{ matrix.browser }} --site-root _site
+
+  live:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    needs: browser
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Wait for published game files to match this checkout
+        shell: bash
+        run: |
+          for attempt in {1..24}; do
+            if python _tools/wilderkin-release.py --url https://gengstah.github.io/games/wilderkin/; then
+              exit 0
+            fi
+            sleep 25
+          done
+          exit 1
+      - run: python -m pip install -r _tests/wilderkin-browser/requirements.txt
+      - run: python _tests/wilderkin-browser/smoke.py --browser chrome --url https://gengstah.github.io/games/wilderkin/

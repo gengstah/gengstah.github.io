@@ -105,3 +105,18 @@ test("a seriously injured personal favorite can open by healing and sees the act
   assert.equal(guided.value,"rekindle");assert.ok(guided.detail.includes("Recover "+before.healing));
   assert.ok(g.useSkill(guided.value).ok);assert.ok(note.detail.includes("ends at "+c.hp+"/"+c.maxHp+" HP."));assert.ok(h.desk.battleSection());
 });
+
+test("Befriend keeps a real quarry alive and offers a capture beside the knockout after reloading",()=>{
+  let h=device();h.first("cindlet");h.desk.open();
+  h.tap("befriend","mossbell");const plan=h.field();
+  assert.ok(h.game.startBattle("wild","mossbell").ok);h.desk.bind(plan);
+  for(let i=0;i<8&&!h.game.captureStatus().available;i++){
+    const safe=h.desk.battleSection().rows[0];
+    assert.equal(safe.value,"trail-feint");assert.ok(h.game.useSkill(safe.value).ok);
+    assert.ok(h.game.state.battle.enemy.hp>0);
+  }
+  h=device(h.disk,h.session);const choices=h.desk.battleSection().rows;
+  assert.equal(choices[0].id,"capture");assert.ok(h.game.captureStatus().available);
+  if(choices.length>1)assert.ok(h.game.ordinaryForecast(choices[1].value).finishes);
+  assert.ok(h.game.recruit().ok);assert.ok(h.game.state.party.some(k=>k.id==="mossbell"));
+});

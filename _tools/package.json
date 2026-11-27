@@ -1,0 +1,8 @@
+{
+  "name": "wilderkin-release-tools",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

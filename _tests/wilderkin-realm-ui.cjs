@@ -1,8 +1,8 @@
 const test=require("node:test"),assert=require("node:assert/strict"),crypto=require("node:crypto").webcrypto;
 const fs=require("node:fs"),path=require("node:path"),vm=require("node:vm");
-const root=path.join(__dirname,"../games/wilderkin"),html=fs.readFileSync(path.join(root,"index.html"),"utf8");
+const root=path.join(__dirname,"../games/wilderkin");
 const skip=new Set(["canvas-shell.js","realm-transport.js","score.js","kin-art.js"]);
-const scripts=Array.from(html.matchAll(/<script src="([^"?]+)(?:\?[^"]*)?"/g),m=>m[1]).filter(p=>!skip.has(p)).map(p=>{
+const scripts=fs.readFileSync(path.join(root,"_scripts.txt"),"utf8").trim().split(/\s+/).filter(p=>!skip.has(p)).map(p=>{
   const filename=path.join(root,p);return new vm.Script(fs.readFileSync(filename,"utf8"),{filename});
 });
 function storage(){
@@ -38,7 +38,7 @@ function boot(net,hash="",disk=storage(),session=storage(),nav="navigate"){
     matchMedia:()=>({matches:true}),requestAnimationFrame:f=>frames.push(f),TextEncoder,TextDecoder,URL,crypto});
   scripts.forEach(s=>s.runInContext(ctx));
   const rows=()=>[model.realm,...(model.objective?.routes||[]),...model.sections.flatMap(s=>s.rows||[])].filter(Boolean);
-  return {model:()=>model,rows,key:k=>input.key({key:k}),tile:(x,y)=>input.tile(x,y),game:w.WilderGame,session,disk,
+  return {model:()=>model,hash:()=>w.location.hash,rows,key:k=>input.key({key:k}),tile:(x,y)=>input.tile(x,y),game:w.WilderGame,session,disk,
     pulse:()=>{for(const f of intervals)f();},paint:()=>{while(timeouts.length)timeouts.shift()();},
     click:(id,v)=>{const r=rows().find(r=>r.id===id&&(v===undefined||v===r.value)&&!r.disabled);assert.ok(r,id+" / "+v+" on "+model.title);input.action(r.id,r.value);},
     dispatch:(type,obj={})=>listeners[type]?.forEach(f=>f(obj))};
@@ -90,4 +90,35 @@ test("couriers on different public worlds can use the world selector to meet wit
   a.click("realm-worlds");a.click("realm-world","commons-2");a.click("realm-join");await settle(n,a,b);
   for(const c of [a,b])assert.equal(c.rows().filter(r=>r.id==="realm-person").length,1);
   assert.equal(a.model().title,"Lantern Commons 2");
+});
+test("a map address and invitation reach the same private room, with choices based on known population",async()=>{
+  const n=lobby(),a=boot(n,"#online");a.click("realm-private");await settle(n,a);
+  const invite=a.hash();
+  assert.match(invite,/^#online\/friends-[a-f0-9]{12}$/);
+  assert.ok(a.rows().some(r=>r.id==="realm-copy")&&a.rows().some(r=>r.id==="realm-practice"));
+  assert.ok(!a.rows().some(r=>r.id==="realm-queue"));
+  a.click("realm-map");const map=a.hash();assert.equal(map,invite+"/map");
+  assert.ok(a.rows().some(r=>r.id==="realm-copy"));a.click("realm-practice");assert.match(a.model().title,/Chalkyard/);
+  const b=boot(n,map);b.click("realm-join");await settle(n,a,b);
+  assert.equal(b.model().title,"Friends’ clearing");assert.match(b.model().subtitle,/1 across the realm/);
+  b.click("realm-worlds");assert.ok(b.rows().every(r=>r.id!=="realm-world"||r.detail.includes("unknown")));
+});
+test("canceling a queue restores the preceding challenge policy and a trio changes only on confirmation",async()=>{
+  const n=lobby(),a=boot(n,"#online"),b=boot(n,"#online");
+  a.click("realm-join");b.click("realm-join");await settle(n,a,b);
+  for(const preference of ["quiet","open"]){
+    a.click("realm-queue");a.click("realm-queue");await settle(n,a,b);
+    b.click("realm-person");
+    assert.equal(b.rows().find(r=>r.id==="realm-challenge").disabled,preference==="quiet");
+    b.click("realm-home");a.click("realm-toggle");
+  }
+  a.click("realm-worlds");assert.match(a.rows().find(r=>r.value==="commons").detail,/2 here including you/);
+  a.click("realm-world","commons");a.click("realm-team");
+  a.click("realm-slot",0);a.click("realm-pick","0|cindlet");
+  const desc=a.model().sections.map(s=>s.text||"").join(" ");
+  assert.match(desc,/Gain Steam Exchange/);assert.match(desc,/Lose Rain Garden/);
+  assert.match(desc,/Cindlet can use/);a.click("realm-team");
+  assert.equal(a.rows().find(r=>r.value===0).label,"Sprigkit");
+  a.click("realm-slot",0);a.click("realm-pick","0|cindlet");a.click("realm-confirm-pick","0|cindlet");
+  assert.equal(a.rows().find(r=>r.value===0).label,"Cindlet");
 });

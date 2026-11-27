@@ -249,13 +249,13 @@
       previewPromotion,applyPromotion,savePromotion};
   }
 
-  function pages({game,row,image,go,render,notify,locate}) {
+  function pages({game,row,image,go,render,notify,locate,travel}) {
     const api=game.caravan,own=id=>game.kin?.(id,{owned:true}) || game.species[id];
     const heading=(title,rows,columns=1)=>({title,rows,columns});
     const view=(name,value,label,detail="",extra={})=>row("view",label,name+"|"+value,detail,extra);
     const headingPage=(title,kicker,subtitle,sections)=>({title,kicker,subtitle,sections});
     const names=team=>team.map(id=>own(id).name).join(" · ");
-    let mentoringPage=0,walkingTo=null;
+    let mentoringPage=0,walkingTo=null,supplyTrip=null;
     const kit=window.WilderTrailFittings;
     const fittingName=id=>kit?.byId(id)?.name||"No fitting";
     let preview=null;
@@ -351,8 +351,11 @@
     function mentor(id) {
       const lesson=api.training(id),s=game.state;
       if (!lesson) return mentoring();
-      const species=own(id),cost=Object.entries(lesson.cost).map(([key,n])=>
-        ({label:game.items[key].name,detail:n+" required · "+(s.bag[key]||0)+" held"}));
+      const species=own(id),cost=Object.entries(lesson.cost).map(([key,n])=>{
+        const held=s.bag[key]||0,detail=n+" required · "+held+" held";
+        return key==="ore"&&held<n&&!s.team.includes(id)?
+          row("caravan-find","Find Bellstone",id,detail+" · need "+(n-held)+" more",{disabled:!!s.battle}):{label:game.items[key].name,detail};
+      });
       const actions=[];
       if (lesson.gain>0 && !lesson.atCamp && !s.battle) actions.push(row("caravan-walk","Walk to the training yard",id));
       actions.push(row("caravan-train","Train "+species.name,id,lesson.reason||"Spend the listed supplies for one lesson.",{disabled:!lesson.available,tone:"primary"}));
@@ -364,6 +367,28 @@
       return {...headingPage(species.name,"CAMP MENTORSHIP",lesson.gain?"Lv. "+lesson.level+" → "+lesson.target+" in one lesson.":"Current level "+lesson.level+".",sections),
         art:{src:image(id),caption:"Reserve training"}};
     }
+    function mentorshipReturn(){
+      if(!supplyTrip||game.state.team.includes(supplyTrip.id)||!game.state.party.some(p=>p.id===supplyTrip.id))return null;
+      return view("mentor-supplies",supplyTrip.id,"Supplies for "+own(supplyTrip.id).name,game.state.bag.ore+" / "+supplyTrip.needed+" Bellstone");
+    }
+    function supplies(id){
+      if(!supplyTrip||id!==supplyTrip.id||!mentorshipReturn())return mentor(id);
+      const {region,needed}=supplyTrip,s=game.state,held=s.bag.ore,r=game.regions[region],student=own(id).name;
+      const actions=[];
+      if(held<needed){
+        if(s.forageReady)actions.push(row("caravan-gather","Gather Bellstone",id,"A fresh patch here yields at least 1 Bellstone.",{tone:"primary",disabled:!!s.battle}));
+        else{
+          const leg=game.expedition();
+          if(!leg.done)actions.push(row("nav","Continue "+leg.title,"expedition","Finish leg "+leg.step+" of "+leg.total+" to reveal a fresh patch."));
+          actions.push(row("walk-kind","Follow local wild tracks","wild|tracks","Win the encounter or befriend a wild kin to reveal another patch."));
+        }
+        const crossing=game.regions.map((_,i)=>i).filter(i=>game.access(i).carrier)
+          .sort((a,b)=>Math.abs(a-s.region)-Math.abs(b-s.region))[0];
+        if(crossing!=null)actions.push(row("caravan-cross","Cross to "+game.regions[crossing].name,crossing,game.access(crossing).reason,{disabled:!!s.battle}));
+      }
+      actions.push(row("caravan-return","Return to "+student+"’s lesson",id,r.name+" · "+(held>=needed?"Bellstone ready":"Camp mentorship"),{tone:held>=needed?"primary":undefined,disabled:!!s.battle}));
+      return headingPage("Bellstone for "+student,"CAMP MENTORSHIP",held+" / "+needed+" Bellstone for the lesson at "+r.name+".",[heading("Supplies",actions)]);
+    }
     function model(name,value) {
       switch(name) {
         case "formations":return formations();
@@ -373,6 +398,7 @@
         case "formation-undo":return recallReview(null,true);
         case "mentoring":return mentoring();
         case "mentor":return mentor(value||walkingTo);
+        case "mentor-supplies":return supplies(value);
       }
     }
     function act(id,value) {
@@ -402,7 +428,31 @@
         case "caravan-undo":
           if(api.formations().previous?.reviewGear){go("formation-undo");return true;}
           result=api.undoFormation();break;
-        case "caravan-train":result=api.trainReserve(value);break;
+        case "caravan-find":{
+          const lesson=api.training(value);
+          if(!lesson||game.state.battle||game.state.team.includes(value)||!(lesson.cost.ore>game.state.bag.ore))return true;
+          supplyTrip={id:value,region:game.state.region,needed:lesson.cost.ore};
+          go("mentor-supplies",value);return true;
+        }
+        case "caravan-cross":{
+          const i=Number(value);
+          if(supplyTrip&&game.access(i).carrier)travel(i,{name:"mentor-supplies",value:supplyTrip.id});
+          return true;
+        }
+        case "caravan-gather":result=game.gather();break;
+        case "caravan-return":{
+          if(!supplyTrip||value!==supplyTrip.id)return true;
+          const region=supplyTrip.region;
+          walkingTo=value;
+          if(game.state.region!==region){
+            travel(region);
+            if(game.state.region!==region)return true;
+          }
+          if(game.state.landmark!=="camp")locate("camp","mentor");
+          else go("mentor",value,"replace");
+          return true;
+        }
+        case "caravan-train":result=api.trainReserve(value);if(result.ok&&supplyTrip?.id===value)supplyTrip=null;break;
         case "caravan-page":mentoringPage+=Number(value);render();return true;
         case "caravan-walk":walkingTo=value || null;locate("camp",walkingTo?"mentor":"mentoring");return true;
         default:return false;
@@ -411,7 +461,7 @@
       notify(result.message);
       return true;
     }
-    return {model,act};
+    return {model,act,mentorshipReturn,clearMentorship(){walkingTo=null;supplyTrip=null;}};
   }
 
   window.WilderCaravans={restore,create,pages};

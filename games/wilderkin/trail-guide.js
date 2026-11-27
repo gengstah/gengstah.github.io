@@ -1,8 +1,8 @@
 // Atlas, collection, journal and station pages share the same canvas navigation.
 window.WilderPages = {
-  create({game,world,dex,row,member,image,go,back,render,notify,locate,root,fight,playTone,resolveBattle,fieldRecruited,travel,reset,atSite,openFinder,trailPartners,trailMarkers}) {
+  create({game,world,dex,row,member,image,go,back,render,notify,locate,root,fight,playTone,resolveBattle,fieldRecruited,travel,reset,atSite,openFinder,trailPartners,trailMarkers,largeText}) {
     const fair=window.WilderActivities, story=window.WilderStory;
-    const caravans=window.WilderCaravans.pages({game,row,image,go,render,notify,locate});
+    const caravans=window.WilderCaravans.pages({game,row,image,go,render,notify,locate,travel});
     const walkers=window.WilderWalkingPartner.pages({game,row,image,go,render,notify,locate});
     const hollows=window.WilderHollows.pages({game,row,go,render,notify,locate});
     const mystery=window.WilderStillwake.pages({game,row,go,render,notify,locate});
@@ -12,7 +12,7 @@ window.WilderPages = {
     const held=id=>fittings?.byId((game.state.battle?game.state.battle.trailFittings:game.state.trailFittings)?.gear?.[id]);
     const fittingText=f=>(f?.fittingEvents||[]).map(e=>e.preview||e.text).join(" ");
     const starterIds=["sprigkit","cindlet","dewfin"];
-    let selectedGrowth=null,growthMoment=0;
+    let selectedGrowth=null,growthMoment=0,pendingBackup=null;
     const s=()=>game.state, here=()=>game.regions[s().region], area=()=>world.regions[s().region];
     const all=Object.values(game.species), entryNo=new Map(all.map((k,i)=>[k.id,i+1]));
     const routes=[{start:0,end:2},...window.WilderAtlas.routes.filter(r=>r.start>=3)];
@@ -167,9 +167,21 @@ window.WilderPages = {
       const held=new Set(state.party.map(p=>p.id));
       return all.filter(k=>{
         if(k.bonus && !state.stillwake?.revealed && !held.has(k.id))return false;
-        const status={"All":true,"Seen":state.seen.includes(k.id),"Owned":held.has(k.id),"Reserve":held.has(k.id)&&!state.team.includes(k.id),"Local":game.pools[state.region].includes(k.id),"Carriers":!!k.ability};
+        const status={"All":true,"Seen":state.seen.includes(k.id),"Owned":held.has(k.id),"Missing":!k.bonus&&!held.has(k.id),"Reserve":held.has(k.id)&&!state.team.includes(k.id),"Local":game.pools[state.region].includes(k.id),"Carriers":!!k.ability};
         return status[filter.collection]&&(filter.affinity==="All"||k.types.includes(filter.affinity));
       });
+    }
+    function nearestHabitat(id){
+      const homes=game.homes[id],current=s().region;
+      if(!homes?.length)return null;
+      const nearest=list=>list.reduce((best,i)=>Math.abs(i-current)<Math.abs(best-current)?i:best);
+      const available=homes.filter(i=>game.access(i).open);
+      return nearest(available.length?available:homes);
+    }
+    function missingEntry(k){
+      const i=nearestHabitat(k.id),gate=game.access(i),r=game.regions[i];
+      return open("kin",k.id,k.name,(i===s().region?"Here in ":gate.open?"Reachable in ":"Closed crossing · ")+r.name+" · wild Lv. "+game.wildLevel(i),
+        {image:image(k.id,false),badge:s().seen.includes(k.id)?"SEEN":"UNDISCOVERED"});
     }
     function guide() {
       const query=filter.guideSearch.toLowerCase(),state=s();
@@ -183,19 +195,19 @@ window.WilderPages = {
         row("search-edit",query?"Find: "+filter.guideSearch:"Search names and techniques","guide"),
         ...(openFinder?[row("field-partners","Find a duet partner","guide",query?"Look for partner skills matching “"+filter.guideSearch+"”.":"Compare partners for your lead and find their habitats.")]:[]),
         row("cycle-collection","Collection: "+filter.collection),row("cycle-affinity","Affinity: "+filter.affinity),nav("affinities","Affinity chart")],2),
-        heading(entries.length+" matching kin",found.length?found.map(id=>localSpecies(id.id)):[info("No results","Change your search or filters.")],2)];
+        heading(entries.length+" matching kin",found.length?found.map(k=>filter.collection==="Missing"?missingEntry(k):localSpecies(k.id)):[info("No results","Change your search or filters.")],2)];
       if (count>1) sections.push(heading("Page "+(filter.guidePage+1)+" of "+count,[row("page-step","Previous","guidePage|-1","",{disabled:!filter.guidePage}),row("page-step","Next","guidePage|1","",{disabled:filter.guidePage>=count-1})],2));
       const ordinary=ids=>ids.filter(id=>!game.species[id]?.bonus).length;
       return page("Field guide",ordinary(state.seen)+" DISCOVERED  /  "+ordinary(state.party.map(p=>p.id))+" BEFRIENDED",sections,"Track 500 regional species and the abilities they bring to a crossing.");
     }
     function kinPage(id) {
       const k=own(id),p=member(id),homes=game.homes[id],local=homes.includes(s().region);
-      const home=local?s().region:homes.find(i=>s().visited.includes(i))??homes[0];
+      const home=nearestHabitat(id)??homes[0];
       if(k.bonus && !s().stillwake?.revealed && !p)return guide();
       const controls=k.bonus?[nav("stillwake","The fourth sounding","Read the witnesses’ accounts.")]:[open("study",id,"Field observations")];
       if(openFinder&&!k.bonus)controls.push(row("field-partners","Find a partner for "+k.name,id,"Look for a duet and test it with level-20 loaners."));
-      if(!k.bonus&&local)controls.push(wayTo("wild","tracks","Follow local tracks"));
-      else if(!k.bonus&&homes.length===1)controls.push(open("region",home,"Find its habitat",game.regions[home].name));
+      if(!k.bonus&&local&&p)controls.push(wayTo("wild","tracks","Follow local tracks"));
+      else if(!k.bonus&&homes.length===1&&p)controls.push(open("region",home,"Find its habitat",game.regions[home].name));
       if(!s().battle&&game.pools[s().region].includes(id)&&game.wildCall?.(id))controls.unshift(open("wild-scout",id,"Scout "+k.name+"’s call","Choose your lead for this encounter."));
       if(p&&!s().battle&&window.WilderTrioPlanner)controls.unshift(row("kin-trio","Build a trio around "+k.name,id,"Choose a duet partner and a third companion to take the next turn."));
       if(p&&!s().battle&&window.WilderPracticeYard)controls.unshift(row("yard-kin","Compare "+k.name+" as lead",id,"Compare this companion’s opening against local opponents."));
@@ -221,6 +233,14 @@ window.WilderPages = {
         const pair=game.duetPair(id,other.id);
         return info(pair.name+" · "+own(other.id).name,pair.label+" · "+pair.cost+" beats · "+pair.description);
       });
+      if(!p&&!k.bonus){
+        const r=game.regions[home],gate=game.access(home),name=k.name;
+        const directions=local?(s().landmark==="wild"?row("track","Encounter "+name,id,"Wild Lv. "+game.wildLevel(home),{disabled:!!s().battle,tone:"primary"}):
+          row("habitat-walk","Walk to "+name+"’s tracks",id,siteFor("wild")?.label,{disabled:!!s().battle,tone:"primary"})):
+          gate.open?row("habitat-travel","Travel to "+r.name,id+"|"+home,name+"’s habitat · wild Lv. "+game.wildLevel(home),{disabled:!!s().battle,tone:"primary"}):
+          open("region",home,"Reopen the crossing to "+r.name,gate.reason);
+        controls.unshift(directions);
+      }
       return page(k.name,"FIELD GUIDE  /  "+format(entryNo.get(id)),[
         heading(k.types.join(" / "),controls.filter(Boolean),2),...(family?[{title:family.name+" · "+family.family+" family",text:family.summary+" Your team can use one family pass per battle. It costs one beat."}]:[]),
         ...(homes.length>1?[heading("Habitats",homes.map((r,i)=>open("region",r,game.regions[r].name,
@@ -347,6 +367,7 @@ window.WilderPages = {
     function objective() {
       const q=game.objective(),i=s().region,job=game.expedition(),next=game.wardens[s().crests.length];
       const choices=[];
+      if(q.collection)choices.push(row("missing-kin","Find missing Wilderkin",null,"Show unbefriended regional species and their nearest open habitats.",{tone:"primary"}));
       if (q.target!=null && q.target!==i) choices.push(open("region",q.target,"Plan the journey",game.regions[q.target].name));
       if (!job.done) choices.push(nav("expedition","Open regional commission",job.title));
       if(s().region>=3)choices.push(nav("passage","Naturalist’s route"));
@@ -372,15 +393,23 @@ window.WilderPages = {
     function warden() {
       const r=here(),i=s().region,job=game.expedition();
       const gate=game.trialAccess(i);
-      const choices=[row("accept-trial",gate.open?"Accept the trial":"Trial locked",null,gate.reason,{tone:"primary",disabled:!gate.open}),
+      const prerequisite=[];
+      if(!gate.open&&gate.target!=null){
+        const target=gate.target,work=game.expedition(target),label="Continue "+work.title+" · leg "+work.step+" of "+work.total;
+        const route=game.access(target);
+        if(target===i)prerequisite.push(work.atSite?nav("expedition",label):wayTo(work.targetSite,"expedition",label));
+        else prerequisite.push(route.open?row("commission-travel",label,target,game.regions[target].name):open("region",target,"Reopen the route to "+game.regions[target].name,route.reason));
+      }else if(!gate.open&&s().crests.length===r.ordinal)
+        prerequisite.push(open("scene","chapter-"+(r.ordinal+1),"Read the required dispatch","Chapter "+(r.ordinal+1)));
+      const choices=[row("accept-trial",gate.open?"Accept the trial":"Trial locked",null,r.crest+" · "+gate.reason,{tone:"primary",disabled:!gate.open}),
+        ...prerequisite.filter(Boolean),
         ...(window.WilderPracticeYard?[s().landmark==="warden"?
           row("yard-invite",s().met.includes(i)||s().crests.includes(i)?"Rehearse "+r.warden+"’s lineup":"Ask "+r.warden+" for a practice bout",null,"Use the trial lineup in a friendly Chalkyard match.",{disabled:!!s().battle}):
           wayTo("warden","warden","Visit "+r.warden+" for a practice bout")].filter(Boolean):[]),
         ...(game.trailFittings?[nav("formations","Choose a trail formation","Preview a saved lineup for this trial."),nav("kit-bench","Inspect field fittings","Check the gear on your companions.")]:[]),
-        ...(window.WilderTwinbell?[nav("twinbell","Visit Twinbell Grounds","Challenge three doubles Wardens with two leads on the field.")]:[]),
-        open("second-bell",i,"Second Bell exhibition","Scout "+r.warden+"’s lineup and bring your own party."),
-        nav("expedition","Open field commission",job.title),nav("chronicle","Listen to the chapter dispatch")];
-      if(gate.target!=null && gate.target!==i)choices.push(open("region",gate.target,"Locate the uncharted passage",game.regions[gate.target].name));
+        ...((window.WilderTwinbell||window.WilderLaunch?.loadDoubles)?[nav("twinbell","Visit Twinbell Grounds","Challenge three doubles Wardens with two leads on the field.")]:[]),
+        open("second-bell",i,"Second Bell exhibition","Win a return seal with your traveling party. The official trial awards the "+r.crest+"."),
+        ...(gate.target===i?[]:[nav("expedition","Open field commission",job.title)]),nav("chronicle","Listen to the chapter dispatch")];
       if(gate.target===i&&i>=3)choices.push(nav("passage","File a naturalist’s report"));
       const lesson=game.wardenLesson?.(i);
       return page("Warden "+r.warden,r.lodge,[heading("Trial",choices),...(lesson?[{title:lesson.title,text:lesson.brief+" "+lesson.challenge+" "+(lesson.mastered?"Mastery seal earned.":lesson.reward)}]:[])],s().crests.includes(i)?"Your crest still carries the mark of this lodge. Come spar again.":r.dialogue,
@@ -648,11 +677,44 @@ window.WilderPages = {
       return false;
     }
     function options() {
-      return page("Trail settings","WILDERKIN",[heading("Play",[
+      const recovery=game.saveRecovery;
+      const saving=recovery==="recovered"?"A recovery copy of your campaign is open. The original save is unreadable. Enable autosave to keep playing from this copy.":
+        recovery==="fresh"?"Your stored campaign is unreadable. Restore a backup file, or enable autosave to keep this session’s campaign.":
+        game.canSave?"Progress saves automatically in this browser.":"This session cannot save to browser storage. Download a campaign backup before closing the tab.";
+      const files=[row("backup-download","Download campaign backup",null,"Save your party, story and career progress as a JSON file."),
+        row("backup-choose","Restore from a file",null,"Review a campaign backup before replacing the one on this device.")];
+      if(recovery)files.unshift(nav("repair-save","Enable autosave for this campaign"));
+      if(game.damagedSave()!=null)files.push(row("backup-original","Download unreadable original",null,"Keep the original stored file for recovery."));
+      return page("Trail settings","WILDERKIN",[{title:"Campaign save",text:saving,rows:files},heading("Play",[
+        row("text-mode",largeText?.()?"Use illustrated layout":"Use larger text",null,"Switch between the illustrated canvas and full-width, reflowing text controls."),
         row("sound",s().sound?"Sound effects on":"Sound effects off",null,"Control skill and menu sounds."),
         row("music","Music · "+["Off","Quiet","Full"][s().music],null,"Change the instrumental score."),
-        row("speed","Battle animations · "+s().animationSpeed+"×",null,"Cycle through 1×, 2× and 3×."),nav("help","Controls"),nav("updates","What’s new in Wilderkin"),nav("reset-confirm","Start over","Erase this device’s Wilderkin save.")])],
-        game.canSave?"Progress saves automatically in this browser.":"Browser storage is unavailable. This session’s progress cannot be stored.");
+        row("speed","Battle animations · "+s().animationSpeed+"×",null,"Cycle through 1×, 2× and 3×."),nav("help","Controls"),nav("updates","What’s new in Wilderkin"),nav("reset-confirm","Start over","Erase this device’s Wilderkin save.")])]);
+    }
+    function downloadBackup(original=false){
+      const contents=original?game.damagedSave():game.exportCampaign();
+      if(contents==null)return notify("There is no unreadable original on this device.");
+      const url=URL.createObjectURL(new Blob([contents],{type:"application/json"})),link=document.createElement("a");
+      link.href=url;link.download="wilderkin-"+(original?"original-":"campaign-")+new Date().toISOString().slice(0,10)+".json";
+      document.body.append(link);link.click();link.remove();
+      window.setTimeout(()=>URL.revokeObjectURL(url),30000);
+    }
+    function chooseBackup(){
+      pendingBackup=null;
+      const picker=document.createElement("input");picker.type="file";picker.accept=".json,application/json";picker.hidden=true;
+      document.body.append(picker);
+      picker.addEventListener("cancel",()=>picker.remove(),{once:true});
+      picker.addEventListener("change",async()=>{
+        const file=picker.files[0];picker.remove();
+        if(!file)return;
+        if(file.size>16*1024*1024)return notify("Choose a Wilderkin campaign file smaller than 16 MB.");
+        try{
+          const checked=game.previewBackup(await file.text());
+          if(!checked.ok)return notify(checked.message);
+          pendingBackup=checked;go("backup-confirm");
+        }catch{notify("This file could not be read. Choose the backup again.");}
+      },{once:true});
+      picker.click();
     }
     function updates() {
       const forms=starterIds.map(id=>{
@@ -704,7 +766,7 @@ window.WilderPages = {
       return page("Controls","TRAIL HANDBOOK",[
         {title:"Explore",text:"Click or tap a landmark to walk there. Move with WASD or the arrow keys and press E to interact. A padlock at a map exit marks a closed crossing. Read its sign to find the quest that opens it. Red diamonds mark wild kin that start a battle on contact."},
         {title:"Battle",text:"Use 1–4 to select skills. After a knockout, use the letter beside a reserve to send it in for free."},
-        {title:"Journal shortcuts",text:"Q quests · X expedition · C chronicle · G field guide · N wildlife notebook · P party · M atlas · B satchel · F field games · V sparring hall · L loaner circuit · R battle duets · ? settings."},
+        {title:"Journal shortcuts",text:"Tab moves through game controls. Shift+Escape focuses Leave Wilderkin. Shift+Tab returns to the game. Q quests · X expedition · C chronicle · G field guide · N wildlife notebook · P party · M atlas · B satchel · F field games · V sparring hall · L loaner circuit · R battle duets · ? settings."},
         {title:"Menus",text:"Tap Menu or press F1 for all screens. Scroll or swipe to see more. Tab moves between controls, Enter selects, and Escape goes back."}]);
     }
     function model(name,value) {
@@ -773,6 +835,13 @@ window.WilderPages = {
         case "character":return character(value);
         case "search":return search();
         case "settings":return options();
+        case "repair-save":return page("Enable campaign autosave?","SAVE RECOVERY",[heading("Current campaign",[
+          row("repair-confirm","Keep this campaign",null,"Save this session and keep a separate copy of the unreadable original.",{tone:"primary"}),
+          row("back","Cancel")])],here().name+" · "+s().party.length+" companions · "+s().crests.length+" crests");
+        case "backup-confirm":return page("Restore campaign backup?","SAVE RECOVERY",[heading("On this device",[
+          info(here().name,s().party.length+" companions · "+s().crests.length+" crests"),
+          row("backup-download","Download current campaign"),row("backup-restore","Replace with the reviewed backup",null,"The game will reopen the saved location.",{tone:"danger",disabled:!pendingBackup}),
+          row("back","Cancel")])],pendingBackup?"Selected backup · "+pendingBackup.summary:"Choose a campaign file in Trail settings.");
         case "help":return help();
         case "reset-confirm":return page("Begin a new adventure?","SAVE FILE",[
           heading("Your current expedition will be erased",[row("back","Keep my adventure",null,"",{tone:"primary"}),row("reset-save","Erase save and start over",null,"",{tone:"danger"})])]);
@@ -812,10 +881,13 @@ window.WilderPages = {
         case "atlas-pin":return setResult(game.pinRegion(Number(a),b));
         case "search-edit":filter.searchFor=value;filter.entry=filter[value+"Search"];return go("search",value);
         case "search-key":return searchKey(value);
-        case "cycle-collection":return cycle("collection",["All","Seen","Owned","Reserve","Local","Carriers"],"guidePage");
+        case "cycle-collection":return cycle("collection",["All","Seen","Owned","Reserve","Local","Carriers","Missing"],"guidePage");
         case "cycle-affinity":return cycle("affinity",["All",...Object.keys(dex.types)],"guidePage");
         case "cycle-quests":return cycle("questFilter",["All","Active","Available","Completed","Undiscovered"],"questPage");
-        case "reserve":filter.collection="Reserve";filter.affinity="All";filter.guideSearch="";filter.guidePage=0;return go("guide");
+        case "missing-kin":case "reserve":filter.collection=id==="reserve"?"Reserve":"Missing";filter.affinity="All";filter.guideSearch="";filter.guidePage=0;return go("guide");
+        case "habitat-travel":return travel(Number(b),{name:"kin",value:a});
+        case "habitat-walk":return locate("wild",{name:"kin",value:a});
+        case "commission-travel":return travel(Number(a),{name:"expedition"});
         case "assign":{const res=game.enlist(a,b);if(res.ok) go("party",null,"replace");return setResult(res);}
         case "growth-walk":selectedGrowth=value;return locate("camp","growth");
         case "growth-choose":{
@@ -861,10 +933,24 @@ window.WilderPages = {
         case "sound":return setResult(game.setSound(!s().sound));
         case "speed":return setResult(game.cycleAnimationSpeed());
         case "music":return setResult(game.cycleMusic());
+        case "backup-download":return downloadBackup();
+        case "backup-original":return downloadBackup(true);
+        case "backup-choose":return chooseBackup();
+        case "repair-confirm":{
+          const res=game.resumeSaving();
+          if(res.ok)go("settings",null,"replace");
+          return setResult(res);
+        }
+        case "backup-restore":{
+          if(!pendingBackup)return notify("Choose the backup again.");
+          const res=pendingBackup.restore();
+          if(!res.ok)return notify(res.message);
+          pendingBackup=null;window.location.reload();return;
+        }
         case "reset-save":return reset();
         default:return outing.act(id,value)||caravans.act(id,value)||walkers.act(id,value)||hollows.act(id,value)||mystery.act(id,value);
       }
     }
-    return {model,act,typeKey,trailRisk,hollowKey:(e,id)=>hollows.key(e,id),reset(){filter=settings();}};
+    return {model,act,typeKey,trailRisk,mentorshipReturn:caravans.mentorshipReturn,hollowKey:(e,id)=>hollows.key(e,id),reset(){pendingBackup=null;caravans.clearMentorship?.();filter=settings();}};
   }
 };

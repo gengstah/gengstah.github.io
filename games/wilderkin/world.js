@@ -158,11 +158,28 @@
     }
     return Math.sqrt(nearest);
   }
+  // Only pixels within 12.5px of a path can become sand. Visit each
+  // segment's padded rectangle once instead of testing every segment at every pixel.
+  function pathDistances(paths) {
+    const squared=new Float64Array(W*H).fill(Infinity);
+    for(const points of paths)for(let i=1;i<points.length;i++){
+      const [ax,ay]=points[i-1],[bx,by]=points[i],dx=bx-ax,dy=by-ay,length=dx*dx+dy*dy;
+      const left=Math.max(0,Math.min(ax,bx)-13),right=Math.min(W-1,Math.max(ax,bx)+13);
+      const top=Math.max(0,Math.min(ay,by)-13),bottom=Math.min(H-1,Math.max(ay,by)+13);
+      for(let y=top;y<=bottom;y++)for(let x=left;x<=right;x++){
+        const t=Math.max(0,Math.min(1,((x-ax)*dx+(y-ay)*dy)/length));
+        const px=x-ax-t*dx,py=y-ay-t*dy,k=y*W+x;
+        squared[k]=Math.min(squared[k],px*px+py*py);
+      }
+    }
+    return squared;
+  }
   const cache=new Map();
   const GRASS=0, PATH=1, WATER=2, BANK=3;
   function terrain(index) {
     const region=regions[index], p=palettes[index], c=surface(W,H);
     const data=c.createImageData(W,H), kind=new Uint8Array(W*H);
+    const distances=pathDistances(region.paths);
     const colorMap=new Map();
     function rgb(hex) {
       if(!colorMap.has(hex)) colorMap.set(hex,[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)));
@@ -176,7 +193,7 @@
         let type=GRASS, color=p.turf[0];
         const grain=Math.sin(x/16+y/23)+Math.cos(x/25-y/13)+.36*Math.sin((x+y)/7);
         if(grain<-.3)color=p.turf[1];
-        const d=distanceToPath(x,y,region.paths);
+        const d=Math.sqrt(distances[k]);
         const wobble=.85*Math.sin(x/7+y/9)+.65*Math.cos(x/4-y/5);
         if(d<11+wobble) {
           type=PATH; color=d>9.5+wobble?p.sand[1]:p.sand[2];

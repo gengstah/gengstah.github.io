@@ -1,7 +1,6 @@
 const {test}=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),path=require("node:path"),vm=require("node:vm");
 const root=path.join(__dirname,"../games/wilderkin");
-const source=fs.readFileSync(path.join(root,"index.html"),"utf8");
-const files=[...source.matchAll(/src="([\w-]+)\.js(?:\?[^"]*)?"/g)].map(m=>m[1])
+const files=fs.readFileSync(path.join(root,"_scripts.txt"),"utf8").trim().split(/\s+/).map(file=>file.slice(0,-3))
   .filter(n=>!["canvas-shell","canvas-games","kin-art","world","game","score"].includes(n));
 const scripts=files.map(n=>new vm.Script(fs.readFileSync(path.join(root,n+".js"),"utf8"),{filename:n+".js"}));
 function boot(raw){

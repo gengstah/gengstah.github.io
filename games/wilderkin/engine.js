@@ -2,6 +2,8 @@
   "use strict";
 
   const SAVE_KEY = "wilderkin.trail.v3";
+  const CHECKPOINT_KEY = "wilderkin.trail.checkpoint.v1";
+  const DAMAGED_KEY = "wilderkin.trail.unreadable.v1";
   const LEGACY_KEYS = ["wilderkin.trail.v2","wilderkin.trail.v1"];
   const MAX_LEVEL = 180;
   const wildLevelGap = 8;
@@ -239,20 +241,25 @@
     return clean;
   }
 
-  let lastStoredTrail=null,lastValidTrail=null;
+  let lastStoredTrail=null,lastValidTrail=null,recovery=null,canSave=true,checkpointPending=false;
   function loadGame() {
-    for (const key of [SAVE_KEY,...LEGACY_KEYS]) {
-      try {
-        const raw=window.localStorage.getItem(key);
-        if(key===SAVE_KEY)lastStoredTrail=raw;
-        if (raw) {
-          const decoded=readSave(JSON.parse(raw));
-          if(decoded){lastValidTrail=raw;return decoded;}
+    try {
+      lastStoredTrail=window.localStorage.getItem(SAVE_KEY);
+      const loaded=decodeTrail(lastStoredTrail);
+      if(loaded){lastValidTrail=lastStoredTrail;return loaded;}
+      // Missing storage is a new trail, including an intentional deletion. Only
+      // consult the recovery checkpoint when an existing primary is unreadable.
+      const damaged=lastStoredTrail!=null;
+      if(damaged)recovery="fresh";
+      for(const key of damaged?[CHECKPOINT_KEY,...LEGACY_KEYS]:LEGACY_KEYS){
+        const raw=window.localStorage.getItem(key),decoded=decodeTrail(raw);
+        if(decoded){
+          lastValidTrail=raw;
+          if(damaged)recovery="recovered";
+          return decoded;
         }
-      } catch {
-        // A damaged newer record can coexist with an intact older save.
       }
-    }
+    }catch{canSave=false;}
     return newGame();
   }
 
@@ -415,7 +422,6 @@
   }
 
   let state = privateState || loadGame();
-  let canSave = true;
   let usingLoaners=false;
   // Two online tabs can play the same career. Their footsteps belong to the
   // individual tabs; campaign rewards and battles still use the shared save.
@@ -503,12 +509,33 @@
     for(const key of Object.keys(state))if(!Object.hasOwn(next,key))delete state[key];
     Object.assign(state,next);
   }
+  function writeCheckpoint(){
+    if(!lastValidTrail||recovery||lastStoredTrail!==lastValidTrail)return;
+    try{
+      const storage=window.localStorage;
+      if(storage.getItem(SAVE_KEY)===lastValidTrail&&storage.getItem(CHECKPOINT_KEY)!==lastValidTrail)
+        storage.setItem(CHECKPOINT_KEY,lastValidTrail);
+    }catch{/* The primary campaign has already been saved. */}
+  }
+  function scheduleCheckpoint(){
+    // Keep walking and battle transactions to one synchronous storage write.
+    if(checkpointPending||!window.setTimeout||recovery)return;
+    checkpointPending=true;
+    window.setTimeout(()=>{checkpointPending=false;writeCheckpoint();},1000);
+  }
+  if(!rehearsal){
+    window.addEventListener?.("pagehide",writeCheckpoint);
+    if(lastStoredTrail&&lastStoredTrail===lastValidTrail)scheduleCheckpoint();
+  }
   function adoptTrail(latest){
     // A deletion starts a fresh trail. A damaged foreign write never destroys the last known valid career.
     const supplied=decodeTrail(latest);
     if(supplied||latest==null)lastValidTrail=latest;
-    const next=supplied||decodeTrail(lastValidTrail)||newGame();
+    const fallback=!supplied&&latest!=null?decodeTrail(lastValidTrail):null;
+    recovery=latest!=null&&!supplied?(fallback?"recovered":"fresh"):null;
+    const next=supplied||fallback||newGame();
     replaceTrail(next);lastStoredTrail=latest;pendingFittingEvents.length=0;
+    if(supplied){canSave=true;scheduleCheckpoint();}
     if(onlineWalker)rememberFootsteps(false);
     const EventType=window.Event||(typeof Event==="function"?Event:null);
     if(EventType)window.dispatchEvent?.(new EventType("wilder-trail-updated"));
@@ -521,21 +548,28 @@
       return latest===lastStoredTrail||adoptTrail(latest);
     }catch{return true;}
   }
+  function noteSaveAvailability(available){
+    if(canSave===available)return;
+    canSave=available;
+    const EventType=window.Event||(typeof Event==="function"?Event:null);
+    if(EventType)window.dispatchEvent?.(new EventType("wilder-save-status"));
+  }
   function save() {
     if(rehearsal||usingLoaners)return true;
     try {
       // localStorage has no atomic compare-and-swap. Compare before writing and check the published bytes afterwards.
       const latest=window.localStorage.getItem(SAVE_KEY);
       if(latest!==lastStoredTrail)return adoptTrail(latest);
+      if(recovery)return true;
       const raw=JSON.stringify(state);
       window.localStorage.setItem(SAVE_KEY,raw);
       const published=window.localStorage.getItem(SAVE_KEY);
       if(published!==raw&&published!==latest)return adoptTrail(published);
-      canSave=published===raw;
-      if(canSave)lastValidTrail=raw;
       lastStoredTrail=published;
+      noteSaveAvailability(published===raw);
+      if(canSave){lastValidTrail=raw;scheduleCheckpoint();}
     } catch {
-      canSave=false;
+      noteSaveAvailability(false);
     }
     if(onlineWalker)rememberFootsteps(false);
     return true;
@@ -560,6 +594,47 @@
     if(rehearsal)return true;
     try{return window.localStorage.getItem(SAVE_KEY)===lastStoredTrail;}
     catch{return true;}
+  }
+  function damagedSave(){
+    if(recovery)return lastStoredTrail;
+    try{return window.localStorage.getItem(DAMAGED_KEY);}catch{return null;}
+  }
+  function persistReplacement(next){
+    if(onlineWalker||usingLoaners)return error("Leave the online room or loaner battle before restoring a campaign.");
+    try{
+      const storage=window.localStorage,latest=storage.getItem(SAVE_KEY);
+      if(latest!==lastStoredTrail){adoptTrail(latest);return changedTrail();}
+      if(recovery&&latest!==null){
+        storage.setItem(DAMAGED_KEY,latest);
+        if(storage.getItem(DAMAGED_KEY)!==latest)return error("Could not preserve the unreadable original. Download it in Trail settings.");
+      }
+      const current=storage.getItem(SAVE_KEY);
+      if(current!==latest){adoptTrail(current);return changedTrail();}
+      const raw=JSON.stringify(next);
+      storage.setItem(SAVE_KEY,raw);
+      const stored=storage.getItem(SAVE_KEY);
+      if(stored!==raw){
+        if(stored!==current){adoptTrail(stored);return changedTrail();}
+        throw new Error("Storage did not retain the replacement");
+      }
+      if(next!==state)replaceTrail(next);
+      lastStoredTrail=lastValidTrail=raw;recovery=null;canSave=true;
+      pendingFittingEvents.length=0;writeCheckpoint();
+      return result("restored","Campaign saved in "+regions[state.region].name+".");
+    }catch{
+      return error("The browser could not confirm this save. Enable storage or free space, then try again.");
+    }
+  }
+  function previewBackup(raw){
+    const next=decodeTrail(raw);
+    if(!next)return error("That file does not contain a supported Wilderkin campaign.");
+    const reviewed=JSON.stringify(state),revision=lastStoredTrail;
+    const summary=regions[next.region].name+" · "+next.party.length+" companions · "+next.crests.length+
+      " crests"+(next.battle?" · battle in progress":"");
+    return {ok:true,summary,restore(){
+      if(lastStoredTrail!==revision||JSON.stringify(state)!==reviewed)return error("Your campaign changed. Choose the backup again to review it.");
+      return persistReplacement(next);
+    }};
   }
 
   function questCrossing(index) {
@@ -596,7 +671,7 @@
       }
       if (!story.ending(state)) return {title:"Write the last dispatch",description:"Read the final testimony in the story journal. Your answer determines the ending."};
       return state.party.filter(p=>!species[p.id].bonus).length < regularCount
-        ? {title:"Befriend every Wilderkin",description:"Track missing companions through the field guide."}
+        ? {title:"Befriend every Wilderkin",description:"Find missing companions in the field guide and follow their tracks.",collection:true}
         : {title:"The trail is yours",description:"Every crest and Wilderkin is yours. The field stations remain open."};
     }
     const firstUncharted=regions.findIndex((r,i)=>r.requiredCrests===state.crests.length && !surveyedPassage(i));
@@ -2104,8 +2179,8 @@
   }
 
   function reset() {
-    replaceTrail(newGame());
-    return commit("reset", "A fresh adventure begins in Mossbrook Vale.");
+    const fresh=persistReplacement(newGame());
+    return fresh.ok?result("reset","A fresh adventure begins in Mossbrook Vale."):fresh;
   }
 
   // Loaner bouts run the exact campaign combat rules against an isolated roster.
@@ -2215,7 +2290,10 @@
     sightings:(i=state.region)=>field?.sightings(i)||[],study:id=>field.study(state,id),
     notebook:()=>field.notebook(state),canInvite:fieldInvitation,observe,inviteField,cycleAnimationSpeed,cycleMusic,
     get state() { return state; },
-    get canSave() { return canSave; },
+    get canSave() { return canSave&&!recovery; },
+    get saveRecovery() { return recovery; },damagedSave,previewBackup,
+    exportCampaign:()=>JSON.stringify(state),
+    resumeSaving:()=>recovery?persistReplacement(state):error("This campaign is already using normal autosave."),
     items,conditions:campaign.conditions,visitSite,gather,craft,itemForecast,expedition,expeditionAction,license,claimLicense,
     gamePass,unlockGame,storyStep,trialAccess,wildLevel:i=>regions[i]?.wildLevel,
     species,kin,growthInfo,chooseGrowth,growthAppearance,skillPreview,regions, wardens, homes, pools, access, questCrossing, team, enlist, foeIntent, maxLevel:MAX_LEVEL,

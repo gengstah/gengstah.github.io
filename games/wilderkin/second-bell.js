@@ -75,7 +75,7 @@
       sections.push(group("Lodge register",[link("Other lodges","book","Visit an earned crest for its return match.")]));
       return {title:"The Second Bell",kicker:r.name+"   /   WARDEN "+r.warden,
         art:{src:"art/story/second-bell.png",landscape:true},
-        subtitle:"Both teams enter at full health. The Warden matches your strongest traveler, with a minimum set by the lodge. Your kin keep their trained moves. Leave your satchel at the door. After the bout, everyone returns to their trail HP.",sections};
+        subtitle:"Win a return seal here. The official Warden trial awards the "+r.crest+". Both teams enter at full health. The Warden matches your strongest traveler, with a minimum set by the lodge. Your kin keep their trained moves. Leave your satchel at the door. After the bout, everyone returns to their trail HP.",sections};
     }
     function act(id,value){
       if(!id.startsWith("bell-"))return false;
