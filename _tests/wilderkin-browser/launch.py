@@ -45,6 +45,11 @@ def recovery(browser, server, url):
     wait = WebDriverWait(driver, 15)
     def element(selector):
         return wait.until(lambda d: d.find_element(By.CSS_SELECTOR, selector))
+    def wait_text(selector, text):
+        # Navigation rebuilds the accessible controls. Read the current node in one browser call.
+        wait.until(lambda d: d.execute_script(
+            "return document.querySelector(arguments[0])?.textContent.includes(arguments[1]) === true",
+            selector, text))
     try:
         server.unavailable = {"play.js"}
         driver.get(url)
@@ -57,13 +62,13 @@ def recovery(browser, server, url):
 
         server.unavailable = {"play-doubles.js"}
         driver.get(url + "#twinbell")
-        wait.until(lambda d: "could not load" in element("main [role=status]").get_attribute("textContent"))
+        wait_text("main [role=status]", "could not load")
         element("[data-action=interact]")
         driver.find_element(By.TAG_NAME, "body").send_keys("q")
         wait.until(lambda d: not d.find_elements(By.CSS_SELECTOR, "[data-action=interact]"))
         server.unavailable.clear()
         driver.execute_script("location.hash='switchyard'")
-        wait.until(lambda d: "Switchyard" in element(".wilder-assist p").get_attribute("textContent"))
+        wait_text(".wilder-assist p", "Switchyard")
         print(f"{browser} passed keyboard startup recovery, optional feature failure and retry")
     finally:
         server.unavailable.clear()
