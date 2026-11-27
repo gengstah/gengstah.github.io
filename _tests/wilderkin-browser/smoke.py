@@ -45,7 +45,7 @@ def launch(browser):
         options.add_argument("--headless")
         options.add_argument("--disable-dev-shm-usage")
         options.add_experimental_option("mobileEmulation", {"deviceMetrics": {
-            "width": 390, "height": 844, "pixelRatio": 2, "touch": True, "mobile": True,
+            "width": 320, "height": 568, "pixelRatio": 2, "touch": True, "mobile": True,
         }})
         options.enable_bidi = True
         return webdriver.Chrome(options=options, service=ChromeService(shutil.which("chromedriver")))
@@ -85,21 +85,24 @@ class Journey:
     def key(self, key):
         self.driver.switch_to.active_element.send_keys(key)
 
-    def touch_first_battle(self):
-        # The on-screen game is a canvas. Locate the lettering as actually painted,
-        # then send a browser touch at that position, in CSS pixels.
+    def touch_label(self, label):
+        # Locate the button lettering as actually painted, then send native touch
+        # at its viewport position. This also catches controls drawn below the fold.
         self.driver.execute_script("""
+          const wanted = arguments[0];
+          window.smokeTarget = null;
           const paint = CanvasRenderingContext2D.prototype.fillText;
           CanvasRenderingContext2D.prototype.fillText = function(text, x, y, ...args) {
-            if (this.canvas.id === 'game-canvas' && text === 'Battle Opalclasp') {
+            if (this.canvas.id === 'game-canvas' && text === wanted) {
               const p = this.getTransform().transformPoint({x: x + 4, y: y + 4});
               const b = this.canvas.getBoundingClientRect();
-              window.smokeBattleButton = [b.x + p.x * b.width / this.canvas.width,
-                                          b.y + p.y * b.height / this.canvas.height];
+              window.smokeTarget = [b.x + p.x * b.width / this.canvas.width,
+                                    b.y + p.y * b.height / this.canvas.height];
+              CanvasRenderingContext2D.prototype.fillText = paint;
             }
             return paint.call(this, text, x, y, ...args);
-          };""")
-        x, y = self.until("window.smokeBattleButton")
+          };""", label)
+        x, y = self.until("window.smokeTarget")
         assert self.read("document.elementFromPoint(...arguments[0])?.id", [x, y]) == "game-canvas"
         self.driver.execute_cdp_cmd("Input.dispatchTouchEvent", {
             "type": "touchStart", "touchPoints": [{"x": x, "y": y}],
@@ -109,7 +112,7 @@ class Journey:
     def first_battle(self, mobile):
         self.control("nav", "first-battle")
         if mobile:
-            self.touch_first_battle()
+            self.touch_label("Battle Opalclasp")
         else:
             for _ in range(15):
                 self.key(Keys.TAB)
@@ -125,7 +128,10 @@ class Journey:
           const region = document.querySelector('[aria-live]');
           new MutationObserver(() => smokeHits.push(region.textContent))
             .observe(region, {childList:true, subtree:true, characterData:true});""")
-        self.choose("skill", "bubble-jet")
+        if mobile:
+            self.touch_label("Bubble Jet")
+        else:
+            self.choose("skill", "bubble-jet")
         self.until("window.smokeHits.some(s => s.startsWith('Dewfin lost '))")
         losses = [line.split(" lost ")[0] for line in self.read("window.smokeHits") if " lost " in line]
         assert losses[:2] == ["Opalclasp", "Dewfin"], losses

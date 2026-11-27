@@ -744,7 +744,7 @@
         const maxWidth=model.id?.startsWith("play:")?780:1040;
         if(w>maxWidth){x+=(w-maxWidth)/2;w=maxWidth;}
       }
-      const desktop=w>=860;
+      const desktop=w>=860,parts=model.sections||[];
       if(model.kind==="battle"&&width<680&&height<=700){
         // Give the current decision a stable spot even when the exchange log grows.
         const decisions=[],seen=new Set();
@@ -768,7 +768,6 @@
         for(const part of parts)sy+=section(part,x,sy,w,t);
         return sy;
       }
-      const parts=model.sections||[];
       if(twinField&&model.twinField){
         const top=y+titleBlock(x,y,w)+10;
         if(desktop){

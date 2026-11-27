@@ -22,14 +22,22 @@ if (files.at(-1) !== "game.js" || new Set(files).size !== files.length ||
     !files.every(file => /^[a-z0-9-]+\.js$/.test(file))) {
   throw new Error("Invalid Wilderkin script order");
 }
+function fingerprint(source, file, hash) {
+  const prefix = file + "?v=";
+  if (source.split(prefix).length !== 2) throw new Error("Expected one versioned reference to " + file);
+  const start = source.indexOf(prefix) + prefix.length;
+  const previous = source.slice(start).match(/^[a-f0-9]{10}(?=")/);
+  if (!previous) throw new Error("Invalid asset fingerprint for " + file);
+  return source.slice(0, start) + hash + source.slice(start + previous[0].length);
+}
 const relay = await read("realm-relay.mjs");
-const transport = (await read("realm-transport.js")).replace(
-  /realm-relay\.mjs\?v=[a-f0-9]+/, "realm-relay.mjs?v=" + digest(relay));
+const transport = fingerprint(await read("realm-transport.js"), "realm-relay.mjs", digest(relay));
 await output("realm-transport.js", transport);
 const doubles = new Set([
   "twin-battle.js", "twin-match.js", "twin-ring.js", "twinbell.js",
   "switchyard-scout.js", "switchyard-series.js", "switchyard.js", "signal-box.js"
 ]);
+if (![...doubles].every(file => files.includes(file))) throw new Error("Doubles source missing from _scripts.txt");
 async function bundle(name, sources) {
   // Each classic script has its own IIFE. Preserve the source order, globals and relative imports.
   const code = await Promise.all(sources.map(read));
@@ -40,8 +48,8 @@ async function bundle(name, sources) {
 }
 const coreVersion = await bundle("play.js", files.filter(file => !doubles.has(file)));
 const doublesVersion = await bundle("play-doubles.js", files.filter(file => doubles.has(file)));
-const html = (await read("index.html"))
-  .replace(/play\.js\?v=[a-f0-9]+/, "play.js?v=" + coreVersion)
-  .replace(/play-doubles\.js\?v=[a-f0-9]+/, "play-doubles.js?v=" + doublesVersion)
-  .replace(/canvas\.css\?v=[a-f0-9]+/, "canvas.css?v=" + digest(await read("canvas.css")));
+let html = await read("index.html");
+html = fingerprint(html, "play.js", coreVersion);
+html = fingerprint(html, "play-doubles.js", doublesVersion);
+html = fingerprint(html, "canvas.css", digest(await read("canvas.css")));
 await output("index.html", html);
